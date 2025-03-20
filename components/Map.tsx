@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 import { getDistance } from 'geolib';
-import GeolocationFilter from './GeolocationFilter';
 
 // Interface for location data
 interface Location {
@@ -65,6 +64,21 @@ const Map: React.FC = () => {
   const [defaultCenter, setDefaultCenter] = useState<[number, number]>([51.505, -0.09]); // Default center of map
   const [isInitialLoad, setIsInitialLoad] = useState<boolean>(true);
 
+  // Request location access on component mount
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setUserLocation({ lat: latitude, lng: longitude });
+        },
+        (error) => {
+          console.error('Error getting location:', error);
+        }
+      );
+    }
+  }, []);
+
   // Filter locations whenever user location or radius changes
   useEffect(() => {
     if (!userLocation) {
@@ -73,9 +87,6 @@ const Map: React.FC = () => {
     }
 
     const filtered = allLocations.filter((location) => {
-      // If radius is 0, show no locations
-      if (searchRadius === 0) return false;
-      
       // Calculate distance between user location and this location
       const distanceInMeters = getDistance(
         { latitude: userLocation.lat, longitude: userLocation.lng },
@@ -161,12 +172,6 @@ const Map: React.FC = () => {
           ))}
         </MapContainer>
       </div>
-      
-      {/* GeolocationFilter positioned at bottom left corner */}
-      <GeolocationFilter 
-        onLocationChange={setUserLocation}
-        onRadiusChange={setSearchRadius}
-      />
     </div>
   );
 };
