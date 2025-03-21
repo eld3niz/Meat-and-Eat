@@ -1,7 +1,7 @@
 # Entwicklungsplan: World Map mit den 100 größten Städten
 
 ## Projektübersicht
-Eine moderne React-Webanwendung, die eine interaktive Weltkarte mit Markierungen für die 100 größten Städte der Welt anzeigt. Die Anwendung verwendet Leaflet für die Kartendarstellung und implementiert Marker-Clustering für Bereiche mit hoher Markerdichte.
+Eine moderne React-Webanwendung, die eine interaktive Weltkarte mit Markierungen für die 100 größten Städte der Welt anzeigt. Die Anwendung verwendet Leaflet für die Kartendarstellung und implementiert Marker-Clustering für Bereiche mit hoher Markerdichte. Zusätzlich wird eine ansprechende Landing Page integriert, die die Vorteile des Reisens und Essens mit Locals hervorhebt.
 
 ## Tech Stack
 - React mit TypeScript
