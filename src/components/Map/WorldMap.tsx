@@ -52,6 +52,11 @@ const MapBoundsController = () => {
       // @ts-ignore
       map.options.crs.wrapLng = [-180, 180]; // Begrenze die Longitude auf einen Bereich
     }
+
+    // Beim Laden der Karte anpassen, um den gesamten verfügbaren Bereich zu nutzen
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
   }, [map]);
   
   return null;
@@ -97,6 +102,18 @@ const WorldMap = () => {
     }
   };
 
+  // Aktualisiere die Karte bei Größenänderungen
+  useEffect(() => {
+    const handleResize = () => {
+      if (mapRef.current) {
+        mapRef.current.invalidateSize();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   // Behandlung von Ladefehlern
   if (error) {
     return (
@@ -116,7 +133,7 @@ const WorldMap = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-120px)]">
+    <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] w-full">
       {/* Seitenleiste mit erweiterten Funktionen */}
       <Sidebar 
         cities={filteredCities} 
@@ -128,7 +145,7 @@ const WorldMap = () => {
       />
 
       {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
-      <div className="flex-grow relative">
+      <div className="flex-grow relative overflow-hidden">
         {loading ? (
           <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10">
             <div className="text-center">
@@ -151,13 +168,15 @@ const WorldMap = () => {
           worldCopyJump={false} // Deaktiviere weltweites Kopieren der Karte
           bounceAtZoomLimits={true} // Bounce-Effekt bei Erreichen der Zoom-Grenzen
           noWrap={true} // Verhindere, dass die Karte an den Rändern wiederholt wird
+          style={{ width: "100%", height: "100%" }} // Stellt sicher, dass die Karte den verfügbaren Platz füllt
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             noWrap={true} // Verhindere, dass die Kacheln wiederholt werden
           />
-          <ZoomControl position="bottomright" />
+          {/* Zoom-Kontrolle in die obere rechte Ecke verschieben */}
+          <ZoomControl position="topright" />
           
           {/* Controller zum Ändern des Kartenzentrums */}
           <MapCenterController center={mapCenter} zoom={mapZoom} />
@@ -179,27 +198,6 @@ const WorldMap = () => {
             />
           )}
         </MapContainer>
-        
-        {/* Map Legend/Control Panel */}
-        <div className="absolute bottom-4 left-4 bg-white p-2 rounded-md shadow-md z-[400] text-xs">
-          <div className="font-bold mb-1">Legende:</div>
-          <div className="flex items-center mb-1">
-            <div className="w-3 h-3 bg-blue-600 rounded-full mr-2"></div>
-            <span>Stadt &lt; 5 Mio.</span>
-          </div>
-          <div className="flex items-center mb-1">
-            <div className="w-4 h-4 bg-blue-600 rounded-full mr-2"></div>
-            <span>Stadt 5-10 Mio.</span>
-          </div>
-          <div className="flex items-center mb-1">
-            <div className="w-5 h-5 bg-blue-600 rounded-full mr-2"></div>
-            <span>Stadt 10-20 Mio.</span>
-          </div>
-          <div className="flex items-center">
-            <div className="w-6 h-6 bg-blue-600 rounded-full mr-2"></div>
-            <span>Stadt &gt; 20 Mio.</span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -37,7 +37,7 @@ const Sidebar = ({
   };
   
   return (
-    <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-80'}`}>
+    <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
       {/* Toggle-Button für Mobilgeräte */}
       <button
         onClick={() => setIsCollapsed(!isCollapsed)}
