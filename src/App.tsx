@@ -1,10 +1,30 @@
 import { useEffect, useState } from 'react';
 import Layout from './components/Layout/Layout';
 import WorldMap from './components/Map/WorldMap';
+import AboutPage from './components/Pages/AboutPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState('map'); // 'map' oder 'about'
+  
+  // Navigation-Handler
+  useEffect(() => {
+    const handleNavigation = () => {
+      const path = window.location.pathname;
+      if (path === '/about') {
+        setCurrentPage('about');
+      } else {
+        setCurrentPage('map');
+      }
+    };
+
+    // Initial und bei URL-Änderungen prüfen
+    handleNavigation();
+    window.addEventListener('popstate', handleNavigation);
+    
+    return () => window.removeEventListener('popstate', handleNavigation);
+  }, []);
   
   // Fix für die Leaflet-Icons beim Laden der App
   useEffect(() => {
@@ -30,7 +50,10 @@ function App() {
     );
   }
 
-  return (
+  // Seiteninhalte basierend auf aktuellem Pfad anzeigen
+  return currentPage === 'about' ? (
+    <AboutPage />
+  ) : (
     <Layout>
       <WorldMap />
     </Layout>
