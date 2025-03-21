@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, ZoomControl, useMap, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -10,7 +10,7 @@ import UserLocationMarker from './UserLocationMarker';
 import Sidebar from '../UI/Sidebar';
 import { City } from '../../types';
 import L from 'leaflet';
-import { calculateDistance } from '../../utils/mapUtils'; // Stellen Sie sicher, dass diese Funktion importiert wird
+import { calculateDistance, calculateHaversineDistance, isCityWithinRadius } from '../../utils/mapUtils'; // Stellen Sie sicher, dass diese Funktion importiert wird
 
 // Komponente zum Zentrieren der Karte auf einen bestimmten Punkt
 const MapCenterController = ({ center, zoom }: { center: [number, number], zoom: number }) => {
@@ -84,6 +84,7 @@ const WorldMap = () => {
   const [userPosition, setUserPosition] = useState<[number, number] | null>(null); // Speichern der Benutzerposition
   const [distanceFilter, setDistanceFilter] = useState<number | null>(null); // Neuer State für Entfernungsfilter
   const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]); // Städte gefiltert nach Entfernung
+  const [distanceRadius, setDistanceRadius] = useState<number | null>(null);
 
   // Optimierter Callback für UserLocationMarker mit useCallback
   const handleUserPositionUpdate = useCallback((position: [number, number] | null) => {
@@ -121,10 +122,64 @@ const WorldMap = () => {
     }
   }, [showUserLocation]);
 
-  // Stabiler Callback für Entfernungsfilter
+  // Optimierter Callback für Entfernungsfilter
   const handleDistanceFilter = useCallback((distance: number | null) => {
+    // Setze Radius-Wert für Visualisierung auf der Karte
+    setDistanceRadius(distance);
+    // Setze Filter-Wert für die tatsächliche Filterung
     setDistanceFilter(distance);
   }, []);
+
+  // Effiziente Filterung der Städte basierend auf Entfernung
+  useEffect(() => {
+    if (!userPosition || distanceFilter === null) {
+      // Wenn kein Benutzerstandort oder kein Filter aktiv ist, alle Städte zeigen
+      setFilteredByDistance([]);
+      return;
+    }
+
+    // Performance-Optimierung: Nur innerhalb des useEffects filtern
+    const [userLat, userLng] = userPosition;
+    
+    // Wende präzise Filterung an
+    const citiesInRange = filteredCities.filter(city => 
+      isCityWithinRadius(userLat, userLng, city, distanceFilter)
+    );
+
+    setFilteredByDistance(citiesInRange);
+  }, [userPosition, distanceFilter, filteredCities]);
+
+  // Visualisierung des Radius für den Benutzer
+  const RadiusCircle = useCallback(() => {
+    if (!userPosition || !distanceRadius || distanceRadius >= 200) return null;
+    
+    return (
+      <Circle
+        center={userPosition}
+        radius={distanceRadius * 1000} // Umrechnung in Meter für Leaflet
+        pathOptions={{
+          color: '#3b82f6',
+          fillColor: '#3b82f6',
+          fillOpacity: 0.1,
+          weight: 1,
+        }}
+      />
+    );
+  }, [userPosition, distanceRadius]);
+
+  // Berechne statistische Informationen für die Sidebar
+  const filteredStats = useMemo(() => {
+    if (!userPosition || !distanceFilter || distanceFilter >= 200) return null;
+    
+    const totalCities = filteredCities.length;
+    const visibleCities = filteredByDistance.length;
+    
+    return {
+      totalCities,
+      visibleCities,
+      percentage: Math.round((visibleCities / totalCities) * 100)
+    };
+  }, [userPosition, distanceFilter, filteredCities, filteredByDistance]);
 
   const handleMarkerClick = (city: City) => {
     setClickedCity(city);
@@ -201,6 +256,7 @@ const WorldMap = () => {
         onToggleUserLocation={handleToggleUserLocation}
         showUserLocation={showUserLocation}
         userPosition={userPosition}
+        filteredStats={filteredStats} // Neue Prop für Statistik-Informationen
       />
 
       {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
@@ -244,6 +300,9 @@ const WorldMap = () => {
           {/* Controller für Kartenbegrenzungen */}
           <MapBoundsController />
           
+          {/* Visualisierung des Radius */}
+          <RadiusCircle />
+          
           {/* Marker mit Clustering */}
           <MarkerCluster 
             cities={displayedCities}
@@ -261,6 +320,16 @@ const WorldMap = () => {
             />
           )}
         </MapContainer>
+        
+        {/* Distanz-Legende, wenn aktiv */}
+        {distanceRadius && distanceRadius < 200 && userPosition && (
+          <div className="absolute bottom-4 left-4 z-50 bg-white px-3 py-2 rounded-md shadow-md text-xs text-gray-700 border border-gray-200">
+            <div className="flex items-center">
+              <div className="w-3 h-3 rounded-full bg-blue-500 bg-opacity-30 border border-blue-500 mr-2"></div>
+              <span>Suchradius: {distanceRadius} km</span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

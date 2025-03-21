@@ -14,6 +14,7 @@ interface SidebarProps {
   onToggleUserLocation: () => void;
   showUserLocation: boolean;
   userPosition: [number, number] | null; // Benutzerstandort-Prop hinzugefügt
+  filteredStats: { totalCities: number; visibleCities: number; percentage: number } | null; // Neue Prop
 }
 
 /**
@@ -29,7 +30,8 @@ const Sidebar = ({
   loading,
   onToggleUserLocation,
   showUserLocation,
-  userPosition // Neuer Parameter
+  userPosition, // Neuer Parameter
+  filteredStats
 }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
@@ -63,6 +65,15 @@ const Sidebar = ({
       onDistanceFilter(null);
     }
   }, [isDistanceFilterEnabled, distanceRange, onDistanceFilter]);
+  
+  // Verbesserte Visualisierung des aktiven Filters
+  const getSliderColor = useCallback(() => {
+    if (!isDistanceFilterEnabled) return 'bg-gray-300';
+    if (distanceRange < 50) return 'bg-red-500';
+    if (distanceRange < 100) return 'bg-yellow-500';
+    if (distanceRange < 200) return 'bg-blue-500';
+    return 'bg-green-500';
+  }, [isDistanceFilterEnabled, distanceRange]);
   
   return (
     <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
@@ -121,7 +132,9 @@ const Sidebar = ({
                     Entfernungsfilter:
                   </h3>
                   {isDistanceFilterEnabled && (
-                    <span className="text-xs text-blue-600 font-medium">
+                    <span className={`text-xs px-2 py-1 rounded-full ${
+                      distanceRange < 200 ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                    }`}>
                       {distanceRange < 200 ? `${distanceRange} km` : "Alle"}
                     </span>
                   )}
@@ -139,11 +152,26 @@ const Sidebar = ({
                       ? 'cursor-pointer' 
                       : 'opacity-50 cursor-not-allowed'}`}
                     disabled={!isDistanceFilterEnabled}
+                    style={{
+                      accentColor: getSliderColor()
+                    }}
                   />
                   <div className="flex justify-between text-xs text-gray-600">
                     <span>0 km</span>
                     <span>Alle</span>
                   </div>
+                  
+                  {/* Statistik über gefilterte Städte */}
+                  {filteredStats && distanceRange < 200 && (
+                    <div className="mt-2 text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                      </svg>
+                      <span>
+                        {filteredStats.visibleCities} von {filteredStats.totalCities} Städten ({filteredStats.percentage}%) sichtbar
+                      </span>
+                    </div>
+                  )}
                   
                   {!showUserLocation && (
                     <div className="text-xs text-gray-500 mt-1 bg-gray-100 p-2 rounded">
