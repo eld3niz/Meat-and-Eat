@@ -25,6 +25,38 @@ const MapCenterController = ({ center, zoom }: { center: [number, number], zoom:
   return null;
 };
 
+// Komponente zur Konfiguration der Kartenbegrenzungen
+const MapBoundsController = () => {
+  const map = useMap();
+  
+  useEffect(() => {
+    // Definiere die maximalen Grenzen der Karte (Weltkarte einmalig sichtbar)
+    const southWest = L.latLng(-90, -180);
+    const northEast = L.latLng(90, 180);
+    const bounds = L.latLngBounds(southWest, northEast);
+    
+    // Setze die maximalen Begrenzungen der Karte
+    map.setMaxBounds(bounds);
+    
+    // Setze eine minimale Zoom-Stufe, um zu vermeiden dass mehrere Weltkarten sichtbar sind
+    map.setMinZoom(2);
+    
+    // Verhindere, dass die Karte über ihre Grenzen hinaus bewegt werden kann
+    map.on('drag', function() {
+      map.panInsideBounds(bounds, { animate: false });
+    });
+    
+    // Korrigiere Weltkartenwiederholungen an den Rändern
+    // @ts-ignore - CRS.wrapLng ist in den Typ-Definitionen nicht vollständig
+    if (map.options.crs && map.options.crs.wrapLng) {
+      // @ts-ignore
+      map.options.crs.wrapLng = [-180, 180]; // Begrenze die Longitude auf einen Bereich
+    }
+  }, [map]);
+  
+  return null;
+};
+
 const WorldMap = () => {
   const { 
     loading, 
@@ -113,15 +145,25 @@ const WorldMap = () => {
           className="w-full h-full"
           zoomControl={false} // Wir positionieren die Zoom-Kontrolle manuell
           whenCreated={(map) => { mapRef.current = map; }}
+          maxBounds={[[-90, -180], [90, 180]]} // Setze die maximalen Grenzen der Karte
+          minZoom={2} // Setze minimale Zoom-Stufe
+          maxZoom={18} // Setze maximale Zoom-Stufe
+          worldCopyJump={false} // Deaktiviere weltweites Kopieren der Karte
+          bounceAtZoomLimits={true} // Bounce-Effekt bei Erreichen der Zoom-Grenzen
+          noWrap={true} // Verhindere, dass die Karte an den Rändern wiederholt wird
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            noWrap={true} // Verhindere, dass die Kacheln wiederholt werden
           />
           <ZoomControl position="bottomright" />
           
           {/* Controller zum Ändern des Kartenzentrums */}
           <MapCenterController center={mapCenter} zoom={mapZoom} />
+          
+          {/* Controller für Kartenbegrenzungen */}
+          <MapBoundsController />
           
           {/* Marker mit Clustering */}
           <MarkerCluster 
