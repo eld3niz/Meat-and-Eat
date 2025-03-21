@@ -66,15 +66,29 @@ body {
   background-color: rgba(241, 128, 23, 0.6);
 }
 
-/* Popup-Styling */
+/* Verbesserte Popup-Styling für bessere Lesbarkeit und Anzeige */
 .leaflet-popup-content-wrapper {
   border-radius: 8px;
   padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  max-height: 80vh; /* Begrenzt die maximale Höhe auf 80% der Viewport-Höhe */
+  overflow-y: auto; /* Fügt Scrollbalken hinzu, wenn nötig */
 }
 
 .leaflet-popup-content {
   margin: 10px 12px;
   line-height: 1.4;
+}
+
+/* Reduzierte Größe für Popups */
+.reduced-size .leaflet-popup-content-wrapper {
+  font-size: 0.9rem; /* Etwas kleinere Schrift */
+  transform: scale(0.8); /* 20% Größenreduktion */
+  transform-origin: bottom center; /* Skalierung vom unteren Zentrum aus */
+}
+
+.reduced-size .leaflet-popup-content {
+  margin: 8px 10px; /* Etwas kleinere Innenabstände */
 }
 
 .city-info h3 {
