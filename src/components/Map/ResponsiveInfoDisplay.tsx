@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { City } from '../../types';
 import InfoPopup from './InfoPopup';
 import InfoCard from '../UI/InfoCard';
-import { useMap } from 'react-leaflet';
+// useMap wird entfernt, da es nicht verwendet wird
 
 interface ResponsiveInfoDisplayProps {
   city: City | null;
@@ -13,7 +13,7 @@ interface ResponsiveInfoDisplayProps {
  * Komponente, die je nach Bildschirmgröße zwischen Popup und Card wechselt
  */
 const ResponsiveInfoDisplay: React.FC<ResponsiveInfoDisplayProps> = ({ city, onClose }) => {
-  const map = useMap();
+  // Die ungenutzte map-Variable wurde entfernt
   const [usePopup, setUsePopup] = useState(true);
   
   // Überwache Größenänderungen und entscheide, welche Anzeige verwendet werden soll
