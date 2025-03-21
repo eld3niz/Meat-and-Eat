@@ -23,8 +23,8 @@ function App() {
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
-          <h1 className="mt-4 text-xl font-bold text-blue-800">World Map wird geladen...</h1>
-          <p className="mt-2 text-gray-600">Entdecken Sie die 100 größten Städte der Welt</p>
+          <h1 className="mt-4 text-xl font-bold text-blue-800">Meet and Eat wird geladen...</h1>
+          <p className="mt-2 text-gray-600">Entdecken Sie kulinarische Highlights aus aller Welt</p>
         </div>
       </div>
     );
