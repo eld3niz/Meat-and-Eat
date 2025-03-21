@@ -1,1 +1,0 @@
-node /workspaces/Meat-and-Eat/scripts/generate-random-markers.js > /workspaces/Meat-and-Eat/data/random-markers.json
