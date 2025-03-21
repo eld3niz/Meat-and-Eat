@@ -15,7 +15,7 @@ const InfoPopup = ({ city, onClose }: InfoPopupProps) => {
   return (
     <Popup
       position={[city.latitude, city.longitude]}
-      eventHandlers={{ close: onClose }} // Korrigiert: onClose durch eventHandlers ersetzt
+      eventHandlers={{ popupclose: onClose }} // Korrigiert: "close" zu "popupclose" geändert
       className="city-popup reduced-size"
       maxWidth={240} // Reduziert von 300 (20% kleiner)
       minWidth={200} // Reduziert von 250 (20% kleiner)

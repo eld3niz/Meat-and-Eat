@@ -160,21 +160,20 @@ const WorldMap = () => {
           zoom={2}
           scrollWheelZoom={true}
           className="w-full h-full"
-          zoomControl={false} // Wir positionieren die Zoom-Kontrolle manuell
-          ref={mapRef} // Korrigiert: whenCreated durch ref ersetzt
-          maxBounds={[[-90, -180], [90, 180]]} // Setze die maximalen Grenzen der Karte
-          minZoom={2} // Setze minimale Zoom-Stufe
-          maxZoom={18} // Setze maximale Zoom-Stufe
-          worldCopyJump={false} // Deaktiviere weltweites Kopieren der Karte
-          bounceAtZoomLimits={true} // Bounce-Effekt bei Erreichen der Zoom-Grenzen
-          noWrap={true} // Verhindere, dass die Karte an den Rändern wiederholt wird
-          style={{ width: "100%", height: "100%" }} // Stellt sicher, dass die Karte den verfügbaren Platz füllt
-          attributionControl={false} // Entferne die Attributionssteuerung
+          zoomControl={false} 
+          ref={mapRef} 
+          maxBounds={[[-90, -180], [90, 180]]} 
+          minZoom={2} 
+          maxZoom={18} 
+          worldCopyJump={false} 
+          bounceAtZoomLimits={true} 
+          style={{ width: "100%", height: "100%" }} 
+          attributionControl={false} 
         >
           <TileLayer
-            attribution="" // Leere Attribution entfernt die Informationsbox
+            attribution="" 
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            noWrap={true} // Verhindere, dass die Kacheln wiederholt werden
+            noWrap={true} 
           />
           
           {/* Zoom-Kontrolle in die obere rechte Ecke verschieben */}
