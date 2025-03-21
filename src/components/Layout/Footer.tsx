@@ -7,7 +7,6 @@ const Footer = () => {
         <div className="mt-2 md:mt-0 flex space-x-4">
           <a href="/datenschutz" className="hover:text-blue-300 transition-colors">Datenschutz</a>
           <a href="/impressum" className="hover:text-blue-300 transition-colors">Impressum</a>
-          <a href="/quellen" className="hover:text-blue-300 transition-colors">Quellen</a>
         </div>
       </div>
     </footer>

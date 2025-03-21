@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import Layout from './components/Layout/Layout';
 import WorldMap from './components/Map/WorldMap';
 import AboutPage from './components/Pages/AboutPage';
+import DatenschutzPage from './components/Pages/DatenschutzPage';
+import ImpressumPage from './components/Pages/ImpressumPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState('map'); // 'map' oder 'about'
+  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
   
   // Navigation-Handler
   useEffect(() => {
@@ -14,6 +16,10 @@ function App() {
       const path = window.location.pathname;
       if (path === '/about') {
         setCurrentPage('about');
+      } else if (path === '/datenschutz') {
+        setCurrentPage('datenschutz');
+      } else if (path === '/impressum') {
+        setCurrentPage('impressum');
       } else {
         setCurrentPage('map');
       }
@@ -40,7 +46,7 @@ function App() {
 
   // Scroll-Steuerung je nach aktiver Seite
   useEffect(() => {
-    if (currentPage === 'about') {
+    if (currentPage === 'about' || currentPage === 'datenschutz' || currentPage === 'impressum') {
       document.body.classList.add('allow-scroll');
     } else {
       document.body.classList.remove('allow-scroll');
@@ -65,13 +71,19 @@ function App() {
   }
 
   // Seiteninhalte basierend auf aktuellem Pfad anzeigen
-  return currentPage === 'about' ? (
-    <AboutPage />
-  ) : (
-    <Layout>
-      <WorldMap />
-    </Layout>
-  );
+  if (currentPage === 'about') {
+    return <AboutPage />;
+  } else if (currentPage === 'datenschutz') {
+    return <DatenschutzPage />;
+  } else if (currentPage === 'impressum') {
+    return <ImpressumPage />;
+  } else {
+    return (
+      <Layout>
+        <WorldMap />
+      </Layout>
+    );
+  }
 }
 
 export default App;
