@@ -114,3 +114,8 @@ body {
   height: 34px;
   line-height: 34px;
 }
+
+/* Ausblenden der Leaflet-Attributionsbox */
+.leaflet-control-attribution {
+  display: none !important;
+}

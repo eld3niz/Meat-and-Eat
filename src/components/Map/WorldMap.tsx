@@ -169,12 +169,14 @@ const WorldMap = () => {
           bounceAtZoomLimits={true} // Bounce-Effekt bei Erreichen der Zoom-Grenzen
           noWrap={true} // Verhindere, dass die Karte an den Rändern wiederholt wird
           style={{ width: "100%", height: "100%" }} // Stellt sicher, dass die Karte den verfügbaren Platz füllt
+          attributionControl={false} // Entferne die Attributionssteuerung
         >
           <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution="" // Leere Attribution entfernt die Informationsbox
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             noWrap={true} // Verhindere, dass die Kacheln wiederholt werden
           />
+          
           {/* Zoom-Kontrolle in die obere rechte Ecke verschieben */}
           <ZoomControl position="topright" />
           
