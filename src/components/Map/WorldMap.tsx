@@ -6,6 +6,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useMapData } from '../../hooks/useMapData';
 import MarkerCluster from './MarkerCluster';
 import InfoPopup from './InfoPopup';
+import UserLocationMarker from './UserLocationMarker'; // Neu importiert
 import Sidebar from '../UI/Sidebar';
 import { City } from '../../types';
 import L from 'leaflet';
@@ -78,6 +79,7 @@ const WorldMap = () => {
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0]);
   const [mapZoom, setMapZoom] = useState<number>(2);
   const mapRef = useRef<L.Map | null>(null);
+  const [showUserLocation, setShowUserLocation] = useState(false); // Neuer State
 
   const handleMarkerClick = (city: City) => {
     setClickedCity(city);
@@ -100,6 +102,11 @@ const WorldMap = () => {
     if (city) {
       setClickedCity(city);
     }
+  };
+
+  // Funktion zum Einschalten des Benutzerstandorts
+  const handleToggleUserLocation = () => {
+    setShowUserLocation(prev => !prev);
   };
 
   // Aktualisiere die Karte bei Größenänderungen
@@ -142,6 +149,8 @@ const WorldMap = () => {
         onPopulationFilter={filterByPopulation}
         onResetFilters={resetFilters}
         loading={loading}
+        onToggleUserLocation={handleToggleUserLocation} // Neue Prop hinzugefügt
+        showUserLocation={showUserLocation} // Neue Prop hinzugefügt
       />
 
       {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
@@ -190,6 +199,9 @@ const WorldMap = () => {
             cities={filteredCities} 
             onMarkerClick={handleMarkerClick} 
           />
+          
+          {/* Benutzerstandort anzeigen, wenn aktiviert */}
+          {showUserLocation && <UserLocationMarker />}
           
           {/* Info-Popup für ausgewählte Stadt */}
           {clickedCity && (

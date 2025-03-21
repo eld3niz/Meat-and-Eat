@@ -10,6 +10,8 @@ interface SidebarProps {
   onPopulationFilter: (min: number, max: number) => void;
   onResetFilters: () => void;
   loading: boolean;
+  onToggleUserLocation: () => void; // Neu hinzugefügt
+  showUserLocation: boolean; // Neu hinzugefügt
 }
 
 /**
@@ -21,7 +23,9 @@ const Sidebar = ({
   onCountryFilter, 
   onPopulationFilter,
   onResetFilters,
-  loading 
+  loading,
+  onToggleUserLocation, // Neu hinzugefügt
+  showUserLocation // Neu hinzugefügt
 }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
@@ -67,6 +71,24 @@ const Sidebar = ({
           ) : (
             <>
               <SearchBar cities={cities} onCitySelect={onCitySelect} />
+              
+              {/* Standort-Button */}
+              <div className="mt-4 mb-4">
+                <button 
+                  onClick={onToggleUserLocation}
+                  className={`w-full py-2 px-4 rounded transition-colors flex items-center justify-center ${
+                    showUserLocation 
+                      ? 'bg-red-500 hover:bg-red-600 text-white' 
+                      : 'bg-blue-100 hover:bg-blue-200 text-blue-800'
+                  }`}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {showUserLocation ? 'Standort ausblenden' : 'Meinen Standort anzeigen'}
+                </button>
+              </div>
               
               <div className="mt-4 mb-6">
                 <h3 className="font-medium text-sm text-gray-700 mb-2">Bevölkerungsfilter:</h3>
