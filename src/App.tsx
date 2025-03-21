@@ -38,6 +38,20 @@ function App() {
     return () => clearTimeout(timer);
   }, []);
 
+  // Scroll-Steuerung je nach aktiver Seite
+  useEffect(() => {
+    if (currentPage === 'about') {
+      document.body.classList.add('allow-scroll');
+    } else {
+      document.body.classList.remove('allow-scroll');
+    }
+
+    // Cleanup beim Komponentenabbau
+    return () => {
+      document.body.classList.remove('allow-scroll');
+    };
+  }, [currentPage]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">

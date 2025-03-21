@@ -16,6 +16,33 @@ body {
   overflow: hidden;
 }
 
+html {
+  scroll-behavior: smooth; /* Sanftes Scrollen */
+}
+
+body.allow-scroll {
+  overflow: auto !important;
+  overflow-x: hidden;
+}
+
+a[href^="#"] {
+  text-decoration: none;
+  scroll-margin-top: 2rem; /* Abstand zum oberen Rand beim Scroll zu einem Anker */
+}
+
+section {
+  position: relative;
+  width: 100%;
+  padding: 4rem 1rem;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  section {
+    padding: 5rem 2rem;
+  }
+}
+
 .leaflet-container {
   width: 100%;
   height: 100%;
