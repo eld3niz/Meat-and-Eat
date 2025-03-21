@@ -6,33 +6,8 @@ import { City } from '../../types';
 import { formatPopulation } from '../../utils/mapUtils';
 import createSvgMarkerIcon from './CityMarkerIcon';
 
-// Importiere die fehlenden Typen für MarkerCluster
-// Da @types/leaflet.markercluster nicht vollständig ist, deklarieren wir den fehlenden Typ
-declare module 'leaflet' {
-  interface MarkerClusterGroupOptions extends L.LayerOptions {
-    showCoverageOnHover?: boolean;
-    zoomToBoundsOnClick?: boolean;
-    spiderfyOnMaxZoom?: boolean;
-    removeOutsideVisibleBounds?: boolean;
-    animate?: boolean;
-    maxClusterRadius?: number;
-    disableClusteringAtZoom?: number;
-    iconCreateFunction?: (cluster: MarkerCluster) => Icon;
-  }
-
-  class MarkerClusterGroup extends L.FeatureGroup {
-    constructor(options?: MarkerClusterGroupOptions);
-    addLayer(layer: L.Layer): this;
-    addLayers(layers: L.Layer[]): this;
-    removeLayers(layers: L.Layer[]): this;
-    clearLayers(): this;
-  }
-
-  class MarkerCluster extends L.Marker {
-    getAllChildMarkers(): L.Marker[];
-    getChildCount(): number;
-  }
-}
+// Vermeidung von Typdeklarationskonflikten durch das Entfernen der declare module-Sektion
+// Stattdessen verwenden wir Typen aus dem @types/leaflet.markercluster Paket
 
 interface MarkerClusterProps {
   cities: City[];

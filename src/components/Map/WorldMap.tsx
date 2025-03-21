@@ -161,7 +161,7 @@ const WorldMap = () => {
           scrollWheelZoom={true}
           className="w-full h-full"
           zoomControl={false} // Wir positionieren die Zoom-Kontrolle manuell
-          whenCreated={(map) => { mapRef.current = map; }}
+          ref={mapRef} // Korrigiert: whenCreated durch ref ersetzt
           maxBounds={[[-90, -180], [90, 180]]} // Setze die maximalen Grenzen der Karte
           minZoom={2} // Setze minimale Zoom-Stufe
           maxZoom={18} // Setze maximale Zoom-Stufe
