@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import CityStats from './CityStats';
 import { City } from '../../types';
 import SearchBar from './SearchBar';
@@ -8,10 +8,12 @@ interface SidebarProps {
   onCitySelect: (cityId: number) => void;
   onCountryFilter: (country: string | null) => void;
   onPopulationFilter: (min: number, max: number) => void;
+  onDistanceFilter: (distance: number | null) => void; // Neue Prop für Entfernungsfilter
   onResetFilters: () => void;
   loading: boolean;
-  onToggleUserLocation: () => void; // Neu hinzugefügt
-  showUserLocation: boolean; // Neu hinzugefügt
+  onToggleUserLocation: () => void;
+  showUserLocation: boolean;
+  userPosition: [number, number] | null; // Benutzerstandort-Prop hinzugefügt
 }
 
 /**
@@ -22,23 +24,45 @@ const Sidebar = ({
   onCitySelect, 
   onCountryFilter, 
   onPopulationFilter,
+  onDistanceFilter, // Neuer Parameter
   onResetFilters,
   loading,
-  onToggleUserLocation, // Neu hinzugefügt
-  showUserLocation // Neu hinzugefügt
+  onToggleUserLocation,
+  showUserLocation,
+  userPosition // Neuer Parameter
 }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
+  const [distanceRange, setDistanceRange] = useState<number>(200); // Neuer State für Entfernungsfilter
+  
+  // Zustand, um zu überprüfen, ob der Slider aktiviert sein soll
+  const isDistanceFilterEnabled = showUserLocation && userPosition !== null;
   
   const handlePopulationChange = (range: [number, number]) => {
     setPopulationRange(range);
     onPopulationFilter(range[0], range[1]);
   };
   
-  const handleReset = () => {
+  // Optimierter Handler für Entfernungsfilter mit useCallback
+  const handleDistanceChange = useCallback((distance: number) => {
+    setDistanceRange(distance);
+    // 200 = "Alle", jeder andere Wert begrenzt die Entfernung
+    onDistanceFilter(distance >= 200 ? null : distance);
+  }, [onDistanceFilter]);
+  
+  const handleReset = useCallback(() => {
     setPopulationRange([0, 40000000]);
+    setDistanceRange(200);
     onResetFilters();
-  };
+  }, [onResetFilters]);
+  
+  // Entfernungsfilter zurücksetzen, wenn Benutzerstandort deaktiviert wird
+  useEffect(() => {
+    if (!isDistanceFilterEnabled && distanceRange < 200) {
+      setDistanceRange(200);
+      onDistanceFilter(null);
+    }
+  }, [isDistanceFilterEnabled, distanceRange, onDistanceFilter]);
   
   return (
     <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
@@ -90,6 +114,51 @@ const Sidebar = ({
                 </button>
               </div>
               
+              {/* Verbesserte Entfernungsfilter-Komponente */}
+              <div className="mt-4 mb-6">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className={`font-medium text-sm ${isDistanceFilterEnabled ? 'text-gray-700' : 'text-gray-400'}`}>
+                    Entfernungsfilter:
+                  </h3>
+                  {isDistanceFilterEnabled && (
+                    <span className="text-xs text-blue-600 font-medium">
+                      {distanceRange < 200 ? `${distanceRange} km` : "Alle"}
+                    </span>
+                  )}
+                </div>
+                
+                <div className="px-2">
+                  <input
+                    type="range"
+                    min="0"
+                    max="200"
+                    step="10"
+                    value={distanceRange}
+                    onChange={(e) => handleDistanceChange(parseInt(e.target.value))}
+                    className={`w-full ${isDistanceFilterEnabled 
+                      ? 'cursor-pointer' 
+                      : 'opacity-50 cursor-not-allowed'}`}
+                    disabled={!isDistanceFilterEnabled}
+                  />
+                  <div className="flex justify-between text-xs text-gray-600">
+                    <span>0 km</span>
+                    <span>Alle</span>
+                  </div>
+                  
+                  {!showUserLocation && (
+                    <div className="text-xs text-gray-500 mt-1 bg-gray-100 p-2 rounded">
+                      <p className="flex items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Aktivieren Sie Ihren Standort, um diesen Filter zu nutzen.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Bevölkerungsfilter */}
               <div className="mt-4 mb-6">
                 <h3 className="font-medium text-sm text-gray-700 mb-2">Bevölkerungsfilter:</h3>
                 <div className="px-2">

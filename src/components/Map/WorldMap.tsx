@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -6,10 +6,11 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useMapData } from '../../hooks/useMapData';
 import MarkerCluster from './MarkerCluster';
 import InfoPopup from './InfoPopup';
-import UserLocationMarker from './UserLocationMarker'; // Neu importiert
+import UserLocationMarker from './UserLocationMarker';
 import Sidebar from '../UI/Sidebar';
 import { City } from '../../types';
 import L from 'leaflet';
+import { calculateDistance } from '../../utils/mapUtils'; // Stellen Sie sicher, dass diese Funktion importiert wird
 
 // Komponente zum Zentrieren der Karte auf einen bestimmten Punkt
 const MapCenterController = ({ center, zoom }: { center: [number, number], zoom: number }) => {
@@ -79,7 +80,51 @@ const WorldMap = () => {
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0]);
   const [mapZoom, setMapZoom] = useState<number>(2);
   const mapRef = useRef<L.Map | null>(null);
-  const [showUserLocation, setShowUserLocation] = useState(false); // Neuer State
+  const [showUserLocation, setShowUserLocation] = useState(false);
+  const [userPosition, setUserPosition] = useState<[number, number] | null>(null); // Speichern der Benutzerposition
+  const [distanceFilter, setDistanceFilter] = useState<number | null>(null); // Neuer State für Entfernungsfilter
+  const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]); // Städte gefiltert nach Entfernung
+
+  // Optimierter Callback für UserLocationMarker mit useCallback
+  const handleUserPositionUpdate = useCallback((position: [number, number] | null) => {
+    setUserPosition(position);
+  }, []);
+
+  // Stabiler Effekt für Entfernungsfilterung
+  useEffect(() => {
+    // Wenn kein Filter aktiv oder kein Standort vorhanden, zeige alle Städte
+    if (!userPosition || distanceFilter === null) {
+      setFilteredByDistance([]);
+      return;
+    }
+
+    // Anwendung des Entfernungsfilters nur wenn beides vorhanden ist
+    const citiesInRange = filteredCities.filter(city => {
+      const distance = calculateDistance(
+        { latitude: userPosition[0], longitude: userPosition[1] } as City,
+        city
+      );
+      return distance <= distanceFilter;
+    });
+
+    setFilteredByDistance(citiesInRange);
+  }, [userPosition, distanceFilter, filteredCities]);
+
+  // Stabiler Callback für Standort-Toggle
+  const handleToggleUserLocation = useCallback(() => {
+    const newState = !showUserLocation;
+    setShowUserLocation(newState);
+    
+    // Wenn der Standort deaktiviert wird, setze den Filter zurück
+    if (!newState) {
+      setDistanceFilter(null);
+    }
+  }, [showUserLocation]);
+
+  // Stabiler Callback für Entfernungsfilter
+  const handleDistanceFilter = useCallback((distance: number | null) => {
+    setDistanceFilter(distance);
+  }, []);
 
   const handleMarkerClick = (city: City) => {
     setClickedCity(city);
@@ -104,11 +149,6 @@ const WorldMap = () => {
     }
   };
 
-  // Funktion zum Einschalten des Benutzerstandorts
-  const handleToggleUserLocation = () => {
-    setShowUserLocation(prev => !prev);
-  };
-
   // Aktualisiere die Karte bei Größenänderungen
   useEffect(() => {
     const handleResize = () => {
@@ -120,6 +160,14 @@ const WorldMap = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Berechne die anzuzeigenden Städte: entweder gefiltert nach Entfernung oder alle
+  const displayedCities = useMemo(() => {
+    if (distanceFilter !== null && userPosition && filteredByDistance.length > 0) {
+      return filteredByDistance;
+    }
+    return filteredCities;
+  }, [distanceFilter, userPosition, filteredByDistance, filteredCities]);
 
   // Behandlung von Ladefehlern
   if (error) {
@@ -143,14 +191,16 @@ const WorldMap = () => {
     <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] w-full">
       {/* Seitenleiste mit erweiterten Funktionen */}
       <Sidebar 
-        cities={filteredCities} 
+        cities={displayedCities}
         onCitySelect={handleCitySelect} 
         onCountryFilter={filterByCountry}
         onPopulationFilter={filterByPopulation}
+        onDistanceFilter={handleDistanceFilter}
         onResetFilters={resetFilters}
         loading={loading}
-        onToggleUserLocation={handleToggleUserLocation} // Neue Prop hinzugefügt
-        showUserLocation={showUserLocation} // Neue Prop hinzugefügt
+        onToggleUserLocation={handleToggleUserLocation}
+        showUserLocation={showUserLocation}
+        userPosition={userPosition}
       />
 
       {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
@@ -196,12 +246,12 @@ const WorldMap = () => {
           
           {/* Marker mit Clustering */}
           <MarkerCluster 
-            cities={filteredCities} 
+            cities={displayedCities}
             onMarkerClick={handleMarkerClick} 
           />
           
           {/* Benutzerstandort anzeigen, wenn aktiviert */}
-          {showUserLocation && <UserLocationMarker />}
+          {showUserLocation && <UserLocationMarker onPositionUpdate={handleUserPositionUpdate} />}
           
           {/* Info-Popup für ausgewählte Stadt */}
           {clickedCity && (
