@@ -1,0 +1,166 @@
+import { useState, useRef, useEffect } from 'react';
+import { MapContainer, TileLayer, ZoomControl, useMap } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.markercluster/dist/MarkerCluster.css';
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
+import { useMapData } from '../../hooks/useMapData';
+import MarkerCluster from './MarkerCluster';
+import InfoPopup from './InfoPopup';
+import Sidebar from '../UI/Sidebar';
+import { City } from '../../types';
+import L from 'leaflet';
+
+// Komponente zum Zentrieren der Karte auf einen bestimmten Punkt
+const MapCenterController = ({ center, zoom }: { center: [number, number], zoom: number }) => {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (center && zoom) {
+      map.flyTo(center, zoom, {
+        duration: 1.5
+      });
+    }
+  }, [center, zoom, map]);
+  
+  return null;
+};
+
+const WorldMap = () => {
+  const { 
+    loading, 
+    error, 
+    filteredCities, 
+    selectCity, 
+    filterByCountry,
+    filterByPopulation,
+    resetFilters,
+    zoomToCity
+  } = useMapData();
+  
+  const [clickedCity, setClickedCity] = useState<City | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0]);
+  const [mapZoom, setMapZoom] = useState<number>(2);
+  const mapRef = useRef<L.Map | null>(null);
+
+  const handleMarkerClick = (city: City) => {
+    setClickedCity(city);
+    setMapCenter([city.latitude, city.longitude]);
+    setMapZoom(5);
+  };
+
+  const handlePopupClose = () => {
+    setClickedCity(null);
+  };
+
+  const handleCitySelect = (cityId: number) => {
+    const coords = zoomToCity(cityId);
+    setMapCenter(coords);
+    setMapZoom(7);
+    selectCity(cityId);
+    
+    // Suche Stadt und setze als geklickte Stadt für Popup
+    const city = filteredCities.find(c => c.id === cityId);
+    if (city) {
+      setClickedCity(city);
+    }
+  };
+
+  // Behandlung von Ladefehlern
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-red-500 max-w-md p-4 bg-red-50 rounded-lg border border-red-100">
+          <h2 className="text-xl font-bold mb-2">Fehler beim Laden der Karte</h2>
+          <p>{error}</p>
+          <button 
+            onClick={() => window.location.reload()}
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+          >
+            Neu laden
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col md:flex-row h-[calc(100vh-120px)]">
+      {/* Seitenleiste mit erweiterten Funktionen */}
+      <Sidebar 
+        cities={filteredCities} 
+        onCitySelect={handleCitySelect} 
+        onCountryFilter={filterByCountry}
+        onPopulationFilter={filterByPopulation}
+        onResetFilters={resetFilters}
+        loading={loading}
+      />
+
+      {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
+      <div className="flex-grow relative">
+        {loading ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+              <p className="mt-2">Karte wird geladen...</p>
+            </div>
+          </div>
+        ) : null}
+
+        <MapContainer
+          center={[20, 0]}
+          zoom={2}
+          scrollWheelZoom={true}
+          className="w-full h-full"
+          zoomControl={false} // Wir positionieren die Zoom-Kontrolle manuell
+          whenCreated={(map) => { mapRef.current = map; }}
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          />
+          <ZoomControl position="bottomright" />
+          
+          {/* Controller zum Ändern des Kartenzentrums */}
+          <MapCenterController center={mapCenter} zoom={mapZoom} />
+          
+          {/* Marker mit Clustering */}
+          <MarkerCluster 
+            cities={filteredCities} 
+            onMarkerClick={handleMarkerClick} 
+          />
+          
+          {/* Info-Popup für ausgewählte Stadt */}
+          {clickedCity && (
+            <InfoPopup 
+              city={clickedCity} 
+              onClose={handlePopupClose} 
+            />
+          )}
+        </MapContainer>
+        
+        {/* Map Legend/Control Panel */}
+        <div className="absolute bottom-4 left-4 bg-white p-2 rounded-md shadow-md z-[400] text-xs">
+          <div className="font-bold mb-1">Legende:</div>
+          <div className="flex items-center mb-1">
+            <div className="w-3 h-3 bg-blue-600 rounded-full mr-2"></div>
+            <span>Stadt &lt; 5 Mio.</span>
+          </div>
+          <div className="flex items-center mb-1">
+            <div className="w-4 h-4 bg-blue-600 rounded-full mr-2"></div>
+            <span>Stadt 5-10 Mio.</span>
+          </div>
+          <div className="flex items-center mb-1">
+            <div className="w-5 h-5 bg-blue-600 rounded-full mr-2"></div>
+            <span>Stadt 10-20 Mio.</span>
+          </div>
+          <div className="flex items-center">
+            <div className="w-6 h-6 bg-blue-600 rounded-full mr-2"></div>
+            <span>Stadt &gt; 20 Mio.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default WorldMap;
