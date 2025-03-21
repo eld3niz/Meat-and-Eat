@@ -1,0 +1,82 @@
+[
+  {
+    "id": 1,
+    "name": "Eiffelturm",
+    "latitude": 48.8584,
+    "longitude": 2.2945,
+    "address": "Champ de Mars, 5 Avenue Anatole France, 75007 Paris, Frankreich",
+    "description": "Berühmter Eisen-Turm und Wahrzeichen von Paris."
+  },
+  {
+    "id": 2,
+    "name": "Freiheitsstatue",
+    "latitude": 40.6892,
+    "longitude": -74.0445,
+    "address": "New York, NY 10004, USA",
+    "description": "Symbol der Freiheit und Demokratie in New York."
+  },
+  {
+    "id": 3,
+    "name": "Sydney Opera House",
+    "latitude": -33.8568,
+    "longitude": 151.2153,
+    "address": "Bennelong Point, Sydney NSW 2000, Australien",
+    "description": "Ikonisches Opernhaus mit markanter Architektur."
+  },
+  {
+    "id": 4,
+    "name": "Chinesische Mauer",
+    "latitude": 40.4319,
+    "longitude": 116.5704,
+    "address": "Huairou District, Peking, China",
+    "description": "Historisches Bauwerk und UNESCO-Weltkulturerbe."
+  },
+  {
+    "id": 5,
+    "name": "Kolosseum",
+    "latitude": 41.8902,
+    "longitude": 12.4922,
+    "address": "Piazza del Colosseo, 1, 00184 Rom, Italien",
+    "description": "Antikes Amphitheater im Zentrum von Rom."
+  },
+  {
+    "id": 6,
+    "name": "Machu Picchu",
+    "latitude": -13.1631,
+    "longitude": -72.5450,
+    "address": "Aguas Calientes, Peru",
+    "description": "Inka-Zitadelle in den Anden von Peru."
+  },
+  {
+    "id": 7,
+    "name": "Taj Mahal",
+    "latitude": 27.1751,
+    "longitude": 78.0421,
+    "address": "Agra, Uttar Pradesh 282001, Indien",
+    "description": "Beeindruckendes Mausoleum aus weißem Marmor."
+  },
+  {
+    "id": 8,
+    "name": "Pyramiden von Gizeh",
+    "latitude": 29.9792,
+    "longitude": 31.1342,
+    "address": "Al Haram, Giza Governorate, Ägypten",
+    "description": "Antike ägyptische Grabstätten und Weltwunder."
+  },
+  {
+    "id": 9,
+    "name": "Burj Khalifa",
+    "latitude": 25.1972,
+    "longitude": 55.2744,
+    "address": "1 Sheikh Mohammed bin Rashid Blvd, Dubai, VAE",
+    "description": "Höchstes Gebäude der Welt mit 828 Metern."
+  },
+  {
+    "id": 10,
+    "name": "Grand Canyon",
+    "latitude": 36.1069,
+    "longitude": -112.1129,
+    "address": "Arizona, USA",
+    "description": "Spektakuläre Schlucht mit atemberaubenden Ausblicken."
+  }
+]
