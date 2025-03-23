@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
 import { MapContainer, TileLayer, ZoomControl, useMap, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -10,10 +10,10 @@ import UserLocationMarker from './UserLocationMarker';
 import Sidebar from '../UI/Sidebar';
 import { City } from '../../types';
 import L from 'leaflet';
-import { calculateDistance, calculateHaversineDistance, isCityWithinRadius } from '../../utils/mapUtils'; // Stellen Sie sicher, dass diese Funktion importiert wird
+import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce } from '../../utils/mapUtils'; // Stellen Sie sicher, dass diese Funktion importiert wird
 
-// Komponente zum Zentrieren der Karte auf einen bestimmten Punkt
-const MapCenterController = ({ center, zoom }: { center: [number, number], zoom: number }) => {
+// Komponente zum Zentrieren der Karte memoizen
+const MapCenterController = memo(({ center, zoom }: { center: [number, number], zoom: number }) => {
   const map = useMap();
   
   useEffect(() => {
@@ -25,7 +25,7 @@ const MapCenterController = ({ center, zoom }: { center: [number, number], zoom:
   }, [center, zoom, map]);
   
   return null;
-};
+}); // Hier war der Fehler mit doppeltem Semikolon
 
 // Komponente zur Konfiguration der Kartenbegrenzungen
 const MapBoundsController = () => {
@@ -204,6 +204,67 @@ const WorldMap = () => {
     }
   };
 
+  // Gedrosselte Handler für Karteninteraktionen
+  const throttledHandleZoom = useCallback(
+    throttle(() => {
+      if (mapRef.current) {
+        const currentZoom = mapRef.current.getZoom();
+        setMapZoom(currentZoom);
+      }
+    }, 100),
+    []
+  );
+  
+  const debouncedHandleMapMove = useCallback(
+    debounce(() => {
+      if (mapRef.current) {
+        const center = mapRef.current.getCenter();
+        setMapCenter([center.lat, center.lng]);
+      }
+    }, 150),
+    []
+  );
+  
+  // Optimierter Handler für MapMoveEnd-Event
+  const handleMapMoveEnd = useCallback(() => {
+    if (mapRef.current) {
+      // Aktuellen Mittelpunkt und Zoom-Level speichern
+      const center = mapRef.current.getCenter();
+      const zoom = mapRef.current.getZoom();
+      // Hier können Sie weitere Logik implementieren
+    }
+  }, []);
+  
+  // Optimieren der displayedCities-Berechnung mit besserer Memoization
+  const displayedCities = useMemo(() => {
+    // Stellen Sie sicher, dass jede Stadt nur einmal im Array vorkommt (eindeutige IDs)
+    const cityMap = new Map<number, City>();
+    
+    // Reduzieren Sie die Anzahl der gerenderten Städte bei hohem Zoom-Level
+    if (mapZoom < 4) {
+      // Bei Übersichtskarte nur Städte ab einer bestimmten Größe anzeigen
+      const minPopulation = 5000000; // 5 Millionen Einwohner
+      
+      let citiesToFilter = filteredCities;
+      if (distanceFilter !== null && userPosition && filteredByDistance.length > 0) {
+        citiesToFilter = filteredByDistance;
+      }
+      
+      citiesToFilter
+        .filter(city => city.population >= minPopulation)
+        .forEach(city => cityMap.set(city.id, city));
+    } else {
+      // Normale Filterung
+      if (distanceFilter !== null && userPosition && filteredByDistance.length > 0) {
+        filteredByDistance.forEach(city => cityMap.set(city.id, city));
+      } else {
+        filteredCities.forEach(city => cityMap.set(city.id, city));
+      }
+    }
+    
+    return Array.from(cityMap.values());
+  }, [distanceFilter, userPosition, filteredByDistance, filteredCities, mapZoom]);
+  
   // Aktualisiere die Karte bei Größenänderungen
   useEffect(() => {
     const handleResize = () => {
@@ -215,14 +276,6 @@ const WorldMap = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
-
-  // Berechne die anzuzeigenden Städte: entweder gefiltert nach Entfernung oder alle
-  const displayedCities = useMemo(() => {
-    if (distanceFilter !== null && userPosition && filteredByDistance.length > 0) {
-      return filteredByDistance;
-    }
-    return filteredCities;
-  }, [distanceFilter, userPosition, filteredByDistance, filteredCities]);
 
   // Behandlung von Ladefehlern
   if (error) {
@@ -280,15 +333,30 @@ const WorldMap = () => {
           maxBounds={[[-90, -180], [90, 180]]} 
           minZoom={2} 
           maxZoom={18} 
-          worldCopyJump={false} 
+          worldCopyJump={false}
           bounceAtZoomLimits={true} 
           style={{ width: "100%", height: "100%" }} 
           attributionControl={false} 
+          key="main-map"
+          preferCanvas={true}
+          whenCreated={(map) => {
+            map.on('zoom', throttledHandleZoom);
+            map.on('move', debouncedHandleMapMove);
+            map.on('moveend', handleMapMoveEnd);
+          }}
         >
-          <TileLayer
+          <TileLayer 
             attribution="" 
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             noWrap={true} 
+            tileSize={256} 
+            zoomOffset={0} 
+            minZoom={2}
+            maxZoom={18}
+            updateWhenIdle={true} 
+            updateWhenZooming={false}
+            keepBuffer={2}
+            className="map-tiles"
           />
           
           {/* Zoom-Kontrolle in die obere rechte Ecke verschieben */}
@@ -306,7 +374,8 @@ const WorldMap = () => {
           {/* Marker mit Clustering */}
           <MarkerCluster 
             cities={displayedCities}
-            onMarkerClick={handleMarkerClick} 
+            onMarkerClick={handleMarkerClick}
+            key={`marker-cluster-${displayedCities.length}`} // Einzigartiger Key basierend auf den Daten
           />
           
           {/* Benutzerstandort anzeigen, wenn aktiviert */}
@@ -335,4 +404,4 @@ const WorldMap = () => {
   );
 };
 
-export default WorldMap;
+export default memo(WorldMap);
