@@ -3,6 +3,14 @@
 ## Projektübersicht
 Eine moderne React-Webanwendung, die eine interaktive Weltkarte mit Markierungen für die 100 größten Städte der Welt anzeigt. Die Anwendung verwendet Leaflet für die Kartendarstellung und implementiert Marker-Clustering für Bereiche mit hoher Markerdichte. Zusätzlich wird eine ansprechende Landing Page integriert, die die Vorteile des Reisens und Essens mit Locals hervorhebt.
 
+## Aktuelles Arbeitsverzeichnis
+/workspaces/Meat-and-Eat/
+
+## Website Informationen
+- **Name:** Meat and Eat
+- **Beschreibung:** Eine interaktive Weltkarte, die die 100 größten Städte der Welt anzeigt und es Benutzern ermöglicht, lokale Essensmöglichkeiten zu entdecken.
+- **URL:** (TBD - Nach dem Deployment auf Vercel)
+
 ## Tech Stack
 - React mit TypeScript
 - Vite als Build-Tool
@@ -51,15 +59,15 @@ Eine moderne React-Webanwendung, die eine interaktive Weltkarte mit Markierungen
 
 ## Implementierungsphasen
 
-### Phase 1: Projektinitialisierung
-- Erstellen eines Vite-Projekts mit React und TypeScript
-- Einrichten von TailwindCSS
-- Erstellen der Basisordnerstruktur
-- Einrichten der Versionskontrolle
+### Phase 1: Projektinitialisierung (Abgeschlossen)
+- [x] Erstellen eines Vite-Projekts mit React und TypeScript
+- [x] Einrichten von TailwindCSS
+- [x] Erstellen der Basisordnerstruktur
+- [x] Einrichten der Versionskontrolle
 
-### Phase 2: Datenaufbereitung
-- Recherchieren und Sammeln von Daten zu den 100 größten Städten
-- Erstellen der Datenstruktur mit folgenden Informationen:
+### Phase 2: Datenaufbereitung (Abgeschlossen)
+- [x] Recherchieren und Sammeln von Daten zu den 100 größten Städten
+- [x] Erstellen der Datenstruktur mit folgenden Informationen:
   - Stadtname
   - Land
   - Koordinaten (Latitude, Longitude)
@@ -67,22 +75,22 @@ Eine moderne React-Webanwendung, die eine interaktive Weltkarte mit Markierungen
   - Kurze Beschreibung
   - Optionale zusätzliche Informationen (Sehenswürdigkeiten, Gründungsjahr, etc.)
 
-### Phase 3: Kartenimplementierung
-- Installation und Einrichtung von React-Leaflet
-- Erstellen der Basis-Kartenkomponente
-- Implementieren der Marker basierend auf den Stadtdaten
-- Hinzufügen von Marker-Clustering für dichte Bereiche
+### Phase 3: Kartenimplementierung (In Arbeit)
+- [ ] Installation und Einrichtung von React-Leaflet
+- [ ] Erstellen der Basis-Kartenkomponente
+- [ ] Implementieren der Marker basierend auf den Stadtdaten
+- [ ] Hinzufügen von Marker-Clustering für dichte Bereiche
 
-### Phase 4: UI und Interaktivität
-- Entwickeln der Popup-Komponente für Markerinformationen
-- Implementieren von Hover- und Klick-Interaktionen
-- Verbessern des UI mit TailwindCSS
-- Sicherstellen der responsiven Darstellung
+### Phase 4: UI und Interaktivität (Geplant)
+- [ ] Entwickeln der Popup-Komponente für Markerinformationen
+- [ ] Implementieren von Hover- und Klick-Interaktionen
+- [ ] Verbessern des UI mit TailwindCSS
+- [ ] Sicherstellen der responsiven Darstellung
 
-### Phase 5: Optimierung und Deployment
-- Performance-Optimierung
-- Tests auf verschiedenen Geräten
-- Deployment auf Vercel
+### Phase 5: Optimierung und Deployment (Geplant)
+- [ ] Performance-Optimierung
+- [ ] Tests auf verschiedenen Geräten
+- [ ] Deployment auf Vercel
 
 ## Paketliste
 ```json
