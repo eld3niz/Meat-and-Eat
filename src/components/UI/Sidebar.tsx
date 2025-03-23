@@ -1,20 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
-import CityStats from './CityStats';
 import { City } from '../../types';
 import SearchBar from './SearchBar';
+import CityFilter from './CityFilter';
 
 interface SidebarProps {
   cities: City[];
   onCitySelect: (cityId: number) => void;
   onCountryFilter: (country: string | null) => void;
   onPopulationFilter: (min: number, max: number) => void;
-  onDistanceFilter: (distance: number | null) => void; // Neue Prop für Entfernungsfilter
+  onDistanceFilter: (distance: number | null) => void;
   onResetFilters: () => void;
   loading: boolean;
   onToggleUserLocation: () => void;
   showUserLocation: boolean;
-  userPosition: [number, number] | null; // Benutzerstandort-Prop hinzugefügt
-  filteredStats: { totalCities: number; visibleCities: number; percentage: number } | null; // Neue Prop
+  userPosition: [number, number] | null;
+  filteredStats: { totalCities: number; visibleCities: number; percentage: number } | null;
 }
 
 /**
@@ -25,17 +25,17 @@ const Sidebar = ({
   onCitySelect, 
   onCountryFilter, 
   onPopulationFilter,
-  onDistanceFilter, // Neuer Parameter
+  onDistanceFilter,
   onResetFilters,
   loading,
   onToggleUserLocation,
   showUserLocation,
-  userPosition, // Neuer Parameter
+  userPosition,
   filteredStats
 }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
-  const [distanceRange, setDistanceRange] = useState<number>(200); // Neuer State für Entfernungsfilter
+  const [distanceRange, setDistanceRange] = useState<number>(200);
   
   // Zustand, um zu überprüfen, ob der Slider aktiviert sein soll
   const isDistanceFilterEnabled = showUserLocation && userPosition !== null;
@@ -215,10 +215,13 @@ const Sidebar = ({
                 </button>
               </div>
               
-              <CityStats 
+              {/* Neue CityFilter-Komponente statt CityStats */}
+              <CityFilter 
                 cities={cities} 
                 onCitySelect={onCitySelect} 
-                onCountryFilter={onCountryFilter} 
+                onCountryFilter={onCountryFilter}
+                userPosition={userPosition}
+                showUserLocation={showUserLocation}
               />
             </>
           )}
