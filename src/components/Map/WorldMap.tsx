@@ -28,18 +28,20 @@ const MapCenterController = memo(({ center, zoom }: { center: [number, number], 
   return null;
 }); // Hier war der Fehler mit doppeltem Semikolon
 
-// Komponente zur Konfiguration der Kartenbegrenzungen
+// Verbesserte Komponente zur Konfiguration der Kartenbegrenzungen
 const MapBoundsController = () => {
   const map = useMap();
   
   useEffect(() => {
     // Definiere die maximalen Grenzen der Karte (Weltkarte einmalig sichtbar)
-    const southWest = L.latLng(-90, -180);
-    const northEast = L.latLng(90, 180);
+    // Benutze -85 bis 85 für Latitude, weil Mercator-Projektionen nahe den Polen Verzerrungen haben
+    const southWest = L.latLng(-85, -180);
+    const northEast = L.latLng(85, 180);
     const bounds = L.latLngBounds(southWest, northEast);
     
-    // Setze die maximalen Begrenzungen der Karte
+    // Setze die maximalen Begrenzungen der Karte mit maximaler "Klebrigkeit"
     map.setMaxBounds(bounds);
+    map.options.maxBoundsViscosity = 1.0;
     
     // Setze eine minimale Zoom-Stufe, um zu vermeiden dass mehrere Weltkarten sichtbar sind
     map.setMinZoom(2);
@@ -327,6 +329,10 @@ const WorldMap = () => {
               style={{ height: '100%', width: '100%' }}
               zoomControl={false}
               ref={mapRef}
+              maxBoundsViscosity={1.0}
+              worldCopyJump={false}
+              bounceAtZoomLimits={true}
+              minZoom={2}
             >
               <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -334,6 +340,7 @@ const WorldMap = () => {
               />
               <ZoomControl position="bottomright" />
               <MapCenterController center={mapCenter} zoom={mapZoom} />
+              <MapBoundsController />
               
               {/* Marker-Cluster mit optimierter Darstellung */}
               <MarkerCluster
