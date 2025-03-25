@@ -1,9 +1,8 @@
 import React from 'react';
-import Layout from '../Layout/Layout';
 
 const DatenschutzPage: React.FC = () => {
   return (
-    <Layout>
+    <>
       <div className="container mx-auto py-10 px-4 max-w-4xl">
         <h1 className="text-3xl font-bold text-blue-900 mb-6">Datenschutzerklärung</h1>
         
@@ -85,7 +84,7 @@ const DatenschutzPage: React.FC = () => {
           </p>
         </div>
       </div>
-    </Layout>
+    </>
   );
 };
 

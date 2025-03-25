@@ -87,9 +87,7 @@ function App() {
           ) : currentPage === 'impressum' ? (
             <ImpressumPage />
           ) : (
-            <Layout headerless>
-              <WorldMap />
-            </Layout>
+            <WorldMap />
           )}
         </div>
         <Footer />

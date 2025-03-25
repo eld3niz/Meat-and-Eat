@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import Layout from '../Layout/Layout';
+// import Layout from '../Layout/Layout';
 
 const AboutPage: React.FC = () => {
   // Entferne Scroll-Beschränkungen beim Laden der Seite
@@ -14,7 +14,7 @@ const AboutPage: React.FC = () => {
   }, []);
 
   return (
-    <Layout>
+    <>
       <div className="bg-gradient-to-b from-blue-50 to-white overflow-auto">
         {/* Hero Section */}
         <section className="pt-20 pb-28 px-4 md:px-8 max-w-7xl mx-auto">
@@ -358,7 +358,7 @@ const AboutPage: React.FC = () => {
           </div>
         </section>
       </div>
-    </Layout>
+    </>
   );
 };
 
