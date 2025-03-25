@@ -64,6 +64,18 @@ const Header = () => {
             >
               Map
             </a>
+            <a 
+              href="/3dworld" 
+              onClick={(e) => handleNavigation('/3dworld', e)}
+              className={`flex items-center hover:text-blue-100 transition-colors duration-200 font-medium ${
+                currentPath === '/3dworld' ? 'border-b-2 border-white pb-1' : ''
+              }`}
+            >
+              <span className="mr-1">3D World</span>
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+              </svg>
+            </a>
             <button 
               className="group bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-2 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center space-x-2"
               onClick={openAuthModal}
@@ -77,7 +89,7 @@ const Header = () => {
                 viewBox="0 0 20 20" 
                 fill="currentColor"
               >
-                <path d="M3 4a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-1 1H4a1 1 0 01-1-1V4zM3 10a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1v-6zM14 9a1 1 0 00-1 1v6a1 1 0 001 1h2a1 1 0 001-1v-6a1 1 0 00-1-1h-2z" />
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-8.707l-3-3a1 1 0 00-1.414 0l-3 3a1 1 0 001.414 1.414L9 9.414V13a1 1 0 102 0V9.414l1.293 1.293a1 1 0 001.414-1.414z" clipRule="evenodd" />
               </svg>
             </button>
           </nav>

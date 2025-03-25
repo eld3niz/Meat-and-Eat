@@ -4,6 +4,7 @@ import WorldMap from './components/Map/WorldMap';
 import AboutPage from './components/Pages/AboutPage';
 import DatenschutzPage from './components/Pages/DatenschutzPage';
 import ImpressumPage from './components/Pages/ImpressumPage';
+import ThreeWorldPage from './components/Pages/ThreeWorldPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
 import { ModalProvider } from './contexts/ModalContext';
 import AuthModalPortal from './components/Auth/AuthModalPortal';
@@ -12,7 +13,7 @@ import Footer from './components/Layout/Footer';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
+  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum', '3dworld'
   
   // Navigation-Handler
   useEffect(() => {
@@ -24,6 +25,8 @@ function App() {
         setCurrentPage('datenschutz');
       } else if (path === '/impressum') {
         setCurrentPage('impressum');
+      } else if (path === '/3dworld') {
+        setCurrentPage('3dworld');
       } else {
         setCurrentPage('map');
       }
@@ -86,6 +89,8 @@ function App() {
             <DatenschutzPage />
           ) : currentPage === 'impressum' ? (
             <ImpressumPage />
+          ) : currentPage === '3dworld' ? (
+            <ThreeWorldPage />
           ) : (
             <WorldMap />
           )}
