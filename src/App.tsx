@@ -5,6 +5,7 @@ import AboutPage from './components/Pages/AboutPage';
 import DatenschutzPage from './components/Pages/DatenschutzPage';
 import ImpressumPage from './components/Pages/ImpressumPage';
 import ThreeWorldPage from './components/Pages/ThreeWorldPage';
+import HybridMapPage from './components/Pages/HybridMapPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
 import { ModalProvider } from './contexts/ModalContext';
 import AuthModalPortal from './components/Auth/AuthModalPortal';
@@ -13,7 +14,7 @@ import Footer from './components/Layout/Footer';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
-  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum', '3dworld'
+  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum', '3dworld', 'hybridmap'
   
   // Navigation-Handler
   useEffect(() => {
@@ -27,6 +28,8 @@ function App() {
         setCurrentPage('impressum');
       } else if (path === '/3dworld') {
         setCurrentPage('3dworld');
+      } else if (path === '/hybridmap') {
+        setCurrentPage('hybridmap');
       } else {
         setCurrentPage('map');
       }
@@ -38,7 +41,7 @@ function App() {
     
     return () => window.removeEventListener('popstate', handleNavigation);
   }, []);
-  
+
   // Fix für die Leaflet-Icons beim Laden der App
   useEffect(() => {
     fixLeafletIconPath();
@@ -53,7 +56,8 @@ function App() {
 
   // Scroll-Steuerung je nach aktiver Seite
   useEffect(() => {
-    if (currentPage === 'about' || currentPage === 'datenschutz' || currentPage === 'impressum') {
+    if (currentPage === 'about' || currentPage === 'datenschutz' || currentPage === 'impressum' || 
+        currentPage === '3dworld' || currentPage === 'hybridmap') {
       document.body.classList.add('allow-scroll');
     } else {
       document.body.classList.remove('allow-scroll');
@@ -91,6 +95,8 @@ function App() {
             <ImpressumPage />
           ) : currentPage === '3dworld' ? (
             <ThreeWorldPage />
+          ) : currentPage === 'hybridmap' ? (
+            <HybridMapPage />
           ) : (
             <WorldMap />
           )}

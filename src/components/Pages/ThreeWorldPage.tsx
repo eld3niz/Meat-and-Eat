@@ -66,16 +66,49 @@ const ThreeWorldPage: React.FC = () => {
     pointLight.position.set(10, 10, 10);
     scene.add(pointLight);
     
-    // Vereinfachte Version der Erde erstellen ohne externe Textur
+    // Erstelle Texturen-Loader
+    const textureLoader = new THREE.TextureLoader();
+    
+    // Lade die Erdtextur
+    const earthTexture = textureLoader.load('/assets/earth-texture.jpg', undefined, undefined, 
+      (error) => {
+        console.error('Fehler beim Laden der Erdtextur:', error);
+        // Fallback für den Fall, dass die Textur nicht geladen werden kann
+        createEarthWithoutTexture();
+      }
+    );
+    
+    // Lade die Normalmap für zusätzliche Details
+    const normalMap = textureLoader.load('/assets/earth-normal.jpg');
+    
+    // Lade die Specular-Map für glänzende Wasserflächen
+    const specularMap = textureLoader.load('/assets/earth-specular.jpg');
+    
+    // Erdgeometrie erstellen
     const earthGeometry = new THREE.SphereGeometry(100, 64, 64);
     
-    // Einfache blaue Erde ohne externe Textur
+    // Schaffung eines Materials mit Texturen
     const earthMaterial = new THREE.MeshPhongMaterial({
-      color: 0x2233ff,
-      emissive: 0x112244,
-      specular: 0xffffff,
-      shininess: 10
+      map: earthTexture,
+      normalMap: normalMap,
+      specularMap: specularMap,
+      shininess: 5,
+      normalScale: new THREE.Vector2(0.1, 0.1)
     });
+    
+    // Fallback-Funktion, wenn die Textur nicht geladen werden kann
+    function createEarthWithoutTexture() {
+      const simpleMaterial = new THREE.MeshPhongMaterial({
+        color: 0x2233ff,
+        emissive: 0x112244,
+        specular: 0xffffff,
+        shininess: 10
+      });
+      
+      const earth = new THREE.Mesh(earthGeometry, simpleMaterial);
+      scene.add(earth);
+      return earth;
+    }
     
     const earth = new THREE.Mesh(earthGeometry, earthMaterial);
     scene.add(earth);
@@ -91,6 +124,13 @@ const ThreeWorldPage: React.FC = () => {
       { name: "Moscow", lat: 55.7558, lon: 37.6173, size: 1.8 },
       { name: "Beijing", lat: 39.9042, lon: 116.4074, size: 2 },
       { name: "Dubai", lat: 25.2048, lon: 55.2708, size: 1.7 },
+      // Fügen Sie weitere große Städte aus cities.ts hinzu
+      { name: "Delhi", lat: 28.7041, lon: 77.1025, size: 1.9 },
+      { name: "Mumbai", lat: 19.0760, lon: 72.8777, size: 1.8 },
+      { name: "Mexico City", lat: 19.4326, lon: -99.1332, size: 1.8 },
+      { name: "Cairo", lat: 30.0444, lon: 31.2357, size: 1.7 },
+      { name: "Istanbul", lat: 41.0082, lon: 28.9784, size: 1.7 },
+      { name: "Berlin", lat: 52.5200, lon: 13.4050, size: 1.6 }
     ];
     
     // Hilfsfunktion, um Lat/Lon in XYZ-Koordinaten auf der Kugel umzuwandeln
@@ -105,16 +145,48 @@ const ThreeWorldPage: React.FC = () => {
       return new THREE.Vector3(x, y, z);
     };
     
-    // Städte-Marker erstellen
+    // Stadtmarker-Gruppe erstellen
+    const cityGroup = new THREE.Group();
+    scene.add(cityGroup);
+    
+    // Städte-Marker erstellen mit verbesserten visuellen Indikatoren
     cityLocations.forEach(city => {
+      // Erstelle eine Gruppe für jeden Marker mit Label
+      const markerGroup = new THREE.Group();
+      
+      // Hauptmarker (leuchtender Punkt)
       const markerGeometry = new THREE.SphereGeometry(city.size, 16, 16);
-      const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xff6347 }); // Orange/Rot für Marker
+      const markerMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0xff6347,
+        transparent: true,
+        opacity: 0.8
+      });
       
       const marker = new THREE.Mesh(markerGeometry, markerMaterial);
-      const position = latLonToVector3(city.lat, city.lon, 101);
-      marker.position.set(position.x, position.y, position.z);
       
-      scene.add(marker);
+      // Äußerer Glüheffekt
+      const glowGeometry = new THREE.SphereGeometry(city.size * 1.2, 16, 16);
+      const glowMaterial = new THREE.MeshBasicMaterial({
+        color: 0xff9977,
+        transparent: true,
+        opacity: 0.4
+      });
+      
+      const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+      
+      // Positioniere den Marker auf der Erde
+      const position = latLonToVector3(city.lat, city.lon, 101);
+      markerGroup.position.set(position.x, position.y, position.z);
+      
+      // Richte den Marker zur Erdmitte aus
+      markerGroup.lookAt(0, 0, 0);
+      
+      // Füge Markerelemente zur Gruppe hinzu
+      markerGroup.add(marker);
+      markerGroup.add(glow);
+      
+      // Füge die Markergruppe zur Stadtgruppe hinzu
+      cityGroup.add(markerGroup);
     });
     
     // Sterne im Hintergrund hinzufügen
