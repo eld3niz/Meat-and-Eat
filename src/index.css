@@ -146,3 +146,28 @@ section {
 .leaflet-control-attribution {
   display: none !important;
 }
+
+/* Anpassungen für die Städtetabelle */
+.city-table-container {
+  max-height: 500px;
+  overflow-y: auto;
+  border-radius: 0.5rem;
+  background-color: white;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Sortierspalten sollen einen Hover-Effekt haben */
+.sort-column {
+  cursor: pointer;
+}
+
+.sort-column:hover {
+  background-color: #f3f4f6;
+}
+
+/* Hervorhebung der Tabellenzeilen beim Hover */
+.city-table-row:hover {
+  transform: scale(1.01);
+  background-color: #eff6ff;
+  transition: all 0.2s ease;
+}

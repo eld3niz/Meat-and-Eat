@@ -8,6 +8,7 @@ import MarkerCluster from './MarkerCluster';
 import InfoPopup from './InfoPopup';
 import UserLocationMarker from './UserLocationMarker';
 import Sidebar from '../UI/Sidebar';
+import CityTable from '../UI/CityTable';
 import { City } from '../../types';
 import L from 'leaflet';
 import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce } from '../../utils/mapUtils'; // Stellen Sie sicher, dass diese Funktion importiert wird
@@ -296,112 +297,86 @@ const WorldMap = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] w-full">
-      {/* Seitenleiste mit erweiterten Funktionen */}
-      <Sidebar 
-        cities={displayedCities}
-        onCitySelect={handleCitySelect} 
-        onCountryFilter={filterByCountry}
-        onPopulationFilter={filterByPopulation}
-        onDistanceFilter={handleDistanceFilter}
-        onResetFilters={resetFilters}
-        loading={loading}
-        onToggleUserLocation={handleToggleUserLocation}
-        showUserLocation={showUserLocation}
-        userPosition={userPosition}
-        filteredStats={filteredStats} // Neue Prop für Statistik-Informationen
-      />
+    <div className="flex flex-col h-full w-full">
+      <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] w-full">
+        {/* Seitenleiste mit erweiterten Funktionen */}
+        <Sidebar 
+          cities={displayedCities}
+          onCitySelect={handleCitySelect} 
+          onCountryFilter={filterByCountry}
+          onPopulationFilter={filterByPopulation}
+          onDistanceFilter={handleDistanceFilter}
+          onResetFilters={resetFilters}
+          loading={loading}
+          onToggleUserLocation={handleToggleUserLocation}
+          showUserLocation={showUserLocation}
+          userPosition={userPosition}
+          filteredStats={filteredStats}
+        />
 
-      {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
-      <div className="flex-grow relative overflow-hidden">
-        {loading ? (
-          <div className="absolute inset-0 flex items-center justify-center bg-gray-100 bg-opacity-80 z-10">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
-              <p className="mt-2">Karte wird geladen...</p>
+        {/* Karte - nimmt den Rest des verfügbaren Platzes ein */}
+        <div className="flex-grow relative overflow-hidden">
+          {loading ? (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
+              <div className="animate-spin rounded-full h-20 w-20 border-b-4 border-blue-500"></div>
             </div>
-          </div>
-        ) : null}
-
-        <MapContainer
-          center={[20, 0]}
-          zoom={2}
-          scrollWheelZoom={true}
-          className="w-full h-full"
-          zoomControl={false} 
-          ref={mapRef} 
-          maxBounds={[[-90, -180], [90, 180]]} 
-          minZoom={2} 
-          maxZoom={18} 
-          worldCopyJump={false}
-          bounceAtZoomLimits={true} 
-          style={{ width: "100%", height: "100%" }} 
-          attributionControl={false} 
-          key="main-map"
-          preferCanvas={true}
-          whenCreated={(map) => {
-            map.on('zoom', throttledHandleZoom);
-            map.on('move', debouncedHandleMapMove);
-            map.on('moveend', handleMapMoveEnd);
-          }}
-        >
-          <TileLayer 
-            attribution="" 
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            noWrap={true} 
-            tileSize={256} 
-            zoomOffset={0} 
-            minZoom={2}
-            maxZoom={18}
-            updateWhenIdle={true} 
-            updateWhenZooming={false}
-            keepBuffer={2}
-            className="map-tiles"
-          />
-          
-          {/* Zoom-Kontrolle in die obere rechte Ecke verschieben */}
-          <ZoomControl position="topright" />
-          
-          {/* Controller zum Ändern des Kartenzentrums */}
-          <MapCenterController center={mapCenter} zoom={mapZoom} />
-          
-          {/* Controller für Kartenbegrenzungen */}
-          <MapBoundsController />
-          
-          {/* Visualisierung des Radius */}
-          <RadiusCircle />
-          
-          {/* Marker mit Clustering */}
-          <MarkerCluster 
-            cities={displayedCities}
-            onMarkerClick={handleMarkerClick}
-            key={`marker-cluster-${displayedCities.length}`} // Einzigartiger Key basierend auf den Daten
-          />
-          
-          {/* Benutzerstandort anzeigen, wenn aktiviert */}
-          {showUserLocation && <UserLocationMarker onPositionUpdate={handleUserPositionUpdate} />}
-          
-          {/* Info-Popup für ausgewählte Stadt */}
-          {clickedCity && (
-            <InfoPopup 
-              city={clickedCity} 
-              onClose={handlePopupClose} 
-            />
+          ) : (
+            <MapContainer
+              center={mapCenter}
+              zoom={mapZoom}
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={false}
+              ref={mapRef}
+            >
+              <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <ZoomControl position="bottomright" />
+              <MapCenterController center={mapCenter} zoom={mapZoom} />
+              
+              {/* Marker-Cluster mit optimierter Darstellung */}
+              <MarkerCluster
+                cities={displayedCities}
+                onMarkerClick={handleMarkerClick}
+              />
+              
+              {/* Popup für ausgewählte Stadt */}
+              {clickedCity && (
+                <InfoPopup
+                  city={clickedCity}
+                  position={[clickedCity.latitude, clickedCity.longitude]}
+                  onClose={handlePopupClose}
+                />
+              )}
+              
+              {/* Benutzerposition anzeigen, wenn aktiviert */}
+              {showUserLocation && userPosition && (
+                <UserLocationMarker 
+                  position={userPosition} 
+                  radius={distanceRadius * 1000}
+                  showRadius={distanceRadius > 0 && distanceRadius < 200}
+                />
+              )}
+              
+              {/* Für distanceRadius größer 0 aber kleiner 200 zeigen wir den Radius an */}
+              {userPosition && distanceRadius > 0 && distanceRadius < 200 && (
+                <RadiusCircle />
+              )}
+            </MapContainer>
           )}
-        </MapContainer>
-        
-        {/* Distanz-Legende, wenn aktiv */}
-        {distanceRadius && distanceRadius < 200 && userPosition && (
-          <div className="absolute bottom-4 left-4 z-50 bg-white px-3 py-2 rounded-md shadow-md text-xs text-gray-700 border border-gray-200">
-            <div className="flex items-center">
-              <div className="w-3 h-3 rounded-full bg-blue-500 bg-opacity-30 border border-blue-500 mr-2"></div>
-              <span>Suchradius: {distanceRadius} km</span>
-            </div>
-          </div>
-        )}
+        </div>
+      </div>
+      
+      {/* City Table für die Listenansicht unterhalb der Karte */}
+      <div className="overflow-y-auto mt-4 mb-8">
+        <CityTable 
+          cities={displayedCities} 
+          userPosition={userPosition} 
+        />
       </div>
     </div>
   );
 };
 
-export default memo(WorldMap);
+export default WorldMap;
