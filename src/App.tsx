@@ -1,10 +1,14 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Layout from './components/Layout/Layout';
 import WorldMap from './components/Map/WorldMap';
 import AboutPage from './components/Pages/AboutPage';
 import DatenschutzPage from './components/Pages/DatenschutzPage';
 import ImpressumPage from './components/Pages/ImpressumPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
+import { ModalProvider } from './contexts/ModalContext';
+import AuthModalPortal from './components/Auth/AuthModalPortal';
+import Header from './components/Layout/Header';
+import Footer from './components/Layout/Footer';
 
 function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -71,19 +75,28 @@ function App() {
   }
 
   // Seiteninhalte basierend auf aktuellem Pfad anzeigen
-  if (currentPage === 'about') {
-    return <AboutPage />;
-  } else if (currentPage === 'datenschutz') {
-    return <DatenschutzPage />;
-  } else if (currentPage === 'impressum') {
-    return <ImpressumPage />;
-  } else {
-    return (
-      <Layout>
-        <WorldMap />
-      </Layout>
-    );
-  }
+  return (
+    <ModalProvider>
+      <div className="app flex flex-col min-h-screen">
+        <Header />
+        <div className="content flex-grow">
+          {currentPage === 'about' ? (
+            <AboutPage />
+          ) : currentPage === 'datenschutz' ? (
+            <DatenschutzPage />
+          ) : currentPage === 'impressum' ? (
+            <ImpressumPage />
+          ) : (
+            <Layout headerless>
+              <WorldMap />
+            </Layout>
+          )}
+        </div>
+        <Footer />
+        <AuthModalPortal />
+      </div>
+    </ModalProvider>
+  );
 }
 
 export default App;
