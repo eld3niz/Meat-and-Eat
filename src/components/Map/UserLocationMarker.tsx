@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Marker, Tooltip, useMap } from 'react-leaflet';
+import { Marker, Tooltip, useMap, Circle } from 'react-leaflet';
 import L from 'leaflet';
 
 interface UserLocationMarkerProps {
-  onPositionUpdate: (position: [number, number] | null) => void;
+  position?: [number, number] | null;
+  radius?: number;
+  showRadius?: boolean;
+  onPositionUpdate?: (position: [number, number] | null) => void;
 }
 
 /**
@@ -24,8 +27,8 @@ const createUserLocationIcon = (): L.DivIcon => {
 /**
  * Verbesserte Komponente zur Anzeige des Benutzerstandorts
  */
-const UserLocationMarker = ({ onPositionUpdate }: UserLocationMarkerProps) => {
-  const [position, setPosition] = useState<[number, number] | null>(null);
+const UserLocationMarker = ({ position, radius, showRadius, onPositionUpdate }: UserLocationMarkerProps) => {
+  const [userPosition, setUserPosition] = useState<[number, number] | null>(position || null);
   const [error, setError] = useState<string | null>(null);
   const locationWatchIdRef = useRef<number | null>(null);
   const styleElRef = useRef<HTMLStyleElement | null>(null);
@@ -55,8 +58,10 @@ const UserLocationMarker = ({ onPositionUpdate }: UserLocationMarkerProps) => {
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const newPosition: [number, number] = [position.coords.latitude, position.coords.longitude];
-        setPosition(newPosition);
-        onPositionUpdate(newPosition);
+        setUserPosition(newPosition);
+        if (onPositionUpdate) {
+          onPositionUpdate(newPosition);
+        }
         setError(null);
       },
       (error) => {
@@ -69,8 +74,10 @@ const UserLocationMarker = ({ onPositionUpdate }: UserLocationMarkerProps) => {
     locationWatchIdRef.current = navigator.geolocation.watchPosition(
       (position) => {
         const newPosition: [number, number] = [position.coords.latitude, position.coords.longitude];
-        setPosition(newPosition);
-        onPositionUpdate(newPosition);
+        setUserPosition(newPosition);
+        if (onPositionUpdate) {
+          onPositionUpdate(newPosition);
+        }
         setError(null);
       },
       (error) => {
@@ -97,7 +104,9 @@ const UserLocationMarker = ({ onPositionUpdate }: UserLocationMarkerProps) => {
       }
       
       setError(errorMessage);
-      onPositionUpdate(null);
+      if (onPositionUpdate) {
+        onPositionUpdate(null);
+      }
     }
     
     // Cleanup-Funktion
@@ -112,32 +121,49 @@ const UserLocationMarker = ({ onPositionUpdate }: UserLocationMarkerProps) => {
         styleElRef.current = null;
       }
       
-      onPositionUpdate(null);
+      if (onPositionUpdate) {
+        onPositionUpdate(null);
+      }
     };
   }, [onPositionUpdate]);
   
-  // Zoom zur Position, wenn gewünscht (auskommentiert)
+  // Zoom zur Position, wenn gewünscht
   useEffect(() => {
-    if (position && map) {
+    if (userPosition && map) {
       // Optional: Bei erstmaligem Erhalten des Standorts zur Position zoomen
-      // map.flyTo(position, 13);
+      map.flyTo(userPosition, 10);
     }
-  }, [position, map]);
+  }, [userPosition, map]);
   
   // Rendering-Logik
-  if (position) {
+  if (userPosition) {
     return (
-      <Marker 
-        position={position} 
-        icon={createUserLocationIcon()}
-      >
-        <Tooltip permanent={false} direction="top" offset={[0, -10]}>
-          <div>
-            <strong>Ihr Standort</strong>
-            <p className="text-xs text-gray-600">Lat: {position[0].toFixed(4)}, Lng: {position[1].toFixed(4)}</p>
-          </div>
-        </Tooltip>
-      </Marker>
+      <>
+        <Marker 
+          position={userPosition} 
+          icon={createUserLocationIcon()}
+        >
+          <Tooltip permanent={false} direction="top" offset={[0, -10]}>
+            <div>
+              <strong>Ihr Standort</strong>
+              <p className="text-xs text-gray-600">Lat: {userPosition[0].toFixed(4)}, Lng: {userPosition[1].toFixed(4)}</p>
+            </div>
+          </Tooltip>
+        </Marker>
+        
+        {showRadius && radius && radius > 0 && (
+          <Circle
+            center={userPosition}
+            radius={radius * 1000} // Umrechnung in Meter für Leaflet
+            pathOptions={{
+              color: '#3b82f6',
+              fillColor: '#3b82f6',
+              fillOpacity: 0.1,
+              weight: 1,
+            }}
+          />
+        )}
+      </>
     );
   }
   

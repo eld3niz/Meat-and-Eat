@@ -119,11 +119,18 @@ const WorldMap = () => {
     const newState = !showUserLocation;
     setShowUserLocation(newState);
     
-    // Wenn der Standort deaktiviert wird, setze den Filter zurück
-    if (!newState) {
+    // Bei aktiviertem Standort versuchen, die Position zu erhalten
+    if (newState) {
+      if (!userPosition) {
+        // Lasse die UserLocationMarker-Komponente die Arbeit erledigen
+        // Die wird durch den aktualisierten Status gerendert
+      }
+    } else {
+      // Wenn der Standort deaktiviert wird, setze den Filter zurück
       setDistanceFilter(null);
+      setUserPosition(null);
     }
-  }, [showUserLocation]);
+  }, [showUserLocation, userPosition]);
 
   // Optimierter Callback für Entfernungsfilter
   const handleDistanceFilter = useCallback((distance: number | null) => {
@@ -358,11 +365,12 @@ const WorldMap = () => {
               )}
               
               {/* Benutzerposition anzeigen, wenn aktiviert */}
-              {showUserLocation && userPosition && (
+              {showUserLocation && (
                 <UserLocationMarker 
-                  position={userPosition} 
-                  radius={distanceRadius * 1000}
-                  showRadius={distanceRadius > 0 && distanceRadius < 200}
+                  position={userPosition}
+                  radius={distanceRadius} 
+                  showRadius={distanceRadius !== null && distanceRadius > 0 && distanceRadius < 200}
+                  onPositionUpdate={handleUserPositionUpdate}
                 />
               )}
               
