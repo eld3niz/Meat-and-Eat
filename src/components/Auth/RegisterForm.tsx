@@ -84,7 +84,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       
       // Erfolgreiche Registrierung
       console.log('Registrierung erfolgreich mit:', formData);
-      onSuccess();
+      // onSuccess(); // Prevent closing modal after registration
     } catch (error) {
       // Fehlerbehandlung
       setRegisterError('Registrierung fehlgeschlagen. Bitte versuchen Sie es später erneut.');

@@ -46,7 +46,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       
       // Erfolgreicher Login
       console.log('Login erfolgreich mit:', { email, password });
-      onSuccess();
+      // onSuccess(); // Prevent closing modal after login
     } catch (error) {
       // Fehlerbehandlung
       setLoginError('Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
