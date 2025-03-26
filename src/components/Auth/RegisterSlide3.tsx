@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 
 interface RegisterSlide3Props {
   updateFormData: (data: any) => void;
-  nextSlide: () => void;
   prevSlide: () => void;
+  handleSubmit: () => void; // Add handleSubmit to props
 }
 
-const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, prevSlide }) => {
+const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSlide, handleSubmit }) => {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [language, setLanguage] = useState('');
@@ -39,12 +39,12 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
 
   const handleNext = () => {
     updateFormData({ languages: selectedLanguages, cuisines: selectedCuisines });
-    nextSlide();
+    handleSubmit();
   };
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (3/4)</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (3/3)</h2>
 
       <div className="mb-4">
         <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
@@ -143,9 +143,9 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
         </button>
         <button
           className="bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          onClick={handleNext}
+          onClick={handleSubmit}
         >
-          Weiter
+          Abschließen
         </button>
       </div>
     </div>

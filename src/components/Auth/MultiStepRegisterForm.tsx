@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import RegisterSlide1 from './RegisterSlide1';
 import RegisterSlide2 from './RegisterSlide2';
 import RegisterSlide3 from './RegisterSlide3';
-import RegisterSlide4 from './RegisterSlide4';
 import DotIndicator from './DotIndicator';
 
 const MultiStepRegisterForm: React.FC = () => {
@@ -42,9 +41,7 @@ const MultiStepRegisterForm: React.FC = () => {
       case 1:
         return <RegisterSlide2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
       case 2:
-        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 3:
-        return <RegisterSlide4 updateFormData={updateFormData} prevSlide={prevSlide} handleSubmit={handleSubmit} />;
+        return <RegisterSlide3 updateFormData={updateFormData} prevSlide={prevSlide} handleSubmit={handleSubmit} />;
       default:
         return null;
     }
@@ -52,7 +49,7 @@ const MultiStepRegisterForm: React.FC = () => {
 
   return (
     <div className="w-full">
-      <DotIndicator currentSlide={currentSlide} totalSlides={4} />
+      <DotIndicator currentSlide={currentSlide} totalSlides={3} />
       <div className="mt-4">
         {renderSlide()}
       </div>

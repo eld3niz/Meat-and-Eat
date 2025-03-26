@@ -71,7 +71,7 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, nextSli
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (2/4)</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (2/3)</h2>
       <div className="mb-4">
         <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
           Name
