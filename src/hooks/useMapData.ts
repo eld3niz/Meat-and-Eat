@@ -10,6 +10,7 @@ interface Filters {
     max: number;
   };
   search: string | null;
+  distance: number | null;
 }
 
 interface MapData {
@@ -21,6 +22,7 @@ interface MapData {
   filterByCountry: (country: string | null) => void;
   filterByPopulation: (min: number, max: number) => void;
   filterBySearch: (term: string | null) => void;
+  filterByDistance: (distance: number | null) => void;
   selectCity: (cityId: number | null) => void;
   getTopCities: (count: number) => City[];
   resetFilters: () => void;
@@ -41,7 +43,8 @@ export const useMapData = (): MapData => {
       min: 0,
       max: Number.MAX_SAFE_INTEGER
     },
-    search: null
+    search: null,
+    distance: null
   });
 
   // Gefilterte Städte basierend auf den aktiven Filtern
@@ -124,6 +127,17 @@ export const useMapData = (): MapData => {
   };
 
   /**
+   * Filtert Städte nach Entfernung zum Benutzerstandort
+   * @param distance Maximale Entfernung in km oder null für keine Begrenzung
+   */
+  const filterByDistance = (distance: number | null) => {
+    setFilters(prev => ({
+      ...prev,
+      distance: distance
+    }));
+  };
+
+  /**
    * Setzt alle Filter zurück
    */
   const resetFilters = () => {
@@ -133,7 +147,8 @@ export const useMapData = (): MapData => {
         min: 0,
         max: Number.MAX_SAFE_INTEGER
       },
-      search: null
+      search: null,
+      distance: null
     });
   };
 
@@ -182,6 +197,7 @@ export const useMapData = (): MapData => {
     filterByCountry,
     filterByPopulation,
     filterBySearch,
+    filterByDistance,
     selectCity,
     getTopCities,
     resetFilters,

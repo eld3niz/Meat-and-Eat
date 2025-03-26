@@ -80,6 +80,18 @@ const MarkerCluster = ({ cities, onMarkerClick }: MarkerClusterProps) => {
       }
     });
     
+    // Wenn cities leer ist und ein Entfernungsfilter aktiv ist (keine Städte in Reichweite),
+    // dann alle Marker entfernen und nichts hinzufügen
+    if (cities.length === 0) {
+      currentMarkerIds.forEach(id => {
+        if (currentMarkers[id]) {
+          currentMarkerGroup.removeLayer(currentMarkers[id]);
+          delete currentMarkers[id];
+        }
+      });
+      return;
+    }
+
     // Füge neue Marker hinzu oder aktualisiere bestehende
     const markersToAdd: L.Marker[] = [];
     

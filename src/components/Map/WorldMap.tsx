@@ -161,7 +161,7 @@ const WorldMap = () => {
 
   // Visualisierung des Radius für den Benutzer
   const RadiusCircle = useCallback(() => {
-    if (!userPosition || !distanceRadius || distanceRadius >= 200) return null;
+    if (!userPosition || !distanceRadius || distanceRadius >= 500) return null;
     
     return (
       <Circle
@@ -179,7 +179,7 @@ const WorldMap = () => {
 
   // Berechne statistische Informationen für die Sidebar
   const filteredStats = useMemo(() => {
-    if (!userPosition || !distanceFilter || distanceFilter >= 200) return null;
+    if (!userPosition || !distanceFilter || distanceFilter >= 500) return null;
     
     const totalCities = filteredCities.length;
     const visibleCities = filteredByDistance.length;
@@ -245,7 +245,7 @@ const WorldMap = () => {
     }
   }, []);
   
-  // Optimieren der displayedCities-Berechnung mit besserer Memoization
+  // Optimierte displayedCities-Berechnung mit besserer Memoization
   const displayedCities = useMemo(() => {
     // Stellen Sie sicher, dass jede Stadt nur einmal im Array vorkommt (eindeutige IDs)
     const cityMap = new Map<number, City>();
@@ -256,8 +256,8 @@ const WorldMap = () => {
       const minPopulation = 5000000; // 5 Millionen Einwohner
       
       let citiesToFilter = filteredCities;
-      if (distanceFilter !== null && userPosition && filteredByDistance.length > 0) {
-        citiesToFilter = filteredByDistance;
+      if (distanceFilter !== null && userPosition) {
+        citiesToFilter = filteredByDistance.length > 0 ? filteredByDistance : [];
       }
       
       citiesToFilter
@@ -265,7 +265,8 @@ const WorldMap = () => {
         .forEach(city => cityMap.set(city.id, city));
     } else {
       // Normale Filterung
-      if (distanceFilter !== null && userPosition && filteredByDistance.length > 0) {
+      if (distanceFilter !== null && userPosition) {
+        // Wenn Entfernungsfilter aktiv, nur Städte in Reichweite anzeigen, auch wenn keine vorhanden sind
         filteredByDistance.forEach(city => cityMap.set(city.id, city));
       } else {
         filteredCities.forEach(city => cityMap.set(city.id, city));
@@ -374,8 +375,8 @@ const WorldMap = () => {
                 />
               )}
               
-              {/* Für distanceRadius größer 0 aber kleiner 200 zeigen wir den Radius an */}
-              {userPosition && distanceRadius > 0 && distanceRadius < 200 && (
+              {/* Für distanceRadius größer 0 aber kleiner 500 zeigen wir den Radius an */}
+              {userPosition && distanceRadius > 0 && distanceRadius < 500 && (
                 <RadiusCircle />
               )}
             </MapContainer>
