@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
+import MultiStepRegisterForm from './MultiStepRegisterForm'; // Import the new component
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -86,10 +87,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           {activeTab === 'login' ? (
             <LoginForm onSuccess={onClose} />
           ) : (
-            <RegisterForm onSuccess={() => {
-              setActiveTab('login');
-              // Optional: Schließe das Modal nicht direkt, sondern zeige Login an
-            }} />
+            <MultiStepRegisterForm /> // Use the new multi-step form
           )}
         </div>
 

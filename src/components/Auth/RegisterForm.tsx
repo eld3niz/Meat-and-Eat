@@ -238,11 +238,11 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
           <div className="ml-3 text-sm">
             <label htmlFor="terms" className="font-medium text-gray-700">
               Ich akzeptiere die{' '}
-              <a href="#" className="text-blue-600 hover:underline">
+              <a href="/datenschutz" className="text-blue-600 hover:underline">
                 Nutzungsbedingungen
               </a>{' '}
               und{' '}
-              <a href="#" className="text-blue-600 hover:underline">
+              <a href="/datenschutz" className="text-blue-600 hover:underline">
                 Datenschutzrichtlinien
               </a>
             </label>
