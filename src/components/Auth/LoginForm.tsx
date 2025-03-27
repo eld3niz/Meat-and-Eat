@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import supabase from '../../utils/supabaseClient';
 
 interface LoginFormProps {
   onSuccess: () => void;
@@ -26,7 +27,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     if (!password) {
       newErrors.password = 'Passwort ist erforderlich';
     }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -40,17 +40,26 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
     setIsLoading(true);
     
     try {
-      // Hier würde der tatsächliche Login-API-Aufruf stattfinden
-      // Für jetzt simulieren wir eine Verzögerung
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Sign in with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
       
-      // Erfolgreicher Login
-      console.log('Login erfolgreich mit:', { email, password });
-      // onSuccess(); // Prevent closing modal after login
-    } catch (error) {
-      // Fehlerbehandlung
-      setLoginError('Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
-      console.error('Login fehlgeschlagen:', error);
+      // Store user session
+      const session = data.session;
+      
+      // You can store session info in localStorage or a context for app-wide access
+      localStorage.setItem('supabase_session', JSON.stringify(session));
+      
+      console.log('Login successful', data.user);
+      onSuccess();
+    } catch (error: any) {
+      // Error handling
+      setLoginError(error.message || 'Anmeldung fehlgeschlagen. Bitte überprüfen Sie Ihre Anmeldedaten.');
+      console.error('Login failed:', error);
     } finally {
       setIsLoading(false);
     }

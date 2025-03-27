@@ -6,6 +6,7 @@ import DatenschutzPage from './components/Pages/DatenschutzPage';
 import ImpressumPage from './components/Pages/ImpressumPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
 import { ModalProvider } from './contexts/ModalContext';
+import { AuthProvider } from './context/AuthContext';
 import AuthModalPortal from './components/Auth/AuthModalPortal';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
@@ -76,24 +77,26 @@ function App() {
 
   // Seiteninhalte basierend auf aktuellem Pfad anzeigen
   return (
-    <ModalProvider>
-      <div className="app flex flex-col min-h-screen">
-        <Header />
-        <div className="content flex-grow">
-          {currentPage === 'about' ? (
-            <AboutPage />
-          ) : currentPage === 'datenschutz' ? (
-            <DatenschutzPage />
-          ) : currentPage === 'impressum' ? (
-            <ImpressumPage />
-          ) : (
-            <WorldMap />
-          )}
+    <AuthProvider>
+      <ModalProvider>
+        <div className="app flex flex-col min-h-screen">
+          <Header />
+          <div className="content flex-grow">
+            {currentPage === 'about' ? (
+              <AboutPage />
+            ) : currentPage === 'datenschutz' ? (
+              <DatenschutzPage />
+            ) : currentPage === 'impressum' ? (
+              <ImpressumPage />
+            ) : (
+              <WorldMap />
+            )}
+          </div>
+          <Footer />
+          <AuthModalPortal />
         </div>
-        <Footer />
-        <AuthModalPortal />
-      </div>
-    </ModalProvider>
+      </ModalProvider>
+    </AuthProvider>
   );
 }
 
