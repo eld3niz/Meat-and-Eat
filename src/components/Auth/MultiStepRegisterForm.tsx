@@ -53,19 +53,23 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         throw new Error('User creation failed');
       }
 
-      // Step 2: Insert additional profile data
+      // Step 2: Update the profile with user data
+      // We'll use upsert instead of insert to handle both create and update cases
       const { error: profileError } = await supabase
         .from('profiles')
-        .update({
+        .upsert({
+          id: authData.user.id,
           name: formData.name,
           age: parseInt(formData.age) || null,
           languages: formData.languages,
           cuisines: formData.cuisines,
           city: formData.city,
-        })
-        .eq('id', authData.user.id);
+        }, { onConflict: 'id' });
 
-      if (profileError) throw profileError;
+      if (profileError) {
+        console.error('Profile error details:', profileError);
+        throw new Error(`Profile creation failed: ${profileError.message}`);
+      }
 
       console.log('Registration successful:', authData.user);
       
