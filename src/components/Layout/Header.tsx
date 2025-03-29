@@ -150,8 +150,8 @@ const Header = () => {
       </header>
 
       {showProfilePage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-40 flex items-center justify-center overflow-y-auto">
-          <div className="relative bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center overflow-y-auto">
+          <div className="relative bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
             <button 
               onClick={() => setShowProfilePage(false)} 
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
