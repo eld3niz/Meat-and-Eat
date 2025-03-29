@@ -107,7 +107,7 @@ const Header = () => {
                   </button>
                   
                   {showProfileMenu && (
-                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-50">
+                    <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-[1000]">
                       <button
                         onClick={() => {
                           setShowProfilePage(true);
