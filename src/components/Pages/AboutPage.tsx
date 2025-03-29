@@ -205,8 +205,12 @@ const AboutPage: React.FC = () => {
               {/* Testimonial 1 */}
               <div className="bg-white p-8 rounded-xl shadow-md">
                 <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-blue-200 rounded-full overflow-hidden mr-4">
-                    <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="User" className="w-full h-full object-cover" />
+                  <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden mr-4 flex-shrink-0"> {/* Added fallback bg */}
+                    <img 
+                      src="/assets/default-avatar.svg" 
+                      alt="User Sophia M." 
+                      className="w-full h-full object-cover p-1" /* Added padding for SVG */
+                    />
                   </div>
                   <div>
                     <p className="font-bold">Sophia M.</p>
@@ -238,8 +242,12 @@ const AboutPage: React.FC = () => {
               {/* Testimonial 2 */}
               <div className="bg-white p-8 rounded-xl shadow-md">
                 <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-blue-200 rounded-full overflow-hidden mr-4">
-                    <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="User" className="w-full h-full object-cover" />
+                  <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden mr-4 flex-shrink-0"> {/* Added fallback bg */}
+                    <img 
+                      src="/assets/default-avatar.svg" 
+                      alt="User David L." 
+                      className="w-full h-full object-cover p-1" /* Added padding for SVG */
+                    />
                   </div>
                   <div>
                     <p className="font-bold">David L.</p>
@@ -271,8 +279,12 @@ const AboutPage: React.FC = () => {
               {/* Testimonial 3 */}
               <div className="bg-white p-8 rounded-xl shadow-md">
                 <div className="flex items-center mb-4">
-                  <div className="w-12 h-12 bg-blue-200 rounded-full overflow-hidden mr-4">
-                    <img src="https://randomuser.me/api/portraits/women/68.jpg" alt="User" className="w-full h-full object-cover" />
+                  <div className="w-12 h-12 bg-gray-200 rounded-full overflow-hidden mr-4 flex-shrink-0"> {/* Added fallback bg */}
+                    <img 
+                      src="/assets/default-avatar.svg" 
+                      alt="User Aisha K." 
+                      className="w-full h-full object-cover p-1" /* Added padding for SVG */
+                    />
                   </div>
                   <div>
                     <p className="font-bold">Aisha K.</p>

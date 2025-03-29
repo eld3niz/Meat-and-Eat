@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react'; // Import React
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../utils/supabaseClient';
+// Removed: import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
   id: string;
@@ -11,17 +12,25 @@ interface ProfileData {
   created_at: string | null;
 }
 
+// Define options for dropdowns (same as RegisterSlide3)
+const languageOptions = ['Deutsch', 'Englisch', 'Spanisch', 'Französisch'];
+const cuisineOptions = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
+
 const UserProfile = () => {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth(); // Get signOut from context
+  // Removed: const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    age: '',
-    languages: '',
-    cuisines: ''
-  });
+  // State for multi-select dropdowns
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
+  const [currentLanguage, setCurrentLanguage] = useState('');
+  const [currentCuisine, setCurrentCuisine] = useState('');
+  // Keep original name/age for display in edit mode (non-editable)
+  const [originalName, setOriginalName] = useState('');
+  const [originalAge, setOriginalAge] = useState('');
+
   const [updateMessage, setUpdateMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
@@ -48,12 +57,11 @@ const UserProfile = () => {
 
       if (data) {
         setProfile(data);
-        setFormData({
-          name: data.name || '',
-          age: data.age?.toString() || '',
-          languages: data.languages?.join(', ') || '',
-          cuisines: data.cuisines?.join(', ') || ''
-        });
+        // Set initial state for multi-select and original values
+        setOriginalName(data.name || '');
+        setOriginalAge(data.age?.toString() || '');
+        setSelectedLanguages(data.languages || []);
+        setSelectedCuisines(data.cuisines || []);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -62,12 +70,29 @@ const UserProfile = () => {
     }
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value
-    });
+  // Handlers for multi-select dropdowns
+  const addLanguage = () => {
+    if (currentLanguage && !selectedLanguages.includes(currentLanguage)) {
+      setSelectedLanguages([...selectedLanguages, currentLanguage]);
+      setCurrentLanguage('');
+    }
   };
+
+  const removeLanguage = (languageToRemove: string) => {
+    setSelectedLanguages(selectedLanguages.filter((lang) => lang !== languageToRemove));
+  };
+
+  const addCuisine = () => {
+    if (currentCuisine && !selectedCuisines.includes(currentCuisine)) {
+      setSelectedCuisines([...selectedCuisines, currentCuisine]);
+      setCurrentCuisine('');
+    }
+  };
+
+  const removeCuisine = (cuisineToRemove: string) => {
+    setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
+  };
+
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -77,22 +102,12 @@ const UserProfile = () => {
       
       if (!user?.id) return;
 
-      // Convert comma-separated string to array for languages and cuisines
-      const languages = formData.languages
-        ? formData.languages.split(',').map(item => item.trim()).filter(item => item !== '')
-        : [];
-      
-      const cuisines = formData.cuisines
-        ? formData.cuisines.split(',').map(item => item.trim()).filter(item => item !== '')
-        : [];
-
+      // Only update languages and cuisines (name and age are not editable)
       const { error } = await supabase
         .from('profiles')
         .update({
-          name: formData.name,
-          age: formData.age ? parseInt(formData.age) : null,
-          languages,
-          cuisines,
+          languages: selectedLanguages,
+          cuisines: selectedCuisines,
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id);
@@ -109,6 +124,63 @@ const UserProfile = () => {
       setUpdateMessage({ type: 'error', text: error.message || 'Failed to update profile' });
     }
   };
+
+  // Handle profile deletion
+  const handleDeleteProfile = async () => {
+    if (!user || !profile) return;
+
+    // Use window.confirm for a simple confirmation dialog
+    const confirmation = window.confirm(
+      'Are you sure you want to delete your profile? This action cannot be undone and will remove all your data.'
+    );
+
+    if (confirmation) {
+      try {
+        setLoading(true);
+        // 1. Delete profile data from 'profiles' table
+        // Ensure RLS policy "Users can delete own profile" exists in Supabase
+        const { error: profileDeleteError } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', user.id);
+
+        if (profileDeleteError) throw profileDeleteError;
+
+        // 2. Optionally delete related data (e.g., user_locations) if needed
+        // Example:
+        // const { error: locationDeleteError } = await supabase
+        //   .from('user_locations')
+        //   .delete()
+        //   .eq('user_id', user.id);
+        // if (locationDeleteError) console.error('Error deleting locations:', locationDeleteError);
+
+        // 3. Delete the user from Supabase Auth
+        // IMPORTANT: This requires elevated privileges and should ideally be handled
+        // by a secure Supabase Edge Function ('rpc' call) to avoid exposing service keys
+        // on the client-side. For this example, we'll log a warning and proceed with sign-out.
+        // In a production app, implement a Supabase Function for this step.
+        console.warn(`Profile data for user ${user.id} deleted. Auth user deletion should be handled server-side.`);
+        // Example of calling a hypothetical function:
+        // const { error: authDeleteError } = await supabase.rpc('delete_user_account');
+        // if (authDeleteError) throw authDeleteError;
+
+
+        // 4. Sign out the user locally
+        await signOut();
+
+        // 5. Redirect to home page or login page
+        setUpdateMessage({ type: 'success', text: 'Profile deleted successfully.' });
+        window.location.assign('/'); // Redirect using standard browser API
+
+      } catch (error: any) {
+        console.error('Error deleting profile:', error);
+        setUpdateMessage({ type: 'error', text: error.message || 'Failed to delete profile' });
+        setLoading(false); // Ensure loading state is reset on error
+      }
+      // No finally block needed here as navigation happens on success
+    }
+  };
+
 
   if (loading) {
     return (
@@ -183,6 +255,16 @@ const UserProfile = () => {
           >
             Edit Profile
           </button>
+
+          {/* Delete Profile Button/Text */}
+          <div className="text-right mt-4">
+            <button
+              onClick={handleDeleteProfile}
+              className="text-sm text-red-600 hover:text-red-800 hover:underline focus:outline-none"
+            >
+              Delete My Profile
+            </button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -207,12 +289,13 @@ const UserProfile = () => {
               id="name"
               name="name"
               type="text"
-              value={formData.name}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={originalName} // Display original name
+              disabled // Make non-editable
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" // Style as disabled
             />
+             <p className="mt-1 text-xs text-gray-500">Name cannot be changed</p>
           </div>
-          
+
           <div>
             <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">
               Age
@@ -221,44 +304,105 @@ const UserProfile = () => {
               id="age"
               name="age"
               type="number"
-              value={formData.age}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              value={originalAge} // Display original age
+              disabled // Make non-editable
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" // Style as disabled
             />
+             <p className="mt-1 text-xs text-gray-500">Age cannot be changed</p>
           </div>
-          
-          <div>
-            <label htmlFor="languages" className="block text-sm font-medium text-gray-700 mb-1">
+
+          {/* Languages Multi-Select */}
+          <div className="mb-4">
+            <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
               Languages I Speak
             </label>
-            <input
-              id="languages"
-              name="languages"
-              type="text"
-              value={formData.languages}
-              onChange={handleChange}
-              placeholder="English, Spanish, French"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">Separate multiple languages with commas</p>
+            <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]"> {/* Added min-height */}
+              {selectedLanguages.map((lang) => (
+                <div key={lang} className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-sm inline-flex items-center"> {/* Changed style */}
+                  {lang}
+                  <button
+                    type="button"
+                    className="ml-2 focus:outline-none text-blue-500 hover:text-blue-700" // Style button
+                    onClick={() => removeLanguage(lang)}
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex">
+              <select
+                id="language"
+                className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" // Use flex-grow
+                value={currentLanguage}
+                onChange={(e) => setCurrentLanguage(e.target.value)}
+              >
+                <option value="">Select Language...</option> {/* Changed placeholder */}
+                {languageOptions.map((lang) => (
+                  <option key={lang} value={lang} disabled={selectedLanguages.includes(lang)}>
+                    {lang}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" // Added disabled style
+                onClick={addLanguage}
+                disabled={!currentLanguage || selectedLanguages.includes(currentLanguage)}
+              >
+                Add
+              </button>
+            </div>
           </div>
-          
-          <div>
-            <label htmlFor="cuisines" className="block text-sm font-medium text-gray-700 mb-1">
+
+          {/* Cuisines Multi-Select */}
+          <div className="mb-6">
+            <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">
               Cuisines I Like
             </label>
-            <input
-              id="cuisines"
-              name="cuisines"
-              type="text"
-              value={formData.cuisines}
-              onChange={handleChange}
-              placeholder="Italian, Japanese, Mexican"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <p className="mt-1 text-xs text-gray-500">Separate multiple cuisines with commas</p>
+            <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]"> {/* Added min-height */}
+              {selectedCuisines.map((cuisine) => (
+                <div key={cuisine} className="bg-green-100 text-green-700 rounded-full px-3 py-1 text-sm inline-flex items-center"> {/* Changed style */}
+                  {cuisine}
+                  <button
+                    type="button"
+                    className="ml-2 focus:outline-none text-green-500 hover:text-green-700" // Style button
+                    onClick={() => removeCuisine(cuisine)}
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex">
+              <select
+                id="cuisine"
+                className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" // Use flex-grow
+                value={currentCuisine}
+                onChange={(e) => setCurrentCuisine(e.target.value)}
+              >
+                <option value="">Select Cuisine...</option> {/* Changed placeholder */}
+                {cuisineOptions.map((cuisine) => (
+                  <option key={cuisine} value={cuisine} disabled={selectedCuisines.includes(cuisine)}>
+                    {cuisine}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" // Added disabled style
+                onClick={addCuisine}
+                disabled={!currentCuisine || selectedCuisines.includes(currentCuisine)}
+              >
+                Add
+              </button>
+            </div>
           </div>
-          
+
           <div className="flex space-x-3">
             <button
               type="submit"
@@ -270,16 +414,14 @@ const UserProfile = () => {
               type="button"
               onClick={() => {
                 setEditMode(false);
-                // Reset form data to current profile values
+                // Reset multi-select state to current profile values when cancelling
                 if (profile) {
-                  setFormData({
-                    name: profile.name || '',
-                    age: profile.age?.toString() || '',
-                    languages: profile.languages?.join(', ') || '',
-                    cuisines: profile.cuisines?.join(', ') || ''
-                  });
+                  setSelectedLanguages(profile.languages || []);
+                  setSelectedCuisines(profile.cuisines || []);
+                  setCurrentLanguage('');
+                  setCurrentCuisine('');
                 }
-                setUpdateMessage({ type: '', text: '' });
+                setUpdateMessage({ type: '', text: '' }); // Clear any previous messages
               }}
               className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
             >

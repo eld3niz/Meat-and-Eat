@@ -91,3 +91,12 @@ DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" 
 ON profiles FOR UPDATE 
 USING (auth.uid() = id);
+
+-- Allow users to delete their own profile
+CREATE POLICY "Users can delete own profile" 
+ON public.profiles 
+FOR DELETE 
+USING (auth.uid() = id);
+
+ALTER TABLE public.user_locations
+ADD CONSTRAINT user_locations_user_id_key UNIQUE (user_id);
