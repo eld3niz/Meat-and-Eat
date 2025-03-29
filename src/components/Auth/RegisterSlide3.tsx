@@ -1,4 +1,9 @@
 import React, { useState } from 'react';
+import { languageOptions, cuisineOptions } from '../../data/options';
+
+// Remove locally defined options
+// const languageOptions = ['Deutsch', 'Englisch', 'Spanisch', 'Französisch'];
+// const cuisineOptions = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
 
 interface RegisterSlide3Props {
   updateFormData: (data: any) => void;
@@ -11,9 +16,6 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSli
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [language, setLanguage] = useState('');
   const [cuisine, setCuisine] = useState('');
-
-  const languages = ['Deutsch', 'Englisch', 'Spanisch', 'Französisch'];
-  const cuisines = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
 
   const addLanguage = () => {
     if (language && !selectedLanguages.includes(language)) {
@@ -74,7 +76,7 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSli
             onChange={(e) => setLanguage(e.target.value)}
           >
             <option value="">Sprache auswählen</option>
-            {languages.map((lang) => (
+            {languageOptions.map((lang) => (
               <option key={lang} value={lang}>
                 {lang}
               </option>
@@ -118,7 +120,7 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSli
             onChange={(e) => setCuisine(e.target.value)}
           >
             <option value="">Küche auswählen</option>
-            {cuisines.map((cuisine) => (
+            {cuisineOptions.map((cuisine) => (
               <option key={cuisine} value={cuisine}>
                 {cuisine}
               </option>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'; // Import React
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../utils/supabaseClient';
+import { languageOptions, cuisineOptions } from '../../data/options';
 // Removed: import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
@@ -11,10 +12,6 @@ interface ProfileData {
   cuisines: string[] | null;
   created_at: string | null;
 }
-
-// Define options for dropdowns (same as RegisterSlide3)
-const languageOptions = ['Deutsch', 'Englisch', 'Spanisch', 'Französisch'];
-const cuisineOptions = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
 
 const UserProfile = () => {
   const { user, signOut } = useAuth(); // Get signOut from context
@@ -92,7 +89,7 @@ const UserProfile = () => {
   const removeCuisine = (cuisineToRemove: string) => {
     setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
   };
-
+  
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -180,7 +177,7 @@ const UserProfile = () => {
       // No finally block needed here as navigation happens on success
     }
   };
-
+  
 
   if (loading) {
     return (
