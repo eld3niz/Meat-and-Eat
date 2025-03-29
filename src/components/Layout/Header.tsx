@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react';
 import { useModal } from '../../contexts/ModalContext';
 import { useAuth } from '../../context/AuthContext';
 import UserProfile from '../Auth/UserProfile';
+import supabase from '../../utils/supabaseClient';
 
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
@@ -9,6 +10,7 @@ const Header = () => {
   const { user, signOut } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
+  const [userName, setUserName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -22,6 +24,38 @@ const Header = () => {
     window.addEventListener('popstate', handleNavigation);
     return () => window.removeEventListener('popstate', handleNavigation);
   }, []);
+
+  // Fetch user profile data to get the name
+  useEffect(() => {
+    const fetchUserProfile = async () => {
+      if (user?.id) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('name')
+            .eq('id', user.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching user profile:', error);
+            return;
+          }
+          
+          if (data?.name) {
+            setUserName(data.name);
+          } else {
+            // Fallback to email prefix if name is not available
+            setUserName(user.email?.split('@')[0] || '');
+          }
+        } catch (err) {
+          console.error('Error in profile fetch:', err);
+          setUserName(user.email?.split('@')[0] || '');
+        }
+      }
+    };
+    
+    fetchUserProfile();
+  }, [user]);
 
   useEffect(() => {
     // Close the profile menu when clicking outside
@@ -99,7 +133,7 @@ const Header = () => {
                     className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full transition-all duration-200"
                   >
                     <span className="font-medium truncate max-w-[100px]">
-                      {user.email?.split('@')[0]}
+                      {userName}
                     </span>
                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
