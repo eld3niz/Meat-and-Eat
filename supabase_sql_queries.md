@@ -67,6 +67,12 @@ ON public.user_locations
 FOR UPDATE 
 USING (auth.uid() = user_id);
 
+-- Allow authenticated users to view all locations
+CREATE POLICY "Allow authenticated users to view locations"
+ON public.user_locations
+FOR SELECT
+USING (auth.role() = 'authenticated');
+
 -- First, drop the existing insert policy if it exists
 DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
 
@@ -85,4 +91,3 @@ DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
 CREATE POLICY "Users can update own profile" 
 ON profiles FOR UPDATE 
 USING (auth.uid() = id);
-
