@@ -12,6 +12,7 @@ const Header = () => {
   const [showProfilePage, setShowProfilePage] = useState(false);
   const [userName, setUserName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
+  const profilePageRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -70,6 +71,22 @@ const Header = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  // Close profile page when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (profilePageRef.current && 
+          !profilePageRef.current.contains(event.target as Node) && 
+          showProfilePage) {
+        setShowProfilePage(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfilePage]);
 
   // Navigation-Handler
   const handleNavigation = (path: string, e: React.MouseEvent) => {
@@ -184,8 +201,14 @@ const Header = () => {
       </header>
 
       {showProfilePage && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center overflow-y-auto">
-          <div className="relative bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl">
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex items-center justify-center overflow-y-auto"
+             onClick={(e) => {
+               if (e.target === e.currentTarget) {
+                 setShowProfilePage(false);
+               }
+             }}>
+          <div className="relative bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto p-6 shadow-xl"
+               ref={profilePageRef}>
             <button 
               onClick={() => setShowProfilePage(false)} 
               className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
