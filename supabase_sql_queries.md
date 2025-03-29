@@ -67,3 +67,22 @@ ON public.user_locations
 FOR UPDATE 
 USING (auth.uid() = user_id);
 
+-- First, drop the existing insert policy if it exists
+DROP POLICY IF EXISTS "Users can insert own profile" ON profiles;
+
+-- Create a new, more permissive insert policy
+CREATE POLICY "Enable insert for authenticated users only" 
+ON profiles FOR INSERT 
+WITH CHECK (auth.role() = 'authenticated');
+
+-- If you're using a trigger to create profiles automatically, you might need this policy too
+CREATE POLICY "Allow trigger to create profiles" 
+ON profiles FOR INSERT 
+WITH CHECK (TRUE);
+
+-- Make sure authenticated users can update their own profiles
+DROP POLICY IF EXISTS "Users can update own profile" ON profiles;
+CREATE POLICY "Users can update own profile" 
+ON profiles FOR UPDATE 
+USING (auth.uid() = id);
+
