@@ -76,8 +76,8 @@ const AppContent = () => {
     );
   }
 
-  // Determine if the location modal should be shown
-  const showLocationModal = !!user && (locationPermissionStatus === 'denied' || locationPermissionStatus === 'unavailable');
+  // Determine if the location modal should be shown (only on map page for logged-in users with denied/unavailable location)
+  const showLocationModal = currentPage === 'map' && !!user && (locationPermissionStatus === 'denied' || locationPermissionStatus === 'unavailable');
 
   // Render main application content
   return (

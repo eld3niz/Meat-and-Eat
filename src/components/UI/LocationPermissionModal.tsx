@@ -19,7 +19,7 @@ const LocationPermissionModal: React.FC = () => {
   const additionalGuidance = "If you previously denied permission and don't see a prompt, please check your browser's site settings for this website and allow location access.";
 
   return (
-    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-sm">
+    <div className="absolute inset-0 z-40 flex items-center justify-center bg-black bg-opacity-60 backdrop-blur-md">
       <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
         <h2 className="text-xl font-semibold mb-4 text-gray-800">Location Access Required</h2>
         <p className="text-gray-600 mb-4">{message}</p>
