@@ -124,14 +124,14 @@ const Header = () => {
           
           <div className="flex space-x-4 text-sm justify-end flex-1 items-center">
             <nav className="flex space-x-4 text-sm items-center">
-              <a 
-                href="/about" 
+              <a
+                href="/about"
                 onClick={(e) => handleNavigation('/about', e)}
                 className={`hover:text-blue-100 transition-colors duration-200 font-medium ${
                   currentPath === '/about' ? 'border-b-2 border-white pb-1' : ''
                 }`}
               >
-                About
+                Home
               </a>
               <a 
                 href="/" 
