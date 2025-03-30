@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import Layout from './components/Layout/Layout';
+import Layout from './components/Layout/Layout'; // Keep if used elsewhere, otherwise remove?
 import WorldMap from './components/Map/WorldMap';
 import AboutPage from './components/Pages/AboutPage';
 import DatenschutzPage from './components/Pages/DatenschutzPage';
 import ImpressumPage from './components/Pages/ImpressumPage';
 import { fixLeafletIconPath } from './utils/mapUtils';
 import { ModalProvider } from './contexts/ModalContext';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext'; // Import useAuth
 import AuthModalPortal from './components/Auth/AuthModalPortal';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
+import LocationPermissionModal from './components/UI/LocationPermissionModal'; // Import the new modal
 
-function App() {
-  const [isLoading, setIsLoading] = useState(true);
+// Inner component to access AuthContext
+const AppContent = () => {
+  const { user, locationPermissionStatus, loading: authLoading } = useAuth();
+  const [isAppLoading, setIsAppLoading] = useState(true); // Renamed to avoid conflict
   const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
-  
+
   // Navigation-Handler
   useEffect(() => {
     const handleNavigation = () => {
@@ -26,28 +29,27 @@ function App() {
       } else if (path === '/impressum') {
         setCurrentPage('impressum');
       } else {
-        setCurrentPage('map');
+        setCurrentPage('map'); // Default to map/home
       }
     };
-
-    // Initial und bei URL-Änderungen prüfen
     handleNavigation();
     window.addEventListener('popstate', handleNavigation);
-    
     return () => window.removeEventListener('popstate', handleNavigation);
   }, []);
-  
-  // Fix für die Leaflet-Icons beim Laden der App
+
+  // Fix Leaflet icons and handle initial app loading state
   useEffect(() => {
     fixLeafletIconPath();
-    
-    // Simuliere Ladezeit für die App
-    const timer = setTimeout(() => {
-      setIsLoading(false);
-    }, 800);
-    
-    return () => clearTimeout(timer);
-  }, []);
+    // Consider app loaded only when auth is resolved AND initial delay passed
+    if (!authLoading) {
+      const timer = setTimeout(() => {
+        setIsAppLoading(false);
+      }, 300); // Reduced delay slightly, adjust as needed
+      return () => clearTimeout(timer);
+    }
+    // If auth is still loading, ensure app loading state remains true
+    setIsAppLoading(true);
+  }, [authLoading]);
 
   // Scroll-Steuerung je nach aktiver Seite
   useEffect(() => {
@@ -56,14 +58,13 @@ function App() {
     } else {
       document.body.classList.remove('allow-scroll');
     }
-
-    // Cleanup beim Komponentenabbau
     return () => {
       document.body.classList.remove('allow-scroll');
     };
   }, [currentPage]);
 
-  if (isLoading) {
+  // Show loading indicator if either app init or auth is loading
+  if (isAppLoading || authLoading) {
     return (
       <div className="flex items-center justify-center h-screen bg-gray-50">
         <div className="text-center">
@@ -75,26 +76,43 @@ function App() {
     );
   }
 
-  // Seiteninhalte basierend auf aktuellem Pfad anzeigen
+  // Determine if the location modal should be shown
+  const showLocationModal = !!user && (locationPermissionStatus === 'denied' || locationPermissionStatus === 'unavailable');
+
+  // Render main application content
+  return (
+    <div className="app flex flex-col min-h-screen">
+      <Header />
+      {/* Add relative positioning to make this the context for the modal */}
+      <div className="content flex-grow relative">
+        {/* Page rendering logic - Map visibility handled inside WorldMap */}
+        {currentPage === 'about' ? (
+          <AboutPage />
+        ) : currentPage === 'datenschutz' ? (
+          <DatenschutzPage />
+        ) : currentPage === 'impressum' ? (
+          <ImpressumPage />
+        ) : (
+          // Render WorldMap regardless of login here; auth check happens inside WorldMap
+          <WorldMap />
+        )}
+        {/* Removed extra closing brace */}
+        {/* Conditionally render the location modal INSIDE the content div */}
+        {showLocationModal && <LocationPermissionModal />}
+      </div>
+      <Footer />
+      <AuthModalPortal />
+      {/* Modal rendering moved inside the content div */}
+    </div>
+  );
+}
+
+// Main App component now just sets up providers
+function App() {
   return (
     <AuthProvider>
       <ModalProvider>
-        <div className="app flex flex-col min-h-screen">
-          <Header />
-          <div className="content flex-grow">
-            {currentPage === 'about' ? (
-              <AboutPage />
-            ) : currentPage === 'datenschutz' ? (
-              <DatenschutzPage />
-            ) : currentPage === 'impressum' ? (
-              <ImpressumPage />
-            ) : (
-              <WorldMap />
-            )}
-          </div>
-          <Footer />
-          <AuthModalPortal />
-        </div>
+        <AppContent /> {/* Render the inner component */}
       </ModalProvider>
     </AuthProvider>
   );
