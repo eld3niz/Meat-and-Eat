@@ -14,6 +14,8 @@ import { City } from '../../types';
 import L, { Map as LeafletMap } from 'leaflet';
 import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce } from '../../utils/mapUtils';
 import { useAuth } from '../../context/AuthContext';
+import { useModal } from '../../contexts/ModalContext'; // Import useModal
+import Button from '../UI/Button'; // Import Button
 
 // --- Helper Components (No changes needed) ---
 const MapCenterController = memo(({ center, zoom }: { center: [number, number], zoom: number }) => {
@@ -48,6 +50,7 @@ const WorldMap = () => {
   // Get userCoordinates from context
   const { user, locationPermissionStatus, userCoordinates, loading: authLoading } = useAuth();
   const { loading: mapDataLoading, error: mapDataError, filteredCities, selectCity, filterByCountry, filterByPopulation, resetFilters, zoomToCity } = useMapData();
+  const { openAuthModal } = useModal(); // Get modal function
   const [clickedCity, setClickedCity] = useState<City | null>(null);
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0]);
   const [mapZoom, setMapZoom] = useState<number>(2);
@@ -123,7 +126,30 @@ const WorldMap = () => {
     return ( <div className="flex items-center justify-center h-full w-full bg-gray-50"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div></div> );
   }
   if (!user) {
-    return ( <div className="flex items-center justify-center h-full w-full text-center p-8 bg-gray-50"><div><h2 className="text-2xl font-semibold mb-4 text-gray-800">Map Access Restricted</h2><p className="text-gray-600 mb-6">Please log in or sign up to view the interactive map and discover locations.</p></div></div> );
+    return (
+      <div className="flex items-center justify-center h-full w-full text-center p-8 bg-gray-50">
+        <div className="max-w-md">
+          <h2 className="text-2xl font-semibold mb-4 text-gray-800">Unlock the Full Map Experience!</h2>
+          <p className="text-gray-600 mb-6">
+            Log in or create an account to view the interactive map, discover culinary spots, and save your favorites.
+          </p>
+          <div className="flex justify-center gap-4">
+            <Button
+              onClick={openAuthModal}
+              className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+            >
+              Log In
+            </Button>
+            <Button
+              onClick={openAuthModal}
+              className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500"
+            >
+              Sign Up
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   }
   if (locationPermissionStatus !== 'granted') { return null; }
   if (mapDataError) {
