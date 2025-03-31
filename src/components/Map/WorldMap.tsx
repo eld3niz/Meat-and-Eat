@@ -18,11 +18,7 @@ import { useModal } from '../../contexts/ModalContext'; // Import useModal
 import Button from '../UI/Button'; // Import Button
 
 // --- Helper Components (No changes needed) ---
-const MapCenterController = memo(({ center, zoom }: { center: [number, number], zoom: number }) => {
-  const map = useMap();
-  useEffect(() => { if (center && zoom) map.flyTo(center, zoom, { duration: 1.5 }); }, [center, zoom, map]);
-  return null;
-});
+// Removed MapCenterController as flyTo is now handled directly in event handlers
 const MapBoundsController = () => {
   const map = useMap();
   useEffect(() => { /* ... bounds logic ... */
@@ -35,12 +31,25 @@ const MapBoundsController = () => {
   }, [map]);
   return null;
 };
-const MapEventHandlers = ({ onZoomEnd, onMoveEnd }: { onZoomEnd: () => void, onMoveEnd: () => void }) => {
+interface MapEventHandlersProps {
+  onZoomEnd: () => void;
+  onMoveEnd: () => void;
+  onMapClick: (event: L.LeafletMouseEvent) => void; // Add map click handler prop
+}
+
+const MapEventHandlers = ({ onZoomEnd, onMoveEnd, onMapClick }: MapEventHandlersProps) => {
   const map = useMap();
   useEffect(() => {
-    map.on('zoomend', onZoomEnd); map.on('moveend', onMoveEnd);
-    return () => { map.off('zoomend', onZoomEnd); map.off('moveend', onMoveEnd); };
-  }, [map, onZoomEnd, onMoveEnd]);
+    map.on('zoomend', onZoomEnd);
+    map.on('moveend', onMoveEnd);
+    map.on('click', onMapClick); // Attach map click listener
+
+    return () => {
+      map.off('zoomend', onZoomEnd);
+      map.off('moveend', onMoveEnd);
+      map.off('click', onMapClick); // Detach map click listener
+    };
+  }, [map, onZoomEnd, onMoveEnd, onMapClick]); // Add onMapClick dependency
   return null;
 };
 
@@ -74,6 +83,7 @@ const WorldMap = () => {
   const { loading: mapDataLoading, error: mapDataError, filteredCities, selectCity, filterByCountry, filterByPopulation, resetFilters, zoomToCity } = useMapData();
   const { openAuthModal } = useModal(); // Get modal function
   const [clickedCity, setClickedCity] = useState<City | null>(null);
+  const [hoveredCity, setHoveredCity] = useState<City | null>(null); // State for hover preview
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0]);
   const [mapZoom, setMapZoom] = useState<number>(2);
   // Fix: Use renamed LeafletMap type for ref
@@ -82,22 +92,79 @@ const WorldMap = () => {
   const [distanceFilter, setDistanceFilter] = useState<number | null>(null);
   const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]);
   const [distanceRadius, setDistanceRadius] = useState<number | null>(null);
+  const [isFlying, setIsFlying] = useState(false); // State to track map animation
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
   const handleDistanceFilter = useCallback((distance: number | null) => { setDistanceRadius(distance); setDistanceFilter(distance); }, []);
-  const handleMarkerClick = useCallback((city: City) => { setClickedCity(city); setMapCenter([city.latitude, city.longitude]); setMapZoom(5); }, []);
+  const handleMarkerClick = useCallback((city: City) => {
+    const map = mapRef.current;
+    if (!map || isFlying) return; // Prevent action if map not ready or already animating
+
+    setIsFlying(true);
+    const targetCoords: [number, number] = [city.latitude, city.longitude];
+    const targetZoom = 5; // Or maybe a slightly higher zoom? e.g., 7
+
+    map.flyTo(targetCoords, targetZoom, { duration: 1.5 });
+
+    setTimeout(() => {
+      setMapCenter(targetCoords); // Update state after animation
+      setMapZoom(targetZoom);
+      setClickedCity(city);
+      setIsFlying(false);
+    }, 1500); // Match flyTo duration
+  }, [isFlying]); // Add isFlying dependency
   const handlePopupClose = useCallback(() => { setClickedCity(null); }, []);
   const handleCitySelect = useCallback((cityId: number) => {
-      const coords = zoomToCity(cityId);
-      if (coords) {
-          setMapCenter(coords); setMapZoom(7); selectCity(cityId);
-          const city = filteredCities.find(c => c.id === cityId);
-          if (city) { setClickedCity(city); }
-      }
-  }, [zoomToCity, selectCity, filteredCities]); // Add dependencies
+    const map = mapRef.current;
+    const coords = zoomToCity(cityId); // Get coordinates first
+    if (!map || !coords || isFlying) return; // Prevent action if map not ready, coords missing, or already animating
+
+    setIsFlying(true);
+    const targetZoom = 7;
+    const city = filteredCities.find(c => c.id === cityId); // Find city data
+
+    map.flyTo(coords, targetZoom, { duration: 1.5 });
+    selectCity(cityId); // Select city in the data hook immediately
+
+    setTimeout(() => {
+      setMapCenter(coords); // Update state after animation
+      setMapZoom(targetZoom);
+      if (city) { setClickedCity(city); } // Show popup after animation
+      setIsFlying(false);
+    }, 1500); // Match flyTo duration
+  }, [zoomToCity, selectCity, filteredCities, isFlying]); // Add dependencies
   const throttledHandleZoom = useCallback(throttle(() => { if (mapRef.current) { setMapZoom(mapRef.current.getZoom()); } }, 100), []);
-  const debouncedHandleMapMove = useCallback(debounce(() => { if (mapRef.current) { const c = mapRef.current.getCenter(); setMapCenter([c.lat, c.lng]); } }, 150), []);
+  const debouncedHandleMapMove = useCallback(debounce(() => {
+    if (isFlying || !mapRef.current) return; // Do nothing if animating or map not ready
+    const c = mapRef.current.getCenter();
+    setMapCenter([c.lat, c.lng]);
+  }, 150), [isFlying]); // Add isFlying dependency
+
+  // Close clicked popup when clicking outside of it
+  const handleMapClick = useCallback((event: L.LeafletMouseEvent) => {
+    // Check if the click target is inside the InfoPopup container
+    // We assume InfoPopup's root element has a specific class, e.g., 'info-popup-container'
+    const targetElement = event.originalEvent.target as HTMLElement;
+    if (targetElement.closest('.info-popup-container')) {
+      return; // Click was inside the popup, do nothing
+    }
+    // If clickedCity is set and the click was outside, close it
+    if (clickedCity) {
+      setClickedCity(null);
+    }
+  }, [clickedCity]); // Dependency on clickedCity
+
+  // Handlers for marker hover events
+  const handleMarkerMouseOver = useCallback((city: City) => {
+    if (!clickedCity) { // Only show hover if no city is actively clicked
+      setHoveredCity(city);
+    }
+  }, [clickedCity]); // Dependency on clickedCity
+
+  const handleMarkerMouseOut = useCallback(() => {
+    setHoveredCity(null);
+  }, []);
 
   // --- Memos (Defined after state, before early returns) ---
   const filteredStats = useMemo(() => {
@@ -243,15 +310,22 @@ const WorldMap = () => {
           >
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
             <ZoomControl position="bottomright" />
-            <MapCenterController center={mapCenter} zoom={mapZoom} />
+            {/* Removed MapCenterController usage */}
             <MapBoundsController />
-            <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} />
+            <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} onMapClick={handleMapClick} />
             <MarkerCluster
               // Fix: displayedCities should now be City[]
               cities={displayedCities}
               onMarkerClick={handleMarkerClick}
+              onMarkerMouseOver={handleMarkerMouseOver} // Pass hover handler
+              onMarkerMouseOut={handleMarkerMouseOut}   // Pass hover handler
             />
-            {clickedCity && ( <InfoPopup city={clickedCity} onClose={handlePopupClose} /> )}
+            {/* Render clicked popup OR hover popup (if no city is clicked) */}
+            {clickedCity ? (
+              <InfoPopup city={clickedCity} onClose={handlePopupClose} />
+            ) : hoveredCity ? (
+              <InfoPopup city={hoveredCity} isHoverPreview={true} /> // Add isHoverPreview prop
+            ) : null}
             {/* Pass userCoordinates from context, remove onPositionUpdate */}
             <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} />
             <RadiusCircle />

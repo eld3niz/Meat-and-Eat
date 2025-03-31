@@ -12,12 +12,14 @@ import createSvgMarkerIcon from './CityMarkerIcon';
 interface MarkerClusterProps {
   cities: City[];
   onMarkerClick: (city: City) => void;
+  onMarkerMouseOver: (city: City) => void; // Add mouseover handler prop
+  onMarkerMouseOut: () => void; // Add mouseout handler prop
 }
 
 /**
  * Komponente zur Darstellung der Stadt-Marker mit Clustering
  */
-const MarkerCluster = ({ cities, onMarkerClick }: MarkerClusterProps) => {
+const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersRef = useRef<{[id: number]: L.Marker}>({});
@@ -104,9 +106,15 @@ const MarkerCluster = ({ cities, onMarkerClick }: MarkerClusterProps) => {
         icon: createSvgMarkerIcon(city.population)
       });
       
-      // Event-Listener nur einmal hinzufügen
+      // Event-Listener hinzufügen
       marker.on('click', () => {
         onMarkerClick(city);
+      });
+      marker.on('mouseover', () => { // Add mouseover listener
+        onMarkerMouseOver(city);
+      });
+      marker.on('mouseout', () => { // Add mouseout listener
+        onMarkerMouseOut();
       });
       
       // Popup-Inhalte nur bei Bedarf generieren
