@@ -7,6 +7,7 @@ import { useMapData } from '../../hooks/useMapData';
 import MarkerCluster from './MarkerCluster';
 import InfoPopup from './InfoPopup';
 import UserLocationMarker from './UserLocationMarker';
+import OtherUserMarker from './OtherUserMarker'; // <-- Import OtherUserMarker
 import Sidebar from '../UI/Sidebar';
 import CityTable from '../UI/CityTable';
 import { City } from '../../types';
@@ -80,7 +81,20 @@ const WorldMap = () => {
   // --- Hooks (MUST be called unconditionally at the top) ---
   // Get userCoordinates from context
   const { user, locationPermissionStatus, userCoordinates, loading: authLoading, requestLocationPermission } = useAuth(); // Added requestLocationPermission
-  const { loading: mapDataLoading, error: mapDataError, filteredCities, selectCity, filterByCountry, filterByPopulation, resetFilters, zoomToCity } = useMapData();
+  // Get map data including other user locations
+  const {
+    loading: mapDataLoading, // Renamed to loadingCities in hook, but keep using mapDataLoading here for consistency? Or rename here too? Let's rename for clarity.
+    error: mapDataError,     // Renamed to errorCities in hook. Rename here too.
+    filteredCities,
+    selectCity,
+    filterByCountry,
+    filterByPopulation,
+    resetFilters,
+    zoomToCity,
+    otherUserLocations,      // <-- Get other user locations
+    loadingOtherUsers,       // <-- Get loading state for other users
+    errorOtherUsers          // <-- Get error state for other users
+  } = useMapData();
   const { openAuthModal } = useModal(); // Get modal function
   const [clickedCity, setClickedCity] = useState<City | null>(null);
   const [hoveredCity, setHoveredCity] = useState<City | null>(null); // State for hover preview
@@ -88,7 +102,7 @@ const WorldMap = () => {
   const [mapZoom, setMapZoom] = useState<number>(2);
   // Fix: Use renamed LeafletMap type for ref
   const mapRef = useRef<LeafletMap | null>(null);
-  const [userPosition, setUserPosition] = useState<[number, number] | null>(null);
+  // const [userPosition, setUserPosition] = useState<[number, number] | null>(null); // No longer needed, comes from useAuth
   const [distanceFilter, setDistanceFilter] = useState<number | null>(null);
   const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]);
   const [distanceRadius, setDistanceRadius] = useState<number | null>(null);
@@ -105,12 +119,12 @@ const WorldMap = () => {
     const map = mapRef.current;
     if (map && userCoordinates && distance !== null && distance > 0 && distance < 500) {
       const radiusInMeters = distance * 1000;
-      
+
       // Calculate approximate bounds manually
       const [userLat, userLng] = userCoordinates;
       const latDelta = radiusInMeters / 111132; // Approx meters per degree latitude
       const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180)); // Approx meters per degree longitude at userLat
-      
+
       const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
       const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
       const calculatedBounds = L.latLngBounds(southWest, northEast);
@@ -282,7 +296,9 @@ const WorldMap = () => {
 
 
   // --- Conditional Returns (Now safe, as all hooks are defined above) ---
-  if (authLoading || mapDataLoading) {
+  // Combine loading states
+  const isLoading = authLoading || mapDataLoading || loadingOtherUsers;
+  if (isLoading) {
     return ( <div className="flex items-center justify-center h-full w-full bg-gray-50"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div></div> );
   }
 
@@ -350,8 +366,12 @@ const WorldMap = () => {
   }
 
   // --- Case 3: Map Data Error (User logged in, permission granted) ---
-  if (mapDataError) {
-    return ( <div className="flex items-center justify-center h-full w-full"><div className="text-red-500 max-w-md p-4 bg-red-50 rounded-lg border border-red-100"><h2 className="text-xl font-bold mb-2">Fehler beim Laden der Kartendaten</h2><p>{mapDataError}</p><button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">Neu laden</button></div></div> );
+  // Combine error states
+  const dataError = mapDataError || errorOtherUsers;
+  if (dataError) {
+    // Display a generic error or specific ones based on which error occurred
+    const errorMessage = mapDataError ? `Fehler beim Laden der Städtedaten: ${mapDataError}` : `Fehler beim Laden der Benutzerstandorte: ${errorOtherUsers}`;
+    return ( <div className="flex items-center justify-center h-full w-full"><div className="text-red-500 max-w-md p-4 bg-red-50 rounded-lg border border-red-100"><h2 className="text-xl font-bold mb-2">Fehler beim Laden der Kartendaten</h2><p>{errorMessage}</p><button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">Neu laden</button></div></div> );
   }
 
   // --- Render Map and UI (Only if logged in, permission granted, no errors) ---
@@ -367,7 +387,7 @@ const WorldMap = () => {
           onPopulationFilter={filterByPopulation}
           onDistanceFilter={handleDistanceFilter}
           onResetFilters={resetFilters}
-          loading={mapDataLoading}
+          loading={mapDataLoading} // Pass city loading state specifically if needed by Sidebar
           // Pass userCoordinates from context
           userPosition={userCoordinates}
           filteredStats={filteredStats}
@@ -384,6 +404,8 @@ const WorldMap = () => {
             {/* Removed MapCenterController usage */}
             <MapBoundsController />
             <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} onMapClick={handleMapClick} />
+
+            {/* Render City Markers (existing) */}
             <MarkerCluster
               // Fix: displayedCities should now be City[]
               cities={displayedCities}
@@ -393,6 +415,17 @@ const WorldMap = () => {
               activeCityId={clickedCity?.id ?? null} // Pass ID of clicked city
               onClusterClick={handleClusterClick} // Pass cluster click handler
             />
+
+            {/* <-- Render Other User Markers --> */}
+            {otherUserLocations.map((location) => (
+              <OtherUserMarker
+                key={location.user_id} // Use user_id as key
+                latitude={location.latitude}
+                longitude={location.longitude}
+                userId={location.user_id} // Pass userId if needed later
+              />
+            ))}
+
             {/* Render clicked popup OR hover popup (if no city is clicked) */}
             {clickedCity ? (
               <InfoPopup city={clickedCity} onClose={handlePopupClose} />
@@ -400,7 +433,10 @@ const WorldMap = () => {
               <InfoPopup city={hoveredCity} isHoverPreview={true} /> // Add isHoverPreview prop
             ) : null}
             {/* Pass userCoordinates from context, remove onPositionUpdate */}
-            <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} onClick={handleUserMarkerClick} />
+            {/* Render current user marker if coordinates exist */}
+            {userCoordinates && (
+                <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} onClick={handleUserMarkerClick} />
+            )}
             <RadiusCircle />
           </MapContainer>
         </div>

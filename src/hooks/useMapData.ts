@@ -2,6 +2,15 @@ import { useState, useEffect, useMemo } from 'react';
 import { City } from '../types';
 import { cities } from '../data/cities';
 import { sortCitiesByPopulation, filterCitiesByCountry } from '../utils/mapUtils';
+import { supabase } from '../utils/supabaseClient'; // Import Supabase client
+import { useAuth } from '../context/AuthContext'; // Import useAuth to get current user ID
+
+// Define the structure for user location data
+interface UserLocation {
+  user_id: string;
+  latitude: number;
+  longitude: number;
+}
 
 interface Filters {
   country: string | null;
@@ -13,12 +22,16 @@ interface Filters {
   distance: number | null;
 }
 
+// Update MapData interface to include new state
 interface MapData {
   cities: City[];
-  loading: boolean;
-  error: string | null;
+  loading: boolean; // Represents loading state for cities
+  error: string | null; // Represents error state for cities
   selectedCity: City | null;
   filteredCities: City[];
+  otherUserLocations: UserLocation[]; // Add state for other users' locations
+  loadingOtherUsers: boolean;        // Add loading state for other users
+  errorOtherUsers: string | null;    // Add error state for other users
   filterByCountry: (country: string | null) => void;
   filterByPopulation: (min: number, max: number) => void;
   filterBySearch: (term: string | null) => void;
@@ -30,170 +43,156 @@ interface MapData {
 }
 
 /**
- * Custom Hook für die Verwaltung der Kartendaten
- * @returns MapData-Objekt mit Städteliste und Hilfsfunktionen
+ * Custom Hook für die Verwaltung der Kartendaten (Städte und Benutzerstandorte)
+ * @returns MapData-Objekt mit Datenlisten und Hilfsfunktionen
  */
 export const useMapData = (): MapData => {
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth(); // Get the current user
+  const [loadingCities, setLoadingCities] = useState<boolean>(true); // Renamed for clarity
+  const [errorCities, setErrorCities] = useState<string | null>(null); // Renamed for clarity
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
   const [filters, setFilters] = useState<Filters>({
     country: null,
-    population: {
-      min: 0,
-      max: Number.MAX_SAFE_INTEGER
-    },
+    population: { min: 0, max: Number.MAX_SAFE_INTEGER },
     search: null,
     distance: null
   });
 
+  // Add state for other user locations
+  const [otherUserLocations, setOtherUserLocations] = useState<UserLocation[]>([]);
+  const [loadingOtherUsers, setLoadingOtherUsers] = useState<boolean>(true);
+  const [errorOtherUsers, setErrorOtherUsers] = useState<string | null>(null);
+
   // Gefilterte Städte basierend auf den aktiven Filtern
   const filteredCities = useMemo(() => {
     let result = cities;
-    
-    // Filter nach Land
     if (filters.country) {
       result = filterCitiesByCountry(result, filters.country);
     }
-    
-    // Filter nach Bevölkerung
-    result = result.filter(city => 
-      city.population >= filters.population.min && 
+    result = result.filter(city =>
+      city.population >= filters.population.min &&
       city.population <= filters.population.max
     );
-    
-    // Filter nach Suchbegriff
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      result = result.filter(city => 
+      result = result.filter(city =>
         city.name.toLowerCase().includes(searchTerm) ||
         city.country.toLowerCase().includes(searchTerm)
       );
     }
-    
     return result;
   }, [filters]);
 
-  // Simulation eines API-Aufrufs zum Laden der Städtedaten
-  useEffect(() => {
-    const loadCities = async () => {
-      try {
-        // In einer realen Anwendung würden die Daten von einer API geladen
-        // Für die Implementierungsphase verwenden wir die lokalen Daten
-        setTimeout(() => {
-          setLoading(false);
-        }, 500); // Künstliche Verzögerung, um Ladezustand zu simulieren
-      } catch (err) {
-        setError('Fehler beim Laden der Städtedaten');
-        setLoading(false);
+  // Fetch other user locations from Supabase
+  const fetchOtherUserLocations = async (currentUserId: string | undefined) => {
+    setLoadingOtherUsers(true);
+    setErrorOtherUsers(null);
+    try {
+      const { data, error } = await supabase
+        .from('user_locations')
+        .select('user_id, latitude, longitude'); // Select necessary fields
+
+      if (error) {
+        console.error("Supabase error fetching other user locations:", error);
+        throw new Error(error.message); // Throw the actual error message
       }
+
+      if (data) {
+        // Filter out the current user's location
+        const filteredData = currentUserId
+          ? data.filter((loc: UserLocation) => loc.user_id !== currentUserId) // Explicitly type 'loc'
+          : data;
+        setOtherUserLocations(filteredData);
+      } else {
+        setOtherUserLocations([]); // Set to empty array if no data
+      }
+    } catch (err: any) {
+      console.error("Error fetching other user locations:", err);
+      setErrorOtherUsers("Failed to load other user locations."); // User-friendly message
+    } finally {
+      setLoadingOtherUsers(false);
+    }
+  };
+
+
+  // Load initial data (cities and user locations)
+  useEffect(() => {
+    const loadInitialData = async () => {
+      setLoadingCities(true);
+      setErrorCities(null);
+
+      // Simulate loading cities (replace with actual API call if needed)
+      const loadCitiesPromise = new Promise<void>((resolve, reject) => {
+        setTimeout(() => {
+          // Simulate success/error for cities
+          // setLoadingCities(false); // Set loading false inside the simulated fetch
+          resolve();
+          // setErrorCities('Fehler beim Laden der Städtedaten'); reject();
+        }, 500);
+      });
+
+      try {
+          // Fetch cities (simulated) and user locations concurrently
+          await Promise.all([
+              loadCitiesPromise.finally(() => setLoadingCities(false)), // Ensure city loading state is updated
+              fetchOtherUserLocations(user?.id) // Fetch user locations, pass current user ID
+          ]);
+      } catch (err) {
+          // Error handling primarily for cities simulation if it were real
+          console.error("Error during initial data load:", err);
+          // Error state for users is handled within fetchOtherUserLocations
+          if (!errorCities) { // Avoid overwriting specific city error
+            setErrorCities('Fehler beim Laden der initialen Kartendaten.');
+          }
+      }
+      // Overall loading state could be handled differently, e.g., combining loadingCities and loadingOtherUsers
     };
 
-    loadCities();
-  }, []);
-
-  /**
-   * Filtert Städte nach Land
-   * @param country Ländername oder null für alle Länder
-   */
-  const filterByCountry = (country: string | null) => {
-    setFilters(prev => ({
-      ...prev,
-      country
-    }));
-  };
-
-  /**
-   * Filtert Städte nach Bevölkerungszahl
-   * @param min Minimale Bevölkerungszahl
-   * @param max Maximale Bevölkerungszahl
-   */
-  const filterByPopulation = (min: number, max: number) => {
-    setFilters(prev => ({
-      ...prev,
-      population: { min, max }
-    }));
-  };
-
-  /**
-   * Filtert Städte nach Suchbegriff
-   * @param term Suchbegriff oder null zum Zurücksetzen
-   */
-  const filterBySearch = (term: string | null) => {
-    setFilters(prev => ({
-      ...prev,
-      search: term
-    }));
-  };
-
-  /**
-   * Filtert Städte nach Entfernung zum Benutzerstandort
-   * @param distance Maximale Entfernung in km oder null für keine Begrenzung
-   */
-  const filterByDistance = (distance: number | null) => {
-    setFilters(prev => ({
-      ...prev,
-      distance: distance
-    }));
-  };
-
-  /**
-   * Setzt alle Filter zurück
-   */
-  const resetFilters = () => {
-    setFilters({
-      country: null,
-      population: {
-        min: 0,
-        max: Number.MAX_SAFE_INTEGER
-      },
-      search: null,
-      distance: null
-    });
-  };
-
-  /**
-   * Wählt eine Stadt aus
-   * @param cityId ID der ausgewählten Stadt oder null zum Zurücksetzen
-   */
-  const selectCity = (cityId: number | null) => {
-    if (cityId === null) {
-      setSelectedCity(null);
-      return;
+    if (user) { // Only fetch data if user is logged in
+        loadInitialData();
+    } else {
+        // Reset state if user logs out
+        setLoadingCities(false);
+        setLoadingOtherUsers(false);
+        setOtherUserLocations([]);
+        setErrorCities(null);
+        setErrorOtherUsers(null);
     }
 
+  }, [user]); // Re-run effect when user logs in or out
+
+  // --- Filter functions (no changes needed) ---
+  const filterByCountry = (country: string | null) => { setFilters(prev => ({ ...prev, country })); };
+  const filterByPopulation = (min: number, max: number) => { setFilters(prev => ({ ...prev, population: { min, max } })); };
+  const filterBySearch = (term: string | null) => { setFilters(prev => ({ ...prev, search: term })); };
+  const filterByDistance = (distance: number | null) => { setFilters(prev => ({ ...prev, distance: distance })); };
+  const resetFilters = () => { setFilters({ country: null, population: { min: 0, max: Number.MAX_SAFE_INTEGER }, search: null, distance: null }); };
+
+  // --- City selection and zooming (no changes needed) ---
+  const selectCity = (cityId: number | null) => {
+    if (cityId === null) { setSelectedCity(null); return; }
     const city = cities.find(city => city.id === cityId) || null;
     setSelectedCity(city);
   };
-
-  /**
-   * Liefert die Koordinaten einer Stadt zum Zoomen
-   * @param cityId ID der Stadt
-   * @returns [latitude, longitude] als Tuple
-   */
   const zoomToCity = (cityId: number): [number, number] => {
     const city = cities.find(city => city.id === cityId);
-    if (!city) {
-      return [20, 0]; // Fallback zur Weltansicht
-    }
+    if (!city) { return [20, 0]; }
     return [city.latitude, city.longitude];
   };
-
-  /**
-   * Gibt die Top-n Städte nach Bevölkerungszahl zurück
-   * @param count Anzahl der Städte
-   * @returns Array der Top-n Städte
-   */
   const getTopCities = (count: number): City[] => {
     return sortCitiesByPopulation(cities).slice(0, count);
   };
 
+  // Update the returned object
   return {
     cities,
-    loading,
-    error,
+    loading: loadingCities, // Use city-specific loading state for general 'loading'
+    error: errorCities,     // Use city-specific error state for general 'error'
     selectedCity,
     filteredCities,
+    otherUserLocations,     // Add new state
+    loadingOtherUsers,      // Add new state
+    errorOtherUsers,        // Add new state
     filterByCountry,
     filterByPopulation,
     filterBySearch,
