@@ -102,19 +102,25 @@ const WorldMap = () => {
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
 
     setIsFlying(true);
+    setHoveredCity(null); // Clear hover state on click
     const targetCoords: [number, number] = [city.latitude, city.longitude];
-    const targetZoom = 5; // Or maybe a slightly higher zoom? e.g., 7
+    const currentZoom = map.getZoom();
+    const minDetailZoom = 7; // Minimum zoom level to show detail without zooming out
+    const targetZoom = Math.max(currentZoom, minDetailZoom); // Stay at current zoom or zoom in to minDetailZoom
 
-    map.flyTo(targetCoords, targetZoom, { duration: 1.5 });
+    map.flyTo(targetCoords, targetZoom, { duration: 1.0 }); // Slightly faster animation
 
+    // Update state after animation
     setTimeout(() => {
-      setMapCenter(targetCoords); // Update state after animation
+      setMapCenter(targetCoords);
       setMapZoom(targetZoom);
-      setClickedCity(city);
+      setClickedCity(city); // Set clicked city *after* animation
       setIsFlying(false);
-    }, 1500); // Match flyTo duration
+    }, 1000); // Match flyTo duration
   }, [isFlying]); // Add isFlying dependency
+
   const handlePopupClose = useCallback(() => { setClickedCity(null); }, []);
+
   const handleCitySelect = useCallback((cityId: number) => {
     const map = mapRef.current;
     const coords = zoomToCity(cityId); // Get coordinates first

@@ -136,7 +136,7 @@ const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouse
       });
     }
     
-  }, [map, cities, onMarkerClick]);
+  }, [map, cities, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut]); // Add hover handlers to dependencies
 
   return null;
 };
