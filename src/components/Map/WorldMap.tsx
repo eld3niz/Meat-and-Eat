@@ -3,13 +3,14 @@ import { MapContainer, TileLayer, ZoomControl, useMap, Circle } from 'react-leaf
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import { useMapData } from '../../hooks/useMapData';
+import { useMapData, MapUser } from '../../hooks/useMapData'; // <-- Import MapUser type
 import MarkerCluster from './MarkerCluster';
 import InfoPopup from './InfoPopup';
 import UserLocationMarker from './UserLocationMarker';
 import OtherUserMarker from './OtherUserMarker'; // <-- Import OtherUserMarker
 import Sidebar from '../UI/Sidebar';
-import CityTable from '../UI/CityTable';
+import CityTable from '../UI/CityTable'; // <-- Import original CityTable
+import UserTable from '../UI/UserTable'; // <-- Import new UserTable
 import { City } from '../../types';
 // Fix: Rename imported Map type from Leaflet to avoid collision
 import L, { Map as LeafletMap } from 'leaflet';
@@ -83,17 +84,20 @@ const WorldMap = () => {
   const { user, locationPermissionStatus, userCoordinates, loading: authLoading, requestLocationPermission } = useAuth(); // Added requestLocationPermission
   // Get map data including other user locations
   const {
-    loading: mapDataLoading, // Renamed to loadingCities in hook, but keep using mapDataLoading here for consistency? Or rename here too? Let's rename for clarity.
-    error: mapDataError,     // Renamed to errorCities in hook. Rename here too.
-    filteredCities,
+    loading: mapDataLoading, // Represents city loading state
+    error: mapDataError,     // Represents city error state
+    filteredCities,          // Cities filtered by all active filters
     selectCity,
     filterByCountry,
     filterByPopulation,
     resetFilters,
     zoomToCity,
-    otherUserLocations,      // <-- Get other user locations
-    loadingOtherUsers,       // <-- Get loading state for other users
-    errorOtherUsers          // <-- Get error state for other users
+    filteredUsers,           // <-- Use filteredUsers for display
+    loadingOtherUsers,
+    errorOtherUsers,
+    filterByDistance,        // <-- Get filterByDistance from hook
+    filters,                 // <-- Get filters state object
+    cities                   // <-- Get original cities array
   } = useMapData();
   const { openAuthModal } = useModal(); // Get modal function
   const [clickedCity, setClickedCity] = useState<City | null>(null);
@@ -103,38 +107,37 @@ const WorldMap = () => {
   // Fix: Use renamed LeafletMap type for ref
   const mapRef = useRef<LeafletMap | null>(null);
   // const [userPosition, setUserPosition] = useState<[number, number] | null>(null); // No longer needed, comes from useAuth
-  const [distanceFilter, setDistanceFilter] = useState<number | null>(null);
-  const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]);
-  const [distanceRadius, setDistanceRadius] = useState<number | null>(null);
+  // const [distanceFilter, setDistanceFilter] = useState<number | null>(null); // Now managed within useMapData
+  // const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]); // Now managed within useMapData
+  const [distanceRadius, setDistanceRadius] = useState<number | null>(null); // Keep for drawing circle
   const [isFlying, setIsFlying] = useState(false); // State to track map animation
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
-  const handleDistanceFilter = useCallback((distance: number | null) => {
-    setDistanceRadius(distance);
-    setDistanceFilter(distance);
+
+  // Update handleDistanceFilter to use the function from the hook and manage radius state
+   const handleDistanceFilter = useCallback((distance: number | null) => {
+    filterByDistance(distance); // Call hook function to update filters
+    setDistanceRadius(distance); // Update local state for drawing the circle
     setClickedCity(null); // Close popup on filter change
 
-    // Adjust map view to fit the new radius
+    // Adjust map view to fit the new radius (keep this logic here)
     const map = mapRef.current;
     if (map && userCoordinates && distance !== null && distance > 0 && distance < 500) {
       const radiusInMeters = distance * 1000;
-
-      // Calculate approximate bounds manually
       const [userLat, userLng] = userCoordinates;
-      const latDelta = radiusInMeters / 111132; // Approx meters per degree latitude
-      const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180)); // Approx meters per degree longitude at userLat
-
+      const latDelta = radiusInMeters / 111132;
+      const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180));
       const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
       const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
       const calculatedBounds = L.latLngBounds(southWest, northEast);
-
-      map.flyToBounds(calculatedBounds, { padding: [50, 50], duration: 1.0 }); // Add padding and animation
+      map.flyToBounds(calculatedBounds, { padding: [50, 50], duration: 1.0 });
     } else if (map && distance === null) {
-      // Optional: Reset zoom/center if filter is cleared? Or leave as is.
-      // map.flyTo([20, 0], 2); // Example: Reset to default view
+      // Optional: Reset view?
     }
-  }, [userCoordinates, isFlying]); // Add userCoordinates and isFlying dependencies
+  }, [userCoordinates, isFlying, filterByDistance]); // Add filterByDistance dependency
+
+
   const handleMarkerClick = useCallback((city: City) => {
     const map = mapRef.current;
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
@@ -161,6 +164,7 @@ const WorldMap = () => {
 
   const handlePopupClose = useCallback(() => { setClickedCity(null); }, []);
 
+  // TODO: Update handleCitySelect if users should also be selectable/zoomable from Sidebar/Table
   const handleCitySelect = useCallback((cityId: number) => {
     const map = mapRef.current;
     const coords = zoomToCity(cityId); // Get coordinates first
@@ -180,6 +184,8 @@ const WorldMap = () => {
       setIsFlying(false);
     }, 1500); // Match flyTo duration
   }, [zoomToCity, selectCity, filteredCities, isFlying]); // Add dependencies
+
+
   const throttledHandleZoom = useCallback(throttle(() => { if (mapRef.current) { setMapZoom(mapRef.current.getZoom()); } }, 100), []);
   const debouncedHandleMapMove = useCallback(debounce(() => {
     if (isFlying || !mapRef.current) return; // Do nothing if animating or map not ready
@@ -202,8 +208,8 @@ const WorldMap = () => {
     // Check if the click target is inside the InfoPopup container
     // We assume InfoPopup's root element has a specific class, e.g., 'info-popup-container'
     const targetElement = event.originalEvent.target as HTMLElement;
-    if (targetElement.closest('.info-popup-container')) {
-      return; // Click was inside the popup, do nothing
+    if (targetElement.closest('.info-popup-container') || targetElement.closest('.leaflet-marker-icon')) { // Ignore clicks on markers too
+      return; // Click was inside the popup or on a marker, do nothing
     }
     // If clickedCity is set and the click was outside, close it
     if (clickedCity) {
@@ -251,42 +257,48 @@ const WorldMap = () => {
   }, []);
 
   // --- Memos (Defined after state, before early returns) ---
+
+  // Note: filteredCities from useMapData already includes distance filtering
   const filteredStats = useMemo(() => {
-      // Use userCoordinates from context
-      if (!userCoordinates || !distanceFilter || distanceFilter >= 500) return null;
-      const totalCities = filteredCities.length; const visibleCities = filteredByDistance.length;
+      // Use filters object destructured from useMapData
+      if (!userCoordinates || !filters.distance || filters.distance >= 500) return null;
+      // Use original cities array destructured from useMapData
+      const totalCities = cities.length;
+      const visibleCities = filteredCities.length; // filteredCities already includes distance filter
       if (totalCities === 0) return { totalCities: 0, visibleCities: 0, percentage: 0 };
       return { totalCities, visibleCities, percentage: Math.round((visibleCities / totalCities) * 100) };
-  }, [userCoordinates, distanceFilter, filteredCities, filteredByDistance]); // Update dependencies
-  const displayedCities = useMemo(() => {
-    // Fix: Use standard JS Map constructor
-    const cityMap = new Map<number, City>();
+      // Update dependencies to use the destructured variables
+  }, [userCoordinates, filters.distance, filteredCities, cities]);
+
+  // This memo might need adjustment if Sidebar/Table will show users too
+  // For now, it only considers cities based on zoom level
+  const displayedCitiesForMap = useMemo(() => {
+    // Start with cities already filtered by country, population, search, distance
     let sourceCities = filteredCities;
-    // Use userCoordinates from context
-    if (distanceFilter !== null && userCoordinates) { sourceCities = filteredByDistance; }
+
+    // Further filter based on zoom level (show only major cities when zoomed out)
     if (mapZoom < 4) {
       const minPopulation = 5000000;
-      sourceCities.filter(city => city.population >= minPopulation).forEach(city => cityMap.set(city.id, city));
-    } else { sourceCities.forEach(city => cityMap.set(city.id, city)); }
-    // Fix: Use cityMap.values() (should now work)
-    // Explicitly type the result as City[] to be safe
+      sourceCities = sourceCities.filter(city => city.population >= minPopulation);
+    }
+    // Convert to Map for potential clustering optimization (though MarkerCluster handles array)
+    const cityMap = new Map<number, City>();
+    sourceCities.forEach(city => cityMap.set(city.id, city));
+
     return Array.from(cityMap.values()) as City[];
-  }, [distanceFilter, userCoordinates, filteredByDistance, filteredCities, mapZoom]); // Update dependencies
+  }, [filteredCities, mapZoom]); // Update dependencies
+
 
   // --- Effects (Defined after state, before early returns) ---
-  useEffect(() => {
-      // Use userCoordinates from context
-      if (!userCoordinates || distanceFilter === null) { setFilteredByDistance([]); return; }
-      const [userLat, userLng] = userCoordinates;
-      const citiesInRange = filteredCities.filter(city => isCityWithinRadius(userLat, userLng, city, distanceFilter));
-      setFilteredByDistance(citiesInRange);
-  }, [userCoordinates, distanceFilter, filteredCities]); // Update dependencies
+  // useEffect for filteredByDistance is removed, as filtering is now memoized in useMapData
+
   useEffect(() => {
     const handleResize = () => { if (mapRef.current) { mapRef.current.invalidateSize(); } };
     window.addEventListener('resize', handleResize);
     const timer = setTimeout(() => handleResize(), 100);
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(timer); }
   }, []);
+
   const RadiusCircle = useCallback(() => {
       // Use userCoordinates from context
       // Ensure radius is valid and positive before rendering
@@ -304,6 +316,7 @@ const WorldMap = () => {
 
   // --- Case 1: User Not Logged In ---
   if (!user) {
+    // No changes needed here
     return (
       <div className="relative h-full w-full overflow-hidden"> {/* Parent container */}
         <BlurredBackgroundMap /> {/* Background */}
@@ -314,18 +327,8 @@ const WorldMap = () => {
               Log in or create an account to view the interactive map, discover culinary spots, and save your favorites.
             </p>
             <div className="flex justify-center gap-4">
-              <Button
-                onClick={openAuthModal}
-                className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
-              >
-                Log In
-              </Button>
-              <Button
-                onClick={openAuthModal}
-                className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500"
-              >
-                Sign Up
-              </Button>
+              <Button onClick={openAuthModal} className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500">Log In</Button>
+              <Button onClick={openAuthModal} className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500">Sign Up</Button>
             </div>
           </div>
         </div>
@@ -335,15 +338,11 @@ const WorldMap = () => {
 
   // --- Case 2: Logged In, Location Permission Not Granted ---
   if (locationPermissionStatus !== 'granted') {
-    // Logic adapted from LocationPermissionModal.tsx
+    // No changes needed here
     let message = "To use location-based features like distance filtering and seeing your position, please grant location access.";
-    if (locationPermissionStatus === 'denied') {
-      message = "It looks like location access was denied. We need your location to show relevant information based on proximity. Please grant permission to continue.";
-    } else if (locationPermissionStatus === 'unavailable') {
-      message = "We couldn't access your location. This might be because your browser doesn't support it, or there was an issue retrieving it. Please ensure location services are enabled on your device and try again.";
-    }
+    if (locationPermissionStatus === 'denied') { message = "It looks like location access was denied. We need your location to show relevant information based on proximity. Please grant permission to continue."; }
+    else if (locationPermissionStatus === 'unavailable') { message = "We couldn't access your location. This might be because your browser doesn't support it, or there was an issue retrieving it. Please ensure location services are enabled on your device and try again."; }
     const additionalGuidance = "If you previously denied permission and don't see a prompt, please check your browser's site settings for this website and allow location access.";
-
     return (
       <div className="relative h-full w-full overflow-hidden"> {/* Parent container */}
         <BlurredBackgroundMap /> {/* Background */}
@@ -351,9 +350,7 @@ const WorldMap = () => {
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"> {/* Inner content box */}
             <h2 className="text-xl font-semibold mb-4 text-gray-800">Location Access Required</h2>
             <p className="text-gray-600 mb-4 text-left">{message}</p> {/* Align text left */}
-            {locationPermissionStatus === 'denied' && (
-              <p className="text-sm text-gray-500 mb-6 text-left">{additionalGuidance}</p>
-            )}
+            {locationPermissionStatus === 'denied' && (<p className="text-sm text-gray-500 mb-6 text-left">{additionalGuidance}</p>)}
             <div className="flex justify-end">
               <Button onClick={requestLocationPermission} className="bg-blue-500 hover:bg-blue-600 text-white">
                 {locationPermissionStatus === 'denied' ? 'Retry Granting Access' : 'Check Location Access'}
@@ -378,19 +375,19 @@ const WorldMap = () => {
   return (
     <div className="flex flex-col h-full w-full">
       <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] w-full">
-        {/* Sidebar */}
+        {/* Sidebar - Needs update to accept and display users */}
         <Sidebar
-          // Fix: displayedCities should now be City[]
-          cities={displayedCities}
+          cities={filteredCities} // Pass filtered cities
+          users={filteredUsers} // <-- Pass filtered users
+          // onUserSelect={handleUserSelect} // TODO: Add handler for selecting users
           onCitySelect={handleCitySelect}
           onCountryFilter={filterByCountry}
           onPopulationFilter={filterByPopulation}
-          onDistanceFilter={handleDistanceFilter}
+          onDistanceFilter={handleDistanceFilter} // Pass the updated handler
           onResetFilters={resetFilters}
-          loading={mapDataLoading} // Pass city loading state specifically if needed by Sidebar
-          // Pass userCoordinates from context
+          loading={mapDataLoading || loadingOtherUsers} // Combined loading state for sidebar?
           userPosition={userCoordinates}
-          filteredStats={filteredStats}
+          filteredStats={filteredStats} // Stats might need update if based on users too
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">
@@ -401,38 +398,29 @@ const WorldMap = () => {
           >
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             <ZoomControl position="bottomright" />
-            {/* Removed MapCenterController usage */}
             <MapBoundsController />
             <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} onMapClick={handleMapClick} />
 
-            {/* Render City Markers (existing) */}
+            {/* Render City Markers (using cities filtered for map display) */}
             <MarkerCluster
-              // Fix: displayedCities should now be City[]
-              cities={displayedCities}
+              cities={displayedCitiesForMap} // Use cities filtered for map zoom level
               onMarkerClick={handleMarkerClick}
-              onMarkerMouseOver={handleMarkerMouseOver} // Pass hover handler
-              onMarkerMouseOut={handleMarkerMouseOut}   // Pass hover handler
-              activeCityId={clickedCity?.id ?? null} // Pass ID of clicked city
-              onClusterClick={handleClusterClick} // Pass cluster click handler
+              onMarkerMouseOver={handleMarkerMouseOver}
+              onMarkerMouseOut={handleMarkerMouseOut}
+              activeCityId={clickedCity?.id ?? null}
+              onClusterClick={handleClusterClick}
+              users={filteredUsers} // <-- Pass filteredUsers to MarkerCluster
             />
 
-            {/* <-- Render Other User Markers --> */}
-            {otherUserLocations.map((location) => (
-              <OtherUserMarker
-                key={location.user_id} // Use user_id as key
-                latitude={location.latitude}
-                longitude={location.longitude}
-                userId={location.user_id} // Pass userId if needed later
-              />
-            ))}
+            {/* REMOVED separate rendering loop for OtherUserMarker - now handled by MarkerCluster */}
 
             {/* Render clicked popup OR hover popup (if no city is clicked) */}
             {clickedCity ? (
               <InfoPopup city={clickedCity} onClose={handlePopupClose} />
             ) : hoveredCity ? (
-              <InfoPopup city={hoveredCity} isHoverPreview={true} /> // Add isHoverPreview prop
+              <InfoPopup city={hoveredCity} isHoverPreview={true} />
             ) : null}
-            {/* Pass userCoordinates from context, remove onPositionUpdate */}
+
             {/* Render current user marker if coordinates exist */}
             {userCoordinates && (
                 <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} onClick={handleUserMarkerClick} />
@@ -441,13 +429,17 @@ const WorldMap = () => {
           </MapContainer>
         </div>
       </div>
-      {/* City Table */}
+      {/* Render City Table and User Table Separately */}
       <div className="overflow-y-auto mt-4 mb-8 px-4">
+        {/* City Table */}
         <CityTable
-          // Fix: displayedCities should now be City[]
-          cities={displayedCities}
-          // Pass userCoordinates from context
+          cities={filteredCities}
           userPosition={userCoordinates}
+        />
+        {/* User Table (conditionally rendered if there are users) */}
+        <UserTable
+            users={filteredUsers}
+            userPosition={userCoordinates}
         />
       </div>
     </div>

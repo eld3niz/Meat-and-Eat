@@ -1,36 +1,37 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'; // Import useMemo
 import { City } from '../../types';
+import { MapUser } from '../../hooks/useMapData'; // <-- Import MapUser type
 import SearchBar from './SearchBar';
 import CityFilter from './CityFilter'; // Check if CityFilter uses showUserLocation later
 import { debounce } from '../../utils/mapUtils'; // Import debounce
 
 interface SidebarProps {
   cities: City[];
+  users: MapUser[]; // <-- Add users prop
   onCitySelect: (cityId: number) => void;
+  // onUserSelect: (userId: string) => void; // TODO: Add if user selection is needed
   onCountryFilter: (country: string | null) => void;
   onPopulationFilter: (min: number, max: number) => void;
   onDistanceFilter: (distance: number | null) => void;
   onResetFilters: () => void;
-  loading: boolean;
-  // Removed: onToggleUserLocation: () => void;
-  // Removed: showUserLocation: boolean;
+  loading: boolean; // Represents city loading, might need combined loading state
   userPosition: [number, number] | null;
   filteredStats: { totalCities: number; visibleCities: number; percentage: number } | null;
 }
 
 /**
- * Seitenleiste mit Filteroptionen und Statistiken
+ * Seitenleiste mit Filteroptionen und Listen (Städte & Benutzer)
  */
 const Sidebar = ({
   cities,
+  users, // <-- Destructure users
   onCitySelect,
+  // onUserSelect, // TODO: Destructure if added
   onCountryFilter,
   onPopulationFilter,
   onDistanceFilter,
   onResetFilters,
-  loading,
-  // Removed: onToggleUserLocation,
-  // Removed: showUserLocation,
+  loading, // Consider passing loadingCities and loadingUsers separately if needed
   userPosition,
   filteredStats
 }: SidebarProps) => {
@@ -84,6 +85,9 @@ const Sidebar = ({
     return 'bg-green-500';
   }, [isDistanceFilterEnabled, distanceRange]);
 
+  // Determine if users should be shown based on length (they are pre-filtered in useMapData)
+  const showUsers = users.length > 0;
+
   return (
     <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
       {/* Toggle-Button remains the same */}
@@ -102,19 +106,18 @@ const Sidebar = ({
       {/* Inhalt der Seitenleiste */}
       {!isCollapsed && (
         <div className="p-4 h-[calc(100vh-120px)] overflow-y-auto">
-          <h2 className="text-xl font-bold text-blue-800 mb-4">Städte Explorer</h2>
+          <h2 className="text-xl font-bold text-blue-800 mb-4">Explorer</h2> {/* Changed Title */}
 
-          {loading ? (
+          {loading ? ( // Use combined loading state?
             <div className="flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
             </div>
           ) : (
             <>
+              {/* Search applies to both cities and users now (handled in useMapData) */}
               <SearchBar cities={cities} onCitySelect={onCitySelect} />
 
-              {/* REMOVED Standort-Button Section */}
-
-              {/* Verbesserte Entfernungsfilter-Komponente */}
+              {/* Distance Filter */}
               <div className="mt-6 mb-6"> {/* Adjusted margin */}
                 <div className="flex justify-between items-center mb-2">
                   <h3 className={`font-medium text-sm ${isDistanceFilterEnabled ? 'text-gray-700' : 'text-gray-400'}`}>
@@ -128,18 +131,12 @@ const Sidebar = ({
                     </span>
                   )}
                 </div>
-
                 <div className="px-2">
                   <input
-                    type="range"
-                    min="0"
-                    max="500"
-                    step="10"
+                    type="range" min="0" max="500" step="10"
                     value={distanceRange}
                     onChange={(e) => handleDistanceChange(parseInt(e.target.value))}
-                    className={`w-full ${isDistanceFilterEnabled
-                      ? 'cursor-pointer'
-                      : 'opacity-50 cursor-not-allowed'}`}
+                    className={`w-full ${isDistanceFilterEnabled ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
                     disabled={!isDistanceFilterEnabled}
                     style={{ accentColor: getSliderColor() }}
                   />
@@ -147,8 +144,7 @@ const Sidebar = ({
                     <span>0 km</span>
                     <span>Alle</span>
                   </div>
-
-                  {/* Statistik über gefilterte Städte */}
+                  {/* Statistics (currently only for cities) */}
                   {filteredStats && distanceRange < 500 && (
                     <div className="mt-2 text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 000 2v3a1 1 001 1h1a1 1 100-2v-3a1 1 00-1-1H9z" clipRule="evenodd" /></svg>
@@ -157,20 +153,15 @@ const Sidebar = ({
                       </span>
                     </div>
                   )}
-
-                  {/* REMOVED Message about activating location */}
                 </div>
               </div>
 
-              {/* Bevölkerungsfilter */}
+              {/* Population Filter (Applies only to cities) */}
               <div className="mt-4 mb-6">
-                <h3 className="font-medium text-sm text-gray-700 mb-2">Bevölkerungsfilter:</h3>
+                <h3 className="font-medium text-sm text-gray-700 mb-2">Bevölkerungsfilter (Städte):</h3>
                 <div className="px-2">
                   <input
-                    type="range"
-                    min="0"
-                    max="40000000"
-                    step="1000000"
+                    type="range" min="0" max="40000000" step="1000000"
                     value={populationRange[1]}
                     onChange={(e) => handlePopulationChange([populationRange[0], parseInt(e.target.value)])}
                     className="w-full"
@@ -182,6 +173,7 @@ const Sidebar = ({
                 </div>
               </div>
 
+              {/* Reset Button */}
               <div className="mb-4">
                 <button
                   onClick={handleReset}
@@ -191,14 +183,34 @@ const Sidebar = ({
                 </button>
               </div>
 
-              {/* CityFilter - Check if showUserLocation prop is needed */}
+              {/* City Filter Component (Displays list of cities) */}
               <CityFilter
-                cities={cities}
+                cities={cities} // Pass original cities or filteredCities? Let's pass filteredCities
                 onCitySelect={onCitySelect}
-                onCountryFilter={onCountryFilter}
+                onCountryFilter={onCountryFilter} // Country filter applies only to cities
                 userPosition={userPosition}
-                // Removed: showUserLocation={showUserLocation}
               />
+
+              {/* --- User List Section --- */}
+              {showUsers && (
+                <div className="mt-6 pt-4 border-t border-gray-200">
+                  <h3 className="font-medium text-sm text-gray-700 mb-2">Andere Benutzer:</h3>
+                  <ul className="max-h-48 overflow-y-auto text-sm"> {/* Limit height and scroll */}
+                    {users.map((user) => (
+                      <li
+                        key={user.user_id}
+                        // TODO: Add onClick handler if user selection is implemented
+                        // onClick={() => onUserSelect(user.user_id)}
+                        className="p-2 hover:bg-gray-100 cursor-pointer rounded" // Basic styling
+                      >
+                        {user.name} {/* Display user name */}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {/* --- End User List Section --- */}
+
             </>
           )}
         </div>

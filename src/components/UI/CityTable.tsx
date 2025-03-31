@@ -12,17 +12,18 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
   const [sortBy, setSortBy] = useState<'name' | 'population' | 'distance'>('population');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  // Berechnet die Entfernung zur Benutzerposition
+  // Calculate distance for a city
   const calculateDistance = (city: City): number | null => {
     if (!userPosition) return null;
-    
     return calculateHaversineDistance(
-      { latitude: userPosition[0], longitude: userPosition[1] },
-      { latitude: city.latitude, longitude: city.longitude }
+      userPosition[0], // userLat
+      userPosition[1], // userLng
+      city.latitude,   // cityLat
+      city.longitude   // cityLng
     );
   };
 
-  // Sortierte Städte basierend auf den aktuellen Sortiereinstellungen
+  // Sort cities based on current settings
   const sortedCities = useMemo(() => {
     const citiesWithDistance = cities.map(city => ({
       ...city,
@@ -34,55 +35,53 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
         const comparison = a.name.localeCompare(b.name);
         return sortOrder === 'asc' ? comparison : -comparison;
       }
-      
+
       if (sortBy === 'population') {
-        return sortOrder === 'asc' 
-          ? a.population - b.population 
+        return sortOrder === 'asc'
+          ? a.population - b.population
           : b.population - a.population;
       }
-      
+
       if (sortBy === 'distance') {
-        // Wenn keine Entfernung vorhanden ist, diese Städte nach hinten sortieren
         if (a.distance === null && b.distance === null) return 0;
-        if (a.distance === null) return 1;
+        if (a.distance === null) return 1; // Sort null distances to the end
         if (b.distance === null) return -1;
-        
         return sortOrder === 'asc'
           ? a.distance - b.distance
           : b.distance - a.distance;
       }
-      
+
       return 0;
     });
   }, [cities, sortBy, sortOrder, userPosition]);
 
-  // Sichtbare Städte basierend auf visibleCount
+  // Slice for visible cities
   const visibleCities = useMemo(() => {
     return sortedCities.slice(0, visibleCount);
   }, [sortedCities, visibleCount]);
 
-  // Umschalten der Sortierreihenfolge
+  // Toggle sort order
   const toggleSort = (column: 'name' | 'population' | 'distance') => {
     if (sortBy === column) {
       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(column);
-      setSortOrder('desc');
+      setSortOrder('desc'); // Default to desc
     }
   };
 
-  // Mehr Städte anzeigen
+  // Show more cities
   const handleShowMore = () => {
     setVisibleCount(prev => prev + 20);
   };
 
-  // Anzeigen eines Sortierpfeils basierend auf der aktuellen Sortierung
+  // Get sort arrow indicator
   const getSortArrow = (column: 'name' | 'population' | 'distance') => {
     if (sortBy !== column) return null;
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
-  // Keine Städte verfügbar
+  // No cities available
   if (cities.length === 0) {
     return (
       <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm">
@@ -94,12 +93,12 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm">
       <h2 className="text-2xl font-bold text-blue-800 mb-4">Städteliste</h2>
-      
+
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white">
           <thead className="bg-gray-100 border-b">
             <tr>
-              <th 
+              <th
                 onClick={() => toggleSort('name')}
                 className="py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors"
               >
@@ -109,7 +108,7 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
                 </div>
               </th>
               <th className="py-3 px-4 text-left">Land</th>
-              <th 
+              <th
                 onClick={() => toggleSort('population')}
                 className="py-3 px-4 text-right cursor-pointer hover:bg-gray-200 transition-colors"
               >
@@ -119,7 +118,7 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
                 </div>
               </th>
               {userPosition && (
-                <th 
+                <th
                   onClick={() => toggleSort('distance')}
                   className="py-3 px-4 text-right cursor-pointer hover:bg-gray-200 transition-colors"
                 >
@@ -133,8 +132,8 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
           </thead>
           <tbody>
             {visibleCities.map(city => (
-              <tr 
-                key={city.id} 
+              <tr
+                key={city.id}
                 className="border-b hover:bg-blue-50 transition-transform duration-200 hover:scale-[1.01] cursor-default"
               >
                 <td className="py-3 px-4 font-medium">{city.name}</td>
@@ -142,8 +141,8 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
                 <td className="py-3 px-4 text-right">{formatPopulation(city.population)}</td>
                 {userPosition && (
                   <td className="py-3 px-4 text-right">
-                    {city.distance !== null 
-                      ? `${Math.round(city.distance)} km` 
+                    {city.distance !== null
+                      ? `${Math.round(city.distance)} km`
                       : '—'}
                   </td>
                 )}
@@ -152,10 +151,11 @@ const CityTable: React.FC<CityTableProps> = ({ cities, userPosition }) => {
           </tbody>
         </table>
       </div>
-      
+
+      {/* Show More Button */}
       {visibleCount < sortedCities.length && (
         <div className="mt-4 text-center">
-          <button 
+          <button
             onClick={handleShowMore}
             className="bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded transition-colors"
           >

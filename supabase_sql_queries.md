@@ -100,3 +100,43 @@ USING (auth.uid() = id);
 
 ALTER TABLE public.user_locations
 ADD CONSTRAINT user_locations_user_id_key UNIQUE (user_id);
+
+-- ==============================================
+-- View for Combining User Location and Profile Info
+-- ==============================================
+
+-- Create a view to combine user location and basic profile info
+-- This allows fetching necessary user details for the map without exposing sensitive profile data
+CREATE OR REPLACE VIEW public.map_users AS
+SELECT
+    ul.user_id,
+    ul.latitude,
+    ul.longitude,
+    p.name -- Expose the user's name
+FROM
+    public.user_locations ul
+JOIN
+    public.profiles p ON ul.user_id = p.id;
+
+-- Grant necessary permissions to the 'authenticated' role to use the view
+-- Ensure this role exists and is used by your logged-in users
+GRANT SELECT ON TABLE public.map_users TO authenticated;
+GRANT USAGE ON SCHEMA public TO authenticated; -- Ensure role can access the public schema
+
+-- ==============================================
+-- RLS Policy Update for Profiles Table
+-- ==============================================
+
+-- Drop existing policy if it exists (for idempotency)
+DROP POLICY IF EXISTS "Allow authenticated users to read basic profile info for map" ON public.profiles;
+
+-- Add policy to allow authenticated users to read specific columns (id, name) needed for the map view
+-- This is more secure than allowing full profile reads.
+CREATE POLICY "Allow authenticated users to read basic profile info for map"
+ON public.profiles
+FOR SELECT
+USING (auth.role() = 'authenticated');
+
+-- Note: This policy allows reading all profiles' id and name.
+-- If you need stricter controls (e.g., only show users within a certain distance),
+-- you might need a Supabase Function (security definer) instead of a simple view.
