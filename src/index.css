@@ -49,79 +49,70 @@ section {
   background-color: #f8fafc; /* Ein hellerer Hintergrund, der sich besser mit der Karte vermischt */
 }
 
-/* Anpassungen für Marker-Cluster */
-.marker-cluster {
-  background-clip: padding-box;
-  border-radius: 20px;
-  text-align: center;
+/* Base style for custom marker clusters (specific styles are applied inline via Tailwind in iconCreateFunction) */
+.marker-cluster-custom {
+  /* No background needed here as it's applied inline */
+  /* Add any other base styles if necessary, e.g., transition */
+  transition: all 0.2s ease-in-out;
 }
 
-.marker-cluster div {
-  width: 30px;
-  height: 30px;
-  margin-left: 5px;
-  margin-top: 5px;
-  text-align: center;
-  border-radius: 15px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.marker-cluster-small {
-  background-color: rgba(181, 226, 140, 0.6);
-}
-
-.marker-cluster-small div {
-  background-color: rgba(110, 204, 57, 0.6);
-}
-
-.marker-cluster-medium {
-  background-color: rgba(241, 211, 87, 0.6);
-}
-
-.marker-cluster-medium div {
-  background-color: rgba(240, 194, 12, 0.6);
-}
-
-.marker-cluster-large {
-  background-color: rgba(253, 156, 115, 0.6);
-}
-
-.marker-cluster-large div {
-  background-color: rgba(241, 128, 23, 0.6);
-}
-
-/* Verbesserte Popup-Styling für bessere Lesbarkeit und Anzeige */
+/* --- Enhanced Popup Styling --- */
 .leaflet-popup-content-wrapper {
-  border-radius: 8px;
-  padding: 0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  max-height: 80vh; /* Begrenzt die maximale Höhe auf 80% der Viewport-Höhe */
-  overflow-y: auto; /* Fügt Scrollbalken hinzu, wenn nötig */
+  @apply bg-white rounded-lg shadow-lg border border-gray-200; /* Tailwind classes */
+  padding: 0; /* Content adds its own padding */
+  max-height: 80vh; /* Limit max height */
+  overflow-y: auto; /* Add scroll if needed */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Slightly stronger shadow */
 }
 
 .leaflet-popup-content {
-  margin: 10px 12px;
-  line-height: 1.4;
+  @apply p-4 text-sm text-gray-700; /* Tailwind for padding, text size/color */
+  margin: 0; /* Remove default margin */
+  line-height: 1.5; /* Adjust line-height */
 }
 
-/* Reduzierte Größe für Popups */
-.reduced-size .leaflet-popup-content-wrapper {
-  font-size: 0.9rem; /* Etwas kleinere Schrift */
-  transform: scale(0.8); /* 20% Größenreduktion */
-  transform-origin: bottom center; /* Skalierung vom unteren Zentrum aus */
+/* Style the popup close button */
+.leaflet-popup-close-button {
+  @apply text-gray-400 hover:text-gray-700 transition-colors duration-150;
+  position: absolute;
+  top: 6px; /* Adjusted position */
+  right: 6px; /* Adjusted position */
+  padding: 0;
+  border: none;
+  text-align: center;
+  width: 28px; /* Adjusted size */
+  height: 28px;
+  font: 22px/28px 'Helvetica Neue', Arial, Helvetica, sans-serif; /* Clearer 'x' */
+  color: inherit; /* Inherit color from @apply */
+  text-decoration: none;
+  font-weight: normal; /* Less bold */
+  background: transparent;
+  cursor: pointer;
 }
 
-.reduced-size .leaflet-popup-content {
-  margin: 8px 10px; /* Etwas kleinere Innenabstände */
+/* Style the popup tip (arrow) */
+.leaflet-popup-tip-container {
+  width: 40px;
+  height: 20px;
+  position: absolute;
+  left: 50%;
+  margin-left: -20px;
+  overflow: hidden;
+  pointer-events: none;
 }
 
-.city-info h3 {
-  margin-top: 0;
-  color: #1a365d;
+.leaflet-popup-tip {
+  @apply bg-white border-l border-b border-gray-200; /* Match wrapper style, remove shadow */
+  box-shadow: none; /* Remove shadow from tip, wrapper has it */
+  width: 17px;
+  height: 17px;
+  padding: 1px;
+  margin: -10px auto 0;
+  transform: rotate(45deg);
 }
+
+/* TODO: Review .reduced-size styles if needed for hover preview in InfoPopup.tsx */
+/* TODO: Review .city-info h3 styles - prefer Tailwind in InfoPopup.tsx */
 
 /* Sicherstellen, dass die Karte den gesamten verfügbaren Raum nutzt */
 .map-container {
@@ -142,10 +133,10 @@ section {
   line-height: 34px;
 }
 
-/* Ausblenden der Leaflet-Attributionsbox */
-.leaflet-control-attribution {
+/* Ausblenden der Leaflet-Attributionsbox (Keep if desired, but Carto requires attribution) */
+/* .leaflet-control-attribution {
   display: none !important;
-}
+} */
 
 /* Anpassungen für die Städtetabelle */
 .city-table-container {
@@ -170,4 +161,35 @@ section {
   transform: scale(1.01);
   background-color: #eff6ff;
   transition: all 0.2s ease;
+}
+
+/* --- Enhanced Zoom Control Styling --- */
+.leaflet-control-zoom {
+  @apply border-none shadow-lg; /* Remove default border, add shadow */
+}
+
+.leaflet-control-zoom a {
+  @apply bg-white text-gray-700 transition-colors duration-150;
+  width: 32px; /* Slightly smaller */
+  height: 32px;
+  line-height: 32px;
+  font-size: 18px; /* Adjust icon size */
+  font-weight: 600; /* Slightly bolder */
+}
+
+.leaflet-control-zoom a:hover {
+  @apply bg-gray-100 text-gray-900; /* Hover effect */
+}
+
+.leaflet-control-zoom-in {
+  @apply rounded-t-md; /* Rounded top corners */
+}
+
+.leaflet-control-zoom-out {
+  @apply rounded-b-md border-t border-gray-200; /* Rounded bottom corners, add separator */
+}
+
+/* Remove border from the bar itself if touch controls are used */
+.leaflet-touch .leaflet-control-zoom {
+  @apply border-none;
 }

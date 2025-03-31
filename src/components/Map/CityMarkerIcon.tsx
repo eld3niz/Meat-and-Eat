@@ -12,10 +12,11 @@ export const createSvgMarkerIcon = (population: number, color = '#1d4ed8'): L.Di
               population > 10000000 ? 25 :
               population > 5000000 ? 20 : 16;
   
-  // Erstelle ein SVG als String
+  // Erstelle ein SVG als String mit äußerem Ring für bessere Sichtbarkeit
   const svgString = `
     <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 1}" fill="${color}" stroke="white" stroke-width="1"/>
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2}" fill="${color}" fill-opacity="0.3"/> {/* Äußerer Ring */}
+      <circle cx="${size/2}" cy="${size/2}" r="${size/2 - 1.5}" fill="${color}" stroke="white" stroke-width="1"/> {/* Innerer Kreis */}
     </svg>
   `;
   

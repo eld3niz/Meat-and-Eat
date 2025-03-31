@@ -379,7 +379,7 @@ const WorldMap = () => {
             zoomControl={false} ref={mapRef} maxBoundsViscosity={1.0} worldCopyJump={false}
             bounceAtZoomLimits={true} minZoom={2}
           >
-            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             <ZoomControl position="bottomright" />
             {/* Removed MapCenterController usage */}
             <MapBoundsController />
