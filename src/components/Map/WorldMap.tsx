@@ -96,7 +96,31 @@ const WorldMap = () => {
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
-  const handleDistanceFilter = useCallback((distance: number | null) => { setDistanceRadius(distance); setDistanceFilter(distance); setClickedCity(null); }, []); // Close popup on filter change
+  const handleDistanceFilter = useCallback((distance: number | null) => {
+    setDistanceRadius(distance);
+    setDistanceFilter(distance);
+    setClickedCity(null); // Close popup on filter change
+
+    // Adjust map view to fit the new radius
+    const map = mapRef.current;
+    if (map && userCoordinates && distance !== null && distance > 0 && distance < 500) {
+      const radiusInMeters = distance * 1000;
+      
+      // Calculate approximate bounds manually
+      const [userLat, userLng] = userCoordinates;
+      const latDelta = radiusInMeters / 111132; // Approx meters per degree latitude
+      const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180)); // Approx meters per degree longitude at userLat
+      
+      const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
+      const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
+      const calculatedBounds = L.latLngBounds(southWest, northEast);
+
+      map.flyToBounds(calculatedBounds, { padding: [50, 50], duration: 1.0 }); // Add padding and animation
+    } else if (map && distance === null) {
+      // Optional: Reset zoom/center if filter is cleared? Or leave as is.
+      // map.flyTo([20, 0], 2); // Example: Reset to default view
+    }
+  }, [userCoordinates, isFlying]); // Add userCoordinates and isFlying dependencies
   const handleMarkerClick = useCallback((city: City) => {
     const map = mapRef.current;
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
@@ -184,6 +208,28 @@ const WorldMap = () => {
     setHoveredCity(null);
   }, []);
 
+  // Handler for clicking the user's own location marker
+  const handleUserMarkerClick = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !userCoordinates || isFlying) return; // Need map, coordinates, and not be animating
+
+    // Close any open city popup
+    setClickedCity(null);
+    setHoveredCity(null);
+    setIsFlying(true);
+
+    const targetZoom = 13; // Zoom level for user location
+    map.flyTo(userCoordinates, targetZoom, { duration: 1.0 });
+
+    // Update state after animation
+    setTimeout(() => {
+      setMapCenter(userCoordinates);
+      setMapZoom(targetZoom);
+      setIsFlying(false);
+    }, 1000); // Match flyTo duration
+
+  }, [userCoordinates, isFlying]); // Dependencies
+
   // Handler to close popup when a cluster is clicked
   const handleClusterClick = useCallback(() => {
     setClickedCity(null);
@@ -229,7 +275,8 @@ const WorldMap = () => {
   }, []);
   const RadiusCircle = useCallback(() => {
       // Use userCoordinates from context
-      if (!userCoordinates || !distanceRadius || distanceRadius >= 500) return null;
+      // Ensure radius is valid and positive before rendering
+      if (!userCoordinates || !distanceRadius || distanceRadius <= 0 || distanceRadius >= 500) return null;
       return (<Circle center={userCoordinates} radius={distanceRadius * 1000} pathOptions={{ color: '#3b82f6', fillColor: '#3b82f6', fillOpacity: 0.1, weight: 1 }} />);
   }, [userCoordinates, distanceRadius]); // Update dependencies
 
@@ -353,7 +400,7 @@ const WorldMap = () => {
               <InfoPopup city={hoveredCity} isHoverPreview={true} /> // Add isHoverPreview prop
             ) : null}
             {/* Pass userCoordinates from context, remove onPositionUpdate */}
-            <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} />
+            <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} onClick={handleUserMarkerClick} />
             <RadiusCircle />
           </MapContainer>
         </div>

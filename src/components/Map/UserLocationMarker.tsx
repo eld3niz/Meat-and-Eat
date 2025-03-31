@@ -6,6 +6,7 @@ interface UserLocationMarkerProps {
   position: [number, number] | null; // Changed to required or null
   radius?: number; // Keep for potential future use, but not used for rendering circle here
   showRadius?: boolean; // Keep for potential future use
+  onClick?: () => void; // Add optional onClick handler prop
 }
 
 // Icon creation function remains the same
@@ -25,7 +26,7 @@ const createUserLocationIcon = (): L.DivIcon => {
  * Simplified component to display the user's location marker.
  * Relies on the position prop provided by the parent component (WorldMap).
  */
-const UserLocationMarker = ({ position, radius, showRadius }: UserLocationMarkerProps) => {
+const UserLocationMarker = ({ position, radius, showRadius, onClick }: UserLocationMarkerProps) => {
   const styleElRef = useRef<HTMLStyleElement | null>(null);
 
   // Effect to add/remove pulse animation CSS
@@ -70,6 +71,8 @@ const UserLocationMarker = ({ position, radius, showRadius }: UserLocationMarker
       icon={createUserLocationIcon()}
       // Prevent keyboard interaction for this purely visual marker
       keyboard={false}
+      // Add click handler if provided
+      eventHandlers={{ click: onClick }}
     >
       <Tooltip permanent={false} direction="top" offset={[0, -10]}>
         <div>

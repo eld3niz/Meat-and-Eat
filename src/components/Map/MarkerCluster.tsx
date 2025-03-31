@@ -35,16 +35,17 @@ const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouse
     zoomToBoundsOnClick: true,
     removeOutsideVisibleBounds: true,
     animate: window.innerWidth > 768,
-    iconCreateFunction: (cluster: L.MarkerCluster) => {
-      const childCount = cluster.getChildCount();
-      const size = childCount < 10 ? 'small' : childCount < 30 ? 'medium' : 'large';
+    // Removed custom iconCreateFunction to test default library icons
+    // iconCreateFunction: (cluster: L.MarkerCluster) => {
+    //   const childCount = cluster.getChildCount();
+    //   const size = childCount < 10 ? 'small' : childCount < 30 ? 'medium' : 'large';
       
-      return new L.DivIcon({
-        html: `<div><span>${childCount}</span></div>`,
-        className: `marker-cluster marker-cluster-${size}`,
-        iconSize: new L.Point(40, 40)
-      });
-    }
+    //   return new L.DivIcon({
+    //     html: `<div><span>${childCount}</span></div>`,
+    //     className: `marker-cluster marker-cluster-${size}`,
+    //     iconSize: new L.Point(40, 40)
+    //   });
+    // }
   }), []);
 
   // Initialisiere die Marker-Cluster-Gruppe
