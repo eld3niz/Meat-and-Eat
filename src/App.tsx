@@ -11,6 +11,8 @@ import AuthModalPortal from './components/Auth/AuthModalPortal';
 import Header from './components/Layout/Header';
 import Footer from './components/Layout/Footer';
 import LocationPermissionModal from './components/UI/LocationPermissionModal'; // Import the new modal
+// Import LoginPrompt
+import LoginPrompt from './components/UI/LoginPrompt'; // Added import
 
 // Inner component to access AuthContext
 const AppContent = () => {
@@ -92,16 +94,19 @@ const AppContent = () => {
           <DatenschutzPage />
         ) : currentPage === 'impressum' ? (
           <ImpressumPage />
-        ) : (
-          // Render WorldMap regardless of login here; auth check happens inside WorldMap
-          <WorldMap />
+        ) : ( // Handle map page rendering
+          // Render WorldMap if logged in, otherwise render LoginPrompt
+          user ? <WorldMap /> : <LoginPrompt />
         )}
         {/* Removed extra closing brace */}
         {/* Conditionally render the location modal INSIDE the content div */}
         {showLocationModal && <LocationPermissionModal />}
+
+        {/* AuthModalPortal is now rendered INSIDE the content div */}
+        <AuthModalPortal />
       </div>
       <Footer />
-      <AuthModalPortal />
+      {/* AuthModalPortal removed from here */}
       {/* Modal rendering moved inside the content div */}
     </div>
   );
