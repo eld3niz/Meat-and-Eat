@@ -1,7 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react'; // Import useMemo
 import { City } from '../../types';
 import SearchBar from './SearchBar';
 import CityFilter from './CityFilter'; // Check if CityFilter uses showUserLocation later
+import { debounce } from '../../utils/mapUtils'; // Import debounce
 
 interface SidebarProps {
   cities: City[];
@@ -45,10 +46,18 @@ const Sidebar = ({
     onPopulationFilter(range[0], range[1]);
   };
 
+  // Debounce the distance filter function to avoid rapid map updates
+  const debouncedDistanceFilter = useMemo(
+    () => debounce((distance: number | null) => {
+      onDistanceFilter(distance);
+    }, 300), // Debounce time: 300ms
+    [onDistanceFilter] // Recreate if the original callback changes
+  );
+
   const handleDistanceChange = useCallback((distance: number) => {
-    setDistanceRange(distance);
-    onDistanceFilter(distance >= 500 ? null : distance);
-  }, [onDistanceFilter]);
+    setDistanceRange(distance); // Update local state immediately for slider UI feedback
+    debouncedDistanceFilter(distance >= 500 ? null : distance); // Call debounced filter function
+  }, [debouncedDistanceFilter]); // Depend on the debounced function
 
   const handleReset = useCallback(() => {
     setPopulationRange([0, 40000000]);
