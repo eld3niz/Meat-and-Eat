@@ -48,17 +48,44 @@ const MarkerCluster = ({
     animate: window.innerWidth > 768,
     iconCreateFunction: (cluster: L.MarkerCluster) => {
       const childCount = cluster.getChildCount();
+      const childMarkers = cluster.getAllChildMarkers();
+
+      // Check if all children are users and share the exact same coordinates (due to grid snapping)
+      let allUsersSameSpot = false;
+      if (childMarkers.length > 0 && childCount > 1) { // Only check if there's more than one marker
+          const firstLatLng = childMarkers[0].getLatLng();
+          // Check if all markers use the user icon AND share the same LatLng
+          const areAllUsers = childMarkers.every(m => m.options.icon === otherUserIcon);
+          const areAllSameLatLng = childMarkers.every(m => m.getLatLng().equals(firstLatLng));
+
+          if (areAllUsers && areAllSameLatLng) {
+              allUsersSameSpot = true;
+          }
+      }
+
       let sizeClass = 'w-8 h-8 text-xs';
-      let bgClass = 'bg-blue-400 border-blue-500'; // Default blue for mixed/city clusters?
-      // TODO: Potentially adjust cluster icon color if it only contains users?
-      if (childCount >= 10) { sizeClass = 'w-10 h-10 text-sm'; bgClass = 'bg-yellow-400 border-yellow-500'; }
-      if (childCount >= 30) { sizeClass = 'w-12 h-12 text-base'; bgClass = 'bg-red-400 border-red-500'; }
+      let bgClass = 'bg-blue-400 border-blue-500'; // Default blue for mixed/city clusters
+
+      // Custom style for multiple users snapped to the same grid point
+      if (allUsersSameSpot) {
+          bgClass = 'bg-green-500 border-green-600'; // Use user color (green)
+          // Keep base size or adjust if needed
+          sizeClass = 'w-8 h-8 text-xs'; // Or maybe slightly larger? 'w-9 h-9 text-xs'
+      } else {
+          // Original logic for sizing/coloring based on count for mixed/city clusters or single markers
+          if (childCount >= 10) { sizeClass = 'w-10 h-10 text-sm'; bgClass = 'bg-yellow-400 border-yellow-500'; }
+          if (childCount >= 30) { sizeClass = 'w-12 h-12 text-base'; bgClass = 'bg-red-400 border-red-500'; }
+          // Handle single marker case if needed (though clustering might not happen for 1)
+      }
+
+      const sizeValue = parseInt(sizeClass.split(' ')[0].substring(2)) * 4; // Assuming Tailwind units are relative to 1rem=16px, w-8 -> 32px
       const html = `<div class="flex items-center justify-center ${sizeClass} ${bgClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${childCount}</span></div>`;
+
       return L.divIcon({
         html: html,
-        className: 'marker-cluster-custom',
-        iconSize: L.point(parseInt(sizeClass.split(' ')[0].substring(2)), parseInt(sizeClass.split(' ')[1].substring(2))),
-        iconAnchor: L.point(parseInt(sizeClass.split(' ')[0].substring(2))/2, parseInt(sizeClass.split(' ')[1].substring(2))/2)
+        className: 'marker-cluster-custom', // Ensure this class doesn't override the background
+        iconSize: L.point(sizeValue, sizeValue),
+        iconAnchor: L.point(sizeValue / 2, sizeValue / 2)
       });
     }
   }), []);

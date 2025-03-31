@@ -139,19 +139,17 @@ export const useMapData = (): MapData => {
 
   // --- Data Fetching ---
 
-  // Fetch other user locations/names from the map_users view
+  // Fetch other user locations/names using the snapped locations function
   const fetchOtherUserLocations = async (currentUserId: string | undefined) => {
     setLoadingOtherUsers(true);
     setErrorOtherUsers(null);
     try {
-      // Query the view instead of the table
-      const { data, error } = await supabase
-        .from('map_users') // <-- Query the view
-        .select('user_id, latitude, longitude, name'); // <-- Select name as well
+      // Call the RPC function to get snapped locations
+      const { data, error } = await supabase.rpc('get_snapped_map_users');
 
       if (error) {
-        console.error("Supabase error fetching map_users view:", error);
-        throw new Error(`Database error: ${error.message}`); // More specific error
+        console.error("Supabase RPC error calling get_snapped_map_users:", error);
+        throw new Error(`Database RPC error: ${error.message}`); // More specific error
       }
 
       if (data) {
