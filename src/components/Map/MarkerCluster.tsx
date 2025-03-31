@@ -14,12 +14,13 @@ interface MarkerClusterProps {
   onMarkerClick: (city: City) => void;
   onMarkerMouseOver: (city: City) => void; // Add mouseover handler prop
   onMarkerMouseOut: () => void; // Add mouseout handler prop
+  activeCityId: number | null; // Add prop for currently clicked city ID
 }
 
 /**
  * Komponente zur Darstellung der Stadt-Marker mit Clustering
  */
-const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut }: MarkerClusterProps) => {
+const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersRef = useRef<{[id: number]: L.Marker}>({});
@@ -111,7 +112,10 @@ const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouse
         onMarkerClick(city);
       });
       marker.on('mouseover', () => { // Add mouseover listener
-        onMarkerMouseOver(city);
+        // Only trigger hover if no city popup is currently active
+        if (activeCityId === null) {
+          onMarkerMouseOver(city);
+        }
       });
       marker.on('mouseout', () => { // Add mouseout listener
         onMarkerMouseOut();

@@ -96,7 +96,7 @@ const WorldMap = () => {
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
-  const handleDistanceFilter = useCallback((distance: number | null) => { setDistanceRadius(distance); setDistanceFilter(distance); }, []);
+  const handleDistanceFilter = useCallback((distance: number | null) => { setDistanceRadius(distance); setDistanceFilter(distance); setClickedCity(null); }, []); // Close popup on filter change
   const handleMarkerClick = useCallback((city: City) => {
     const map = mapRef.current;
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
@@ -143,9 +143,19 @@ const WorldMap = () => {
   const throttledHandleZoom = useCallback(throttle(() => { if (mapRef.current) { setMapZoom(mapRef.current.getZoom()); } }, 100), []);
   const debouncedHandleMapMove = useCallback(debounce(() => {
     if (isFlying || !mapRef.current) return; // Do nothing if animating or map not ready
-    const c = mapRef.current.getCenter();
+    const map = mapRef.current; // Get map instance
+    const c = map.getCenter();
     setMapCenter([c.lat, c.lng]);
-  }, 150), [isFlying]); // Add isFlying dependency
+
+    // Auto-close popup if marker is out of bounds
+    if (clickedCity) {
+      const bounds = map.getBounds();
+      const cityLatLng = L.latLng(clickedCity.latitude, clickedCity.longitude);
+      if (!bounds.contains(cityLatLng)) {
+        setClickedCity(null);
+      }
+    }
+  }, 150), [isFlying, clickedCity]); // Add clickedCity dependency
 
   // Close clicked popup when clicking outside of it
   const handleMapClick = useCallback((event: L.LeafletMouseEvent) => {
@@ -325,6 +335,7 @@ const WorldMap = () => {
               onMarkerClick={handleMarkerClick}
               onMarkerMouseOver={handleMarkerMouseOver} // Pass hover handler
               onMarkerMouseOut={handleMarkerMouseOut}   // Pass hover handler
+              activeCityId={clickedCity?.id ?? null} // Pass ID of clicked city
             />
             {/* Render clicked popup OR hover popup (if no city is clicked) */}
             {clickedCity ? (
