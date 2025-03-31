@@ -44,11 +44,33 @@ const MapEventHandlers = ({ onZoomEnd, onMoveEnd }: { onZoomEnd: () => void, onM
   return null;
 };
 
+// --- Blurred Background Component ---
+const BlurredBackgroundMap = () => (
+  <div className="absolute inset-0 z-0 filter blur-sm pointer-events-none">
+    <MapContainer
+      center={[20, 0]} // Default center
+      zoom={2} // Default zoom
+      style={{ height: '100%', width: '100%' }}
+      zoomControl={false}
+      scrollWheelZoom={false}
+      dragging={false}
+      touchZoom={false}
+      doubleClickZoom={false}
+      boxZoom={false}
+      keyboard={false}
+      attributionControl={false} // Hide attribution on blurred map
+    >
+      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+    </MapContainer>
+  </div>
+);
+
+
 // --- Main WorldMap Component ---
 const WorldMap = () => {
   // --- Hooks (MUST be called unconditionally at the top) ---
   // Get userCoordinates from context
-  const { user, locationPermissionStatus, userCoordinates, loading: authLoading } = useAuth();
+  const { user, locationPermissionStatus, userCoordinates, loading: authLoading, requestLocationPermission } = useAuth(); // Added requestLocationPermission
   const { loading: mapDataLoading, error: mapDataError, filteredCities, selectCity, filterByCountry, filterByPopulation, resetFilters, zoomToCity } = useMapData();
   const { openAuthModal } = useModal(); // Get modal function
   const [clickedCity, setClickedCity] = useState<City | null>(null);
@@ -125,33 +147,71 @@ const WorldMap = () => {
   if (authLoading || mapDataLoading) {
     return ( <div className="flex items-center justify-center h-full w-full bg-gray-50"><div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600"></div></div> );
   }
+
+  // --- Case 1: User Not Logged In ---
   if (!user) {
     return (
-      <div className="flex items-center justify-center h-full w-full text-center p-8 bg-gray-50">
-        <div className="max-w-md">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-800">Unlock the Full Map Experience!</h2>
-          <p className="text-gray-600 mb-6">
-            Log in or create an account to view the interactive map, discover culinary spots, and save your favorites.
-          </p>
-          <div className="flex justify-center gap-4">
-            <Button
-              onClick={openAuthModal}
-              className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
-            >
-              Log In
-            </Button>
-            <Button
-              onClick={openAuthModal}
-              className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500"
-            >
-              Sign Up
-            </Button>
+      <div className="relative h-full w-full overflow-hidden"> {/* Parent container */}
+        <BlurredBackgroundMap /> {/* Background */}
+        <div className="relative z-10 flex items-center justify-center h-full w-full text-center p-8 bg-gray-800 bg-opacity-50"> {/* Foreground with semi-transparent overlay */}
+          <div className="max-w-md bg-white p-8 rounded-lg shadow-xl"> {/* Inner content box */}
+            <h2 className="text-2xl font-semibold mb-4 text-gray-800">Unlock the Full Map Experience!</h2>
+            <p className="text-gray-600 mb-6">
+              Log in or create an account to view the interactive map, discover culinary spots, and save your favorites.
+            </p>
+            <div className="flex justify-center gap-4">
+              <Button
+                onClick={openAuthModal}
+                className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500"
+              >
+                Log In
+              </Button>
+              <Button
+                onClick={openAuthModal}
+                className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500"
+              >
+                Sign Up
+              </Button>
+            </div>
           </div>
         </div>
       </div>
     );
   }
-  if (locationPermissionStatus !== 'granted') { return null; }
+
+  // --- Case 2: Logged In, Location Permission Not Granted ---
+  if (locationPermissionStatus !== 'granted') {
+    // Logic adapted from LocationPermissionModal.tsx
+    let message = "To use location-based features like distance filtering and seeing your position, please grant location access.";
+    if (locationPermissionStatus === 'denied') {
+      message = "It looks like location access was denied. We need your location to show relevant information based on proximity. Please grant permission to continue.";
+    } else if (locationPermissionStatus === 'unavailable') {
+      message = "We couldn't access your location. This might be because your browser doesn't support it, or there was an issue retrieving it. Please ensure location services are enabled on your device and try again.";
+    }
+    const additionalGuidance = "If you previously denied permission and don't see a prompt, please check your browser's site settings for this website and allow location access.";
+
+    return (
+      <div className="relative h-full w-full overflow-hidden"> {/* Parent container */}
+        <BlurredBackgroundMap /> {/* Background */}
+        <div className="relative z-10 flex items-center justify-center h-full w-full text-center p-8 bg-gray-800 bg-opacity-50"> {/* Foreground with semi-transparent overlay */}
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"> {/* Inner content box */}
+            <h2 className="text-xl font-semibold mb-4 text-gray-800">Location Access Required</h2>
+            <p className="text-gray-600 mb-4 text-left">{message}</p> {/* Align text left */}
+            {locationPermissionStatus === 'denied' && (
+              <p className="text-sm text-gray-500 mb-6 text-left">{additionalGuidance}</p>
+            )}
+            <div className="flex justify-end">
+              <Button onClick={requestLocationPermission} className="bg-blue-500 hover:bg-blue-600 text-white">
+                {locationPermissionStatus === 'denied' ? 'Retry Granting Access' : 'Check Location Access'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // --- Case 3: Map Data Error (User logged in, permission granted) ---
   if (mapDataError) {
     return ( <div className="flex items-center justify-center h-full w-full"><div className="text-red-500 max-w-md p-4 bg-red-50 rounded-lg border border-red-100"><h2 className="text-xl font-bold mb-2">Fehler beim Laden der Kartendaten</h2><p>{mapDataError}</p><button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors">Neu laden</button></div></div> );
   }
