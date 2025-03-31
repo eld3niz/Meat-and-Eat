@@ -15,12 +15,13 @@ interface MarkerClusterProps {
   onMarkerMouseOver: (city: City) => void; // Add mouseover handler prop
   onMarkerMouseOut: () => void; // Add mouseout handler prop
   activeCityId: number | null; // Add prop for currently clicked city ID
+  onClusterClick: () => void; // Add prop for cluster click handler
 }
 
 /**
  * Komponente zur Darstellung der Stadt-Marker mit Clustering
  */
-const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId }: MarkerClusterProps) => {
+const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, onClusterClick }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
   const markersRef = useRef<{[id: number]: L.Marker}>({});
@@ -54,16 +55,23 @@ const MarkerCluster = ({ cities, onMarkerClick, onMarkerMouseOver, onMarkerMouse
     if (!markerClusterGroupRef.current) {
       markerClusterGroupRef.current = new L.MarkerClusterGroup(markerClusterOptions);
       map.addLayer(markerClusterGroupRef.current);
+
+      // Add listener for cluster clicks
+      const clusterGroup = markerClusterGroupRef.current;
+      clusterGroup.on('clusterclick', onClusterClick);
     }
     
+    // Cleanup function
     return () => {
       if (map && markerClusterGroupRef.current) {
+        // Remove listener before removing layer
+        markerClusterGroupRef.current.off('clusterclick', onClusterClick);
         map.removeLayer(markerClusterGroupRef.current);
         markerClusterGroupRef.current = null;
         markersRef.current = {};
       }
     };
-  }, [map, markerClusterOptions]);
+  }, [map, markerClusterOptions, onClusterClick]); // Add onClusterClick to dependencies
 
   // Aktualisiere die Marker basierend auf den Städten
   useEffect(() => {

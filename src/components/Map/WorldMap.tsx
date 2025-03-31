@@ -101,8 +101,10 @@ const WorldMap = () => {
     const map = mapRef.current;
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
 
-    setIsFlying(true);
+    // Close previous popup immediately before starting animation
+    setClickedCity(null);
     setHoveredCity(null); // Clear hover state on click
+    setIsFlying(true); // Set flying state *after* clearing clickedCity
     const targetCoords: [number, number] = [city.latitude, city.longitude];
     const currentZoom = map.getZoom();
     const minDetailZoom = 7; // Minimum zoom level to show detail without zooming out
@@ -117,7 +119,7 @@ const WorldMap = () => {
       setClickedCity(city); // Set clicked city *after* animation
       setIsFlying(false);
     }, 1000); // Match flyTo duration
-  }, [isFlying]); // Add isFlying dependency
+  }, [isFlying, clickedCity]); // Add isFlying and clickedCity dependencies
 
   const handlePopupClose = useCallback(() => { setClickedCity(null); }, []);
 
@@ -180,6 +182,12 @@ const WorldMap = () => {
 
   const handleMarkerMouseOut = useCallback(() => {
     setHoveredCity(null);
+  }, []);
+
+  // Handler to close popup when a cluster is clicked
+  const handleClusterClick = useCallback(() => {
+    setClickedCity(null);
+    setHoveredCity(null); // Also clear hover state
   }, []);
 
   // --- Memos (Defined after state, before early returns) ---
@@ -336,6 +344,7 @@ const WorldMap = () => {
               onMarkerMouseOver={handleMarkerMouseOver} // Pass hover handler
               onMarkerMouseOut={handleMarkerMouseOut}   // Pass hover handler
               activeCityId={clickedCity?.id ?? null} // Pass ID of clicked city
+              onClusterClick={handleClusterClick} // Pass cluster click handler
             />
             {/* Render clicked popup OR hover popup (if no city is clicked) */}
             {clickedCity ? (
