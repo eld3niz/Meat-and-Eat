@@ -391,6 +391,7 @@ const WorldMap = () => {
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">
+          {/* Map Container */}
           <MapContainer
             center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }}
             zoomControl={false} ref={mapRef} maxBoundsViscosity={1.0} worldCopyJump={false}
@@ -401,7 +402,7 @@ const WorldMap = () => {
             <MapBoundsController />
             <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} onMapClick={handleMapClick} />
 
-            {/* Render City Markers (using cities filtered for map display) */}
+            {/* Render City and User Markers with Clustering */}
             <MarkerCluster
               cities={displayedCitiesForMap} // Use cities filtered for map zoom level
               onMarkerClick={handleMarkerClick}
@@ -410,6 +411,7 @@ const WorldMap = () => {
               activeCityId={clickedCity?.id ?? null}
               onClusterClick={handleClusterClick}
               users={filteredUsers} // <-- Pass filteredUsers to MarkerCluster
+              userCoordinates={userCoordinates} // <-- Pass userCoordinates
             />
 
             {/* REMOVED separate rendering loop for OtherUserMarker - now handled by MarkerCluster */}
@@ -427,6 +429,17 @@ const WorldMap = () => {
             )}
             <RadiusCircle />
           </MapContainer>
+
+          {/* Zoom to Me Button */}
+          {userCoordinates && (
+            <Button
+              onClick={handleUserMarkerClick}
+              className="absolute top-4 right-4 z-[1000] bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded shadow"
+              aria-label="Zoom to my location"
+            >
+              Zoom to Me
+            </Button>
+          )}
         </div>
       </div>
       {/* Render City Table and User Table Separately */}

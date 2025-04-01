@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import L from 'leaflet';
+import L, { LatLngTuple } from 'leaflet'; // Import LatLngTuple
 import { useMap } from 'react-leaflet';
 import 'leaflet.markercluster';
 import { City } from '../../types';
@@ -18,6 +18,7 @@ interface MarkerClusterProps {
   onMarkerMouseOut: () => void;
   activeCityId: number | null;
   onClusterClick: () => void;
+  userCoordinates: LatLngTuple | null; // <-- Add userCoordinates prop
 }
 
 /**
@@ -30,7 +31,8 @@ const MarkerCluster = ({
     onMarkerMouseOver,
     onMarkerMouseOut,
     activeCityId,
-    onClusterClick
+    onClusterClick,
+    userCoordinates // <-- Destructure userCoordinates
 }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -40,7 +42,7 @@ const MarkerCluster = ({
   // Markercluster options remain the same
   const markerClusterOptions = useMemo(() => ({
     chunkedLoading: true,
-    spiderfyOnMaxZoom: true, // <-- This handles overlap
+    spiderfyOnMaxZoom: false, // <-- Disable spiderfication
     disableClusteringAtZoom: 14,
     maxClusterRadius: 80,
     zoomToBoundsOnClick: true,
@@ -49,6 +51,19 @@ const MarkerCluster = ({
     iconCreateFunction: (cluster: L.MarkerCluster) => {
       const childCount = cluster.getChildCount();
       const childMarkers = cluster.getAllChildMarkers();
+
+      // --- Check if the current user's marker is in this cluster ---
+      let clusterContainsUser = false;
+      if (userCoordinates) {
+        const userLatLng = L.latLng(userCoordinates);
+        for (const marker of childMarkers) {
+          // Check if marker coordinates match the user's coordinates
+          if (marker.getLatLng().equals(userLatLng)) {
+            clusterContainsUser = true;
+            break; // Found the user marker, no need to check further
+          }
+        }
+      }
 
       // Check if all children are users and share the exact same coordinates (due to grid snapping)
       let allUsersSameSpot = false;
@@ -65,9 +80,14 @@ const MarkerCluster = ({
 
       let sizeClass = 'w-8 h-8 text-xs';
       let bgClass = 'bg-blue-400 border-blue-500'; // Default blue for mixed/city clusters
+      let extraClasses = ''; // For adding the blinking class
 
-      // Custom style for multiple users snapped to the same grid point
-      if (allUsersSameSpot) {
+      // --- Apply styles based on cluster content ---
+      if (clusterContainsUser) {
+          bgClass = ''; // Remove default background, rely on blinking class
+          extraClasses = 'user-cluster-blinking'; // Apply blinking red style
+          sizeClass = 'w-9 h-9 text-xs'; // Slightly larger for user cluster?
+      } else if (allUsersSameSpot) {
           bgClass = 'bg-green-500 border-green-600'; // Use user color (green)
           // Keep base size or adjust if needed
           sizeClass = 'w-8 h-8 text-xs'; // Or maybe slightly larger? 'w-9 h-9 text-xs'
@@ -79,7 +99,7 @@ const MarkerCluster = ({
       }
 
       const sizeValue = parseInt(sizeClass.split(' ')[0].substring(2)) * 4; // Assuming Tailwind units are relative to 1rem=16px, w-8 -> 32px
-      const html = `<div class="flex items-center justify-center ${sizeClass} ${bgClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${childCount}</span></div>`;
+      const html = `<div class="flex items-center justify-center ${sizeClass} ${bgClass} ${extraClasses} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${childCount}</span></div>`;
 
       return L.divIcon({
         html: html,
@@ -88,7 +108,8 @@ const MarkerCluster = ({
         iconAnchor: L.point(sizeValue / 2, sizeValue / 2)
       });
     }
-  }), []);
+  // Add userCoordinates to dependency array
+  }), [userCoordinates]);
 
   // Initialize the MarkerClusterGroup
   useEffect(() => {
@@ -160,7 +181,7 @@ const MarkerCluster = ({
     }
 
   // Dependencies: include users array now
-  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId]); // Keep dependencies the same
+  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, userCoordinates]); // Add userCoordinates dependency
 
   return null; // Component only manages the Leaflet layer
 };
