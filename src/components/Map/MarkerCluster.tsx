@@ -112,63 +112,47 @@ const MarkerCluster = ({
   }, [map, markerClusterOptions, onClusterClick]);
 
   // Update markers based on cities and users
+  // Clear and re-add markers whenever cities or users change
   useEffect(() => {
     if (!map || !markerClusterGroupRef.current) return;
 
     const currentMarkerGroup = markerClusterGroupRef.current;
-    const currentMarkers = markersRef.current;
 
-    // Combine cities and users into a single list for easier processing
+    // --- Clear existing markers ---
+    currentMarkerGroup.clearLayers(); // Remove all markers from the group
+    markersRef.current = {}; // Reset our internal tracking
+
+    // --- Create and add new markers ---
+    // Combine cities and users into a single list
     const items = [
         ...cities.map(c => ({ ...c, type: 'city' as const, uniqueId: `city-${c.id}` })),
         ...users.map(u => ({ ...u, type: 'user' as const, uniqueId: `user-${u.user_id}` }))
     ];
 
-    const newItemIds = items.map(item => item.uniqueId);
-    const currentMarkerIds = Object.keys(currentMarkers);
-
-    // Remove markers that are no longer present
-    const markersToRemoveIds = currentMarkerIds.filter(id => !newItemIds.includes(id));
-    markersToRemoveIds.forEach(id => {
-      if (currentMarkers[id]) {
-        currentMarkerGroup.removeLayer(currentMarkers[id]);
-        delete currentMarkers[id];
-      }
-    });
-
-    // Add new markers
     const markersToAdd: L.Marker[] = [];
     items.forEach(item => {
-      // Skip if marker already exists
-      if (currentMarkers[item.uniqueId]) return;
-
       let marker: L.Marker;
       if (item.type === 'city') {
         marker = L.marker([item.latitude, item.longitude], {
           icon: createSvgMarkerIcon(item.population) // City icon
         });
-        // Add city-specific event listeners
         marker.on('click', () => onMarkerClick(item));
         marker.on('mouseover', () => { if (activeCityId === null) onMarkerMouseOver(item); });
         marker.on('mouseout', onMarkerMouseOut);
         marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
       } else { // item.type === 'user'
         marker = L.marker([item.latitude, item.longitude], {
-          icon: otherUserIcon // User icon (green pin)
+          icon: otherUserIcon // User icon
         });
-        // Add user-specific event listeners (optional)
-        // marker.on('click', () => { /* handle user marker click */ });
-        marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' }); // Show user name on hover
+        marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
       }
 
-      currentMarkers[item.uniqueId] = marker;
+      markersRef.current[item.uniqueId] = marker; // Track the new marker
       markersToAdd.push(marker);
     });
 
-    // Add new markers in batches
     if (markersToAdd.length > 0) {
       requestAnimationFrame(() => {
-        // Check if group still exists in case component unmounted quickly
         if (markerClusterGroupRef.current) {
             markerClusterGroupRef.current.addLayers(markersToAdd);
         }
@@ -176,7 +160,7 @@ const MarkerCluster = ({
     }
 
   // Dependencies: include users array now
-  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId]);
+  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId]); // Keep dependencies the same
 
   return null; // Component only manages the Leaflet layer
 };
