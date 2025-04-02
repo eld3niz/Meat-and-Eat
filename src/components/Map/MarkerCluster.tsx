@@ -6,7 +6,7 @@ import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData'; // Import MapUser
 import { formatPopulation } from '../../utils/mapUtils';
 import createSvgMarkerIcon from './CityMarkerIcon';
-import { otherUserIcon } from './OtherUserIcon'; // Import the green user icon
+import { otherUserIconBlue } from './OtherUserIcon'; // Import the blue user icon
 
 // Use types from @types/leaflet.markercluster
 
@@ -70,7 +70,7 @@ const MarkerCluster = ({
       if (childMarkers.length > 0 && childCount > 1) { // Only check if there's more than one marker
           const firstLatLng = childMarkers[0].getLatLng();
           // Check if all markers use the user icon AND share the same LatLng
-          const areAllUsers = childMarkers.every(m => m.options.icon === otherUserIcon);
+          const areAllUsers = childMarkers.every(m => m.options.icon === otherUserIconBlue);
           const areAllSameLatLng = childMarkers.every(m => m.getLatLng().equals(firstLatLng));
 
           if (areAllUsers && areAllSameLatLng) {
@@ -163,7 +163,7 @@ const MarkerCluster = ({
         marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
       } else { // item.type === 'user'
         marker = L.marker([item.latitude, item.longitude], {
-          icon: otherUserIcon // User icon
+          icon: otherUserIconBlue // Use the blue icon for other users
         });
         marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
       }

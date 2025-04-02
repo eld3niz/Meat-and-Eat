@@ -1,7 +1,7 @@
 import { useEffect } from 'react'; // Removed useRef
 import { Marker, Tooltip } from 'react-leaflet'; // Removed Circle as it's not used here
 import L from 'leaflet';
-import { otherUserIcon } from './OtherUserIcon'; // Import the icon
+import { currentUserIconRed } from './OtherUserIcon'; // Import the red icon for the current user
 interface UserLocationMarkerProps {
   position: [number, number] | null; // Changed to required or null
   radius?: number; // Keep for potential future use, but not used for rendering circle here
@@ -29,7 +29,7 @@ const UserLocationMarker = ({ position, onClick }: UserLocationMarkerProps) => {
   return (
     <Marker
       position={position}
-      icon={otherUserIcon} // Use the imported icon
+      icon={currentUserIconRed} // Use the red icon
       // Prevent keyboard interaction for this purely visual marker
       keyboard={false}
       // Add click handler if provided

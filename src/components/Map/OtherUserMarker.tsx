@@ -1,6 +1,6 @@
 import React from 'react';
 import { Marker, Popup } from 'react-leaflet';
-import { otherUserIcon } from './OtherUserIcon'; // Import the custom green icon
+import { otherUserIconBlue } from './OtherUserIcon'; // Import the custom blue icon
 
 interface OtherUserMarkerProps {
   latitude: number;
@@ -16,7 +16,7 @@ const OtherUserMarker: React.FC<OtherUserMarkerProps> = ({ latitude, longitude, 
   }
 
   return (
-    <Marker position={[latitude, longitude]} icon={otherUserIcon}>
+    <Marker position={[latitude, longitude]} icon={otherUserIconBlue}>
       {/* Optional: Basic Popup - Uncomment and customize if needed */}
       {/*
       <Popup>
