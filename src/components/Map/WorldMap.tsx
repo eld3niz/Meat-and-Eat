@@ -238,7 +238,8 @@ const WorldMap = () => {
     setHoveredCity(null);
     setIsFlying(true);
 
-    const targetZoom = 13; // Zoom level for user location
+    // Get the map's maximum possible zoom level
+    const targetZoom = map.getMaxZoom();
     map.flyTo(userCoordinates, targetZoom, { duration: 1.0 });
 
     // Update state after animation
