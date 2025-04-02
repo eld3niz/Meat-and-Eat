@@ -134,6 +134,89 @@ const deg2rad = (deg: number): number => {
   return deg * (Math.PI/180);
 };
 
+// --- OSM Tile Calculation Utilities ---
+
+/**
+ * Converts latitude and longitude to OSM tile coordinates (x, y) for a given zoom level.
+ * Based on https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Mathematics
+ * @param lat Latitude in degrees
+ * @param lon Longitude in degrees
+ * @param zoom Zoom level
+ * @returns Tile coordinates {x, y} (integers)
+ */
+export const latLonToTileXY = (lat: number, lon: number, zoom: number): { x: number; y: number } => {
+  const latRad = deg2rad(lat);
+  const n = Math.pow(2, zoom);
+  const xTile = Math.floor(((lon + 180) / 360) * n);
+  const yTile = Math.floor(
+    ((1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2) * n
+  );
+  return { x: xTile, y: yTile };
+};
+
+/**
+ * Converts OSM tile coordinates (x, y) and zoom level to the latitude and longitude
+ * of the North-West corner of the tile.
+ * Based on https://wiki.openstreetmap.org/wiki/Slippy_map_tilenames#Mathematics
+ * @param x Tile X coordinate
+ * @param y Tile Y coordinate
+ * @param zoom Zoom level
+ * @returns Latitude and Longitude {lat, lon} of the NW corner
+ */
+export const tileXYToLatLon = (x: number, y: number, zoom: number): { lat: number; lon: number } => {
+  const n = Math.pow(2, zoom);
+  const lonDeg = (x / n) * 360 - 180;
+  const latRad = Math.atan(Math.sinh(Math.PI * (1 - (2 * y) / n)));
+  const latDeg = latRad * (180 / Math.PI);
+  return { lat: latDeg, lon: lonDeg };
+};
+
+/**
+ * Generates a unique string ID for the tile containing the given coordinates at zoom level 14.
+ * @param lat Latitude
+ * @param lon Longitude
+ * @returns Tile ID string (e.g., "14-x-y")
+ */
+export const getTileId = (lat: number, lon: number): string => {
+  const zoom = 14;
+  const { x, y } = latLonToTileXY(lat, lon, zoom);
+  return `${zoom}-${x}-${y}`;
+};
+
+/**
+ * Calculates the center latitude and longitude of a given tile ID.
+ * @param tileId Tile ID string (e.g., "14-x-y")
+ * @returns Leaflet LatLng object representing the tile center.
+ */
+export const getTileCenterLatLng = (tileId: string): L.LatLng => {
+  const parts = tileId.split('-');
+  if (parts.length !== 3) {
+    console.error(`Invalid tileId format: ${tileId}`);
+    // Return a default or throw an error
+    return L.latLng(0, 0); // Default fallback
+  }
+  const zoom = parseInt(parts[0], 10);
+  const x = parseInt(parts[1], 10);
+  const y = parseInt(parts[2], 10);
+
+  if (isNaN(zoom) || isNaN(x) || isNaN(y)) {
+     console.error(`Invalid tileId components: ${tileId}`);
+     return L.latLng(0, 0); // Default fallback
+  }
+
+  // Get NW corner of the current tile and the tile to the SE
+  const nw = tileXYToLatLon(x, y, zoom);
+  const se = tileXYToLatLon(x + 1, y + 1, zoom);
+
+  // Calculate the center
+  const centerLat = (nw.lat + se.lat) / 2;
+  const centerLon = (nw.lon + se.lon) / 2;
+
+  return L.latLng(centerLat, centerLon);
+};
+
+// --- End OSM Tile Calculation Utilities ---
+
 /**
  * Behebt das Problem mit fehlenden Icon-Pfaden in Leaflet
  * Dies ist ein bekanntes Problem bei der Verwendung von Leaflet mit Bundlern wie Webpack oder Vite

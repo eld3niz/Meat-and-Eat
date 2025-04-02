@@ -1,23 +1,25 @@
-import { useState, useRef, useEffect, useCallback, useMemo, memo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'; // Added React import for JSX rendering in popups
+import ReactDOMServer from 'react-dom/server'; // Needed to render React components into Leaflet popups
 import { MapContainer, TileLayer, ZoomControl, useMap, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
-import { useMapData, MapUser } from '../../hooks/useMapData'; // <-- Import MapUser type
+import { useMapData, MapUser } from '../../hooks/useMapData';
 import MarkerCluster from './MarkerCluster';
-import InfoPopup from './InfoPopup';
-import UserLocationMarker from './UserLocationMarker';
-import OtherUserMarker from './OtherUserMarker'; // <-- Import OtherUserMarker
+import TiledMarkersLayer from './TiledMarkersLayer'; // <-- Import new Tiled Layer
+import InfoPopup from './InfoPopup'; // Existing city popup
+import UserInfoPopup from './UserInfoPopup'; // <-- Import new User Info Popup
+import TileListPopup from '../UI/TileListPopup'; // <-- Import new Tile List Popup
 import Sidebar from '../UI/Sidebar';
-import CityTable from '../UI/CityTable'; // <-- Import original CityTable
-import UserTable from '../UI/UserTable'; // <-- Import new UserTable
+import CityTable from '../UI/CityTable';
+import UserTable from '../UI/UserTable';
 import { City } from '../../types';
-// Fix: Rename imported Map type from Leaflet to avoid collision
-import L, { Map as LeafletMap } from 'leaflet';
+import L, { Map as LeafletMap, Popup } from 'leaflet'; // <-- Import Popup type
+import { useMapTilingData } from '../../hooks/useMapTilingData'; // <-- Import new hook
 import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce } from '../../utils/mapUtils';
 import { useAuth } from '../../context/AuthContext';
-import { useModal } from '../../contexts/ModalContext'; // Import useModal
-import Button from '../UI/Button'; // Import Button
+import { useModal } from '../../contexts/ModalContext';
+import Button from '../UI/Button';
 
 // --- Helper Components (No changes needed) ---
 // Removed MapCenterController as flyTo is now handled directly in event handlers
@@ -111,6 +113,8 @@ const WorldMap = () => {
   // const [filteredByDistance, setFilteredByDistance] = useState<City[]>([]); // Now managed within useMapData
   const [distanceRadius, setDistanceRadius] = useState<number | null>(null); // Keep for drawing circle
   const [isFlying, setIsFlying] = useState(false); // State to track map animation
+  const aggregatePopupRef = useRef<Popup | null>(null); // Ref for aggregate list popup instance
+  const userInfoPopupRef = useRef<Popup | null>(null); // Ref for user info popup instance
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
@@ -149,32 +153,45 @@ const WorldMap = () => {
     }
     // --- End Automatic Zooming Logic ---
 
-  }, [filterByDistance, userCoordinates, isFlying]); // Add userCoordinates and isFlying dependencies
+  }, [filterByDistance, userCoordinates, isFlying]);
+  // --- Popup Closing Utility ---
+  const closeAllPopups = useCallback(() => {
+    setClickedCity(null); // Close city info popup
+    setHoveredCity(null); // Close hover preview
+    aggregatePopupRef.current?.remove(); // Close aggregate list popup
+    aggregatePopupRef.current = null;
+    userInfoPopupRef.current?.remove(); // Close user info popup
+    userInfoPopupRef.current = null;
+  }, []); // No dependencies needed
+
+  // --- Existing City Marker Click Handler ---
   const handleMarkerClick = useCallback((city: City) => {
     const map = mapRef.current;
-    if (!map || isFlying) return; // Prevent action if map not ready or already animating
+    if (!map || isFlying) return;
 
-    // Close previous popup immediately before starting animation
-    setClickedCity(null);
-    setHoveredCity(null); // Clear hover state on click
-    setIsFlying(true); // Set flying state *after* clearing clickedCity
+    closeAllPopups(); // Close any other open popups first
+    setIsFlying(true);
     const targetCoords: [number, number] = [city.latitude, city.longitude];
     const currentZoom = map.getZoom();
-    const minDetailZoom = 7; // Minimum zoom level to show detail without zooming out
-    const targetZoom = Math.max(currentZoom, minDetailZoom); // Stay at current zoom or zoom in to minDetailZoom
+    const minDetailZoom = 7;
+    const targetZoom = Math.max(currentZoom, minDetailZoom);
 
-    map.flyTo(targetCoords, targetZoom, { duration: 1.0 }); // Slightly faster animation
+    map.flyTo(targetCoords, targetZoom, { duration: 1.0 });
 
-    // Update state after animation
     setTimeout(() => {
       setMapCenter(targetCoords);
       setMapZoom(targetZoom);
       setClickedCity(city); // Set clicked city *after* animation
       setIsFlying(false);
-    }, 1000); // Match flyTo duration
-  }, [isFlying, clickedCity]); // Add isFlying and clickedCity dependencies
+    }, 1000);
+  }, [isFlying, closeAllPopups]); // Added closeAllPopups dependency
 
-  const handlePopupClose = useCallback(() => { setClickedCity(null); }, []);
+  const handlePopupClose = useCallback(() => {
+    // This might be called by the InfoPopup component's close button
+    setClickedCity(null);
+    // Note: Leaflet handles closing its own popups (aggregate/user) on map click by default
+    // We manually remove them if another popup needs to open.
+  }, []);
 
   // TODO: Update handleCitySelect if users should also be selectable/zoomable from Sidebar/Table
   const handleCitySelect = useCallback((cityId: number) => {
@@ -195,7 +212,7 @@ const WorldMap = () => {
       if (city) { setClickedCity(city); } // Show popup after animation
       setIsFlying(false);
     }, 1500); // Match flyTo duration
-  }, [zoomToCity, selectCity, filteredCities, isFlying]); // Add dependencies
+  }, [zoomToCity, selectCity, filteredCities, isFlying, closeAllPopups]); // Added closeAllPopups
 
 
   const throttledHandleZoom = useCallback(throttle(() => { if (mapRef.current) { setMapZoom(mapRef.current.getZoom()); } }, 100), []);
@@ -213,21 +230,23 @@ const WorldMap = () => {
         setClickedCity(null);
       }
     }
-  }, 150), [isFlying, clickedCity]); // Add clickedCity dependency
+  }, 150), [isFlying, clickedCity, closeAllPopups]); // Add closeAllPopups dependency
 
   // Close clicked popup when clicking outside of it
   const handleMapClick = useCallback((event: L.LeafletMouseEvent) => {
-    // Check if the click target is inside the InfoPopup container
-    // We assume InfoPopup's root element has a specific class, e.g., 'info-popup-container'
     const targetElement = event.originalEvent.target as HTMLElement;
-    if (targetElement.closest('.info-popup-container') || targetElement.closest('.leaflet-marker-icon')) { // Ignore clicks on markers too
-      return; // Click was inside the popup or on a marker, do nothing
+    // Ignore clicks on markers or inside our known popup containers
+    if (
+        targetElement.closest('.leaflet-marker-icon') ||
+        targetElement.closest('.info-popup-container') || // Existing city popup
+        targetElement.closest('.tile-list-popup-container') || // New aggregate list
+        targetElement.closest('.user-info-popup-container') // New user info
+    ) {
+      return; // Click was inside a marker or popup, do nothing
     }
-    // If clickedCity is set and the click was outside, close it
-    if (clickedCity) {
-      setClickedCity(null);
-    }
-  }, [clickedCity]); // Dependency on clickedCity
+    // Otherwise, close all popups
+    closeAllPopups();
+  }, [closeAllPopups]); // Dependency on closeAllPopups
 
   // Handlers for marker hover events
   const handleMarkerMouseOver = useCallback((city: City) => {
@@ -255,7 +274,7 @@ const WorldMap = () => {
   const handleClusterClick = useCallback(() => {
     setClickedCity(null);
     setHoveredCity(null); // Also clear hover state
-  }, []);
+  }, [closeAllPopups]); // Added closeAllPopups
 
   // Handler to zoom the map to the current distance filter radius around the user
   const handleZoomToRadius = useCallback(() => {
@@ -283,59 +302,102 @@ const WorldMap = () => {
     setDistanceRadius(null); // Reset the local state for the circle
     setClickedCity(null); // Close any open popups
     setHoveredCity(null); // Clear any hover previews
-  }, [resetFilters]); // Dependency on the function from the hook
+  }, [resetFilters, closeAllPopups]); // Added closeAllPopups
+
+  // --- New Tile Layer Click Handlers ---
+  const handleSingleCityTileClick = useCallback((city: City, marker: L.Marker) => {
+    // Reuse the existing city marker click logic
+    handleMarkerClick(city);
+  }, [handleMarkerClick]);
+
+  const handleSingleUserTileClick = useCallback((mapUser: MapUser, marker: L.Marker) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    closeAllPopups(); // Close other popups
+
+    const content = ReactDOMServer.renderToString(
+      <UserInfoPopup user={mapUser} onClose={() => userInfoPopupRef.current?.remove()} />
+    );
+
+    const popup = L.popup({ closeButton: false, minWidth: 100 }) // Adjust options as needed
+      .setLatLng(marker.getLatLng())
+      .setContent(content)
+      .openOn(map);
+
+    userInfoPopupRef.current = popup; // Store reference
+  }, [closeAllPopups]);
+
+  const handleAggregateTileClick = useCallback((
+    tileId: string,
+    items: (City | MapUser)[],
+    tileCenter: L.LatLng,
+    marker: L.Marker
+  ) => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    closeAllPopups(); // Close other popups
+
+    const content = ReactDOMServer.renderToString(
+      <TileListPopup items={items} onClose={() => aggregatePopupRef.current?.remove()} />
+    );
+
+    const popup = L.popup({ closeButton: false, minWidth: 150, maxHeight: 200 }) // Adjust options
+      .setLatLng(tileCenter)
+      .setContent(content)
+      .openOn(map);
+
+    aggregatePopupRef.current = popup; // Store reference
+  }, [closeAllPopups]);
+
 
   // --- Memos (Defined after state, before early returns) ---
 
   // Note: filteredCities from useMapData already includes distance filtering
   const filteredStats = useMemo(() => {
-      // Use filters object destructured from useMapData
       if (!userCoordinates || !filters.distance || filters.distance >= 500) return null;
-      // Use original cities array destructured from useMapData
       const totalCities = cities.length;
-      const visibleCities = filteredCities.length; // filteredCities already includes distance filter
+      const visibleCities = filteredCities.length;
       if (totalCities === 0) return { totalCities: 0, visibleCities: 0, percentage: 0 };
       return { totalCities, visibleCities, percentage: Math.round((visibleCities / totalCities) * 100) };
-      // Update dependencies to use the destructured variables
   }, [userCoordinates, filters.distance, filteredCities, cities]);
 
-  // This memo might need adjustment if Sidebar/Table will show users too
-  // For now, it only considers cities based on zoom level
-  const displayedCitiesForMap = useMemo(() => {
-    // Start with cities already filtered by country, population, search, distance
-    let sourceCities = filteredCities;
+  // Prepare combined user list (needed for both clustering and tiling)
+   const allUsersForDisplay = useMemo(() => {
+     const users = [...filteredUsers];
+     if (user && userCoordinates) {
+       const currentUserMapUser: MapUser = {
+         user_id: user.id,
+         name: "Your Location",
+         latitude: userCoordinates[0],
+         longitude: userCoordinates[1]
+       };
+       if (!users.some(u => u.user_id === currentUserMapUser.user_id)) {
+         users.push(currentUserMapUser);
+       }
+     }
+     return users;
+   }, [filteredUsers, user, userCoordinates]);
 
-    // Further filter based on zoom level (show only major cities when zoomed out)
+  // Prepare city data for display (potentially filtered by zoom for clustering)
+  const citiesForDisplay = useMemo(() => {
+    // When zoom < 14 (clustering), apply zoom-based filtering
     if (mapZoom < 4) {
       const minPopulation = 5000000;
-      sourceCities = sourceCities.filter(city => city.population >= minPopulation);
+      return filteredCities.filter(city => city.population >= minPopulation);
     }
-    // Convert to Map for potential clustering optimization (though MarkerCluster handles array)
-    const cityMap = new Map<number, City>();
-    sourceCities.forEach(city => cityMap.set(city.id, city));
+    // When zoom >= 14 (tiling), use all filtered cities
+    return filteredCities;
+  }, [filteredCities, mapZoom]);
 
-    return Array.from(cityMap.values()) as City[];
-  }, [filteredCities, mapZoom]); // Update dependencies
-
-  // Prepare user data for clustering, including the current user
-  const allUsersForClustering = useMemo(() => {
-    const users = [...filteredUsers]; // Start with other filtered users
-    if (user && userCoordinates) {
-      // Construct the MapUser object for the current user
-      const currentUserMapUser: MapUser = {
-        user_id: user.id, // Use the actual user ID from auth context
-        name: "Your Location", // Or user.email, user.name if available
-        latitude: userCoordinates[0],
-        longitude: userCoordinates[1]
-        // Removed last_seen and status as they are not in MapUser type
-      };
-      // Only add the current user if they are not already in the filtered list
-      if (!users.some(u => u.user_id === currentUserMapUser.user_id)) {
-        users.push(currentUserMapUser);
-      }
-    }
-    return users;
-  }, [filteredUsers, user, userCoordinates]);
+  // --- Hook for Tiling Data Aggregation ---
+  const tileAggregationData = useMapTilingData(
+    citiesForDisplay, // Use cities prepared for the current zoom
+    allUsersForDisplay, // Use combined user list
+    user?.id ?? null,
+    mapZoom >= 14 // Enable tiling only when zoom is 14 or greater
+  );
 
 
   // --- Effects (Defined after state, before early returns) ---
@@ -445,34 +507,48 @@ const WorldMap = () => {
           <MapContainer
             center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }}
             zoomControl={false} ref={mapRef} maxBoundsViscosity={1.0} worldCopyJump={false}
-            bounceAtZoomLimits={true} minZoom={2}
+            bounceAtZoomLimits={true} minZoom={2} maxZoom={14} // <-- Set max zoom level
           >
             <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" />
             <ZoomControl position="bottomright" />
             <MapBoundsController />
             <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} onMapClick={handleMapClick} />
 
-            {/* Render City and User Markers with Clustering */}
-            <MarkerCluster
-              cities={displayedCitiesForMap} // Use cities filtered for map zoom level
-              onMarkerClick={handleMarkerClick}
-              onMarkerMouseOver={handleMarkerMouseOver}
-              onMarkerMouseOut={handleMarkerMouseOut}
-              activeCityId={clickedCity?.id ?? null}
-              onClusterClick={handleClusterClick}
-              users={allUsersForClustering} // <-- Pass combined users list
-              userCoordinates={userCoordinates} // Still needed for potential future use? Or remove if MarkerCluster no longer uses it directly. Let's keep for now.
-              currentUserId={user?.id ?? null} // <-- Pass current user ID
-            />
+            {/* --- Conditional Rendering: Cluster or Tiles --- */}
+            {mapZoom < 14 ? (
+              <MarkerCluster
+                cities={citiesForDisplay} // Pass cities filtered for zoom < 4
+                users={allUsersForDisplay} // Pass combined user list
+                onMarkerClick={handleMarkerClick} // Existing city click
+                onMarkerMouseOver={handleMarkerMouseOver}
+                onMarkerMouseOut={handleMarkerMouseOut}
+                activeCityId={clickedCity?.id ?? null}
+                onClusterClick={handleClusterClick} // Existing cluster click
+                userCoordinates={userCoordinates} // Keep passing for now
+                currentUserId={user?.id ?? null}
+              />
+            ) : (
+              <TiledMarkersLayer
+                tileAggregationData={tileAggregationData}
+                onSingleCityTileClick={handleSingleCityTileClick} // New handler
+                onSingleUserTileClick={handleSingleUserTileClick} // New handler
+                onAggregateTileClick={handleAggregateTileClick} // New handler
+                currentUserId={user?.id ?? null}
+              />
+            )}
+            {/* --- End Conditional Rendering --- */}
 
             {/* REMOVED separate rendering loop for OtherUserMarker - now handled by MarkerCluster */}
 
             {/* Render clicked popup OR hover popup (if no city is clicked) */}
-            {clickedCity ? (
+            {/* Render city info popup (managed by state) */}
+            {clickedCity && (
               <InfoPopup city={clickedCity} onClose={handlePopupClose} />
-            ) : hoveredCity ? (
-              <InfoPopup city={hoveredCity} isHoverPreview={true} />
-            ) : null}
+            )}
+            {/* Hover popup logic remains unchanged for now, might need review if hover is desired on tiles */}
+            {hoveredCity && !clickedCity && !aggregatePopupRef.current && !userInfoPopupRef.current && (
+               <InfoPopup city={hoveredCity} isHoverPreview={true} />
+            )}
 
             {/* Separate UserLocationMarker removed - now handled by MarkerCluster */}
             <RadiusCircle />
