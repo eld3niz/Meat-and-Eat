@@ -443,8 +443,8 @@ const WorldMap = () => {
               <InfoPopup city={hoveredCity} isHoverPreview={true} />
             ) : null}
 
-            {/* Render current user marker if coordinates exist */}
-            {userCoordinates && (
+            {/* Render current user marker if coordinates exist AND zoom level is high enough */}
+            {userCoordinates && mapZoom >= 14 && ( // <-- Add zoom level check
                 <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} onClick={handleUserMarkerClick} />
             )}
             <RadiusCircle />
