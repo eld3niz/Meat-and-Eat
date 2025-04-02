@@ -121,23 +121,9 @@ const WorldMap = () => {
     setDistanceRadius(distance); // Update local state for drawing the circle
     setClickedCity(null); // Close popup on filter change
 
-    // Adjust map view to fit the new radius (keep this logic here)
-    const map = mapRef.current;
-    if (map && userCoordinates && distance !== null && distance > 0 && distance < 500) {
-      const radiusInMeters = distance * 1000;
-      const [userLat, userLng] = userCoordinates;
-      const latDelta = radiusInMeters / 111132;
-      const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180));
-      const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
-      const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
-      const calculatedBounds = L.latLngBounds(southWest, northEast);
-      map.flyToBounds(calculatedBounds, { padding: [50, 50], duration: 1.0 });
-    } else if (map && distance === null) {
-      // Optional: Reset view?
-    }
-  }, [userCoordinates, isFlying, filterByDistance]); // Add filterByDistance dependency
-
-
+    // REMOVED: Automatic map zoom/pan when slider changes.
+    // Zooming is now handled explicitly by the "Zoom to Radius" button.
+  }, [filterByDistance]); // Removed userCoordinates and isFlying as dependencies are no longer needed here
   const handleMarkerClick = useCallback((city: City) => {
     const map = mapRef.current;
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
@@ -463,7 +449,7 @@ const WorldMap = () => {
               </Button>
             )}
             {/* Zoom to Radius Button - Conditionally render based on valid user location and distance filter */}
-            {userCoordinates && filters.distance && filters.distance > 0 && filters.distance < 50 && ( // Update condition to < 50
+            {userCoordinates && filters.distance && filters.distance > 0 && filters.distance < 500 && ( // Updated condition to < 500
                <Button
                  onClick={handleZoomToRadius}
                  className="bg-white hover:bg-gray-100 text-gray-700 text-sm py-1 px-2 border border-gray-300 rounded shadow" // Smaller padding and text
