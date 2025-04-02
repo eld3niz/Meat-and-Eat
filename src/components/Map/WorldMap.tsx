@@ -317,6 +317,26 @@ const WorldMap = () => {
     return Array.from(cityMap.values()) as City[];
   }, [filteredCities, mapZoom]); // Update dependencies
 
+  // Prepare user data for clustering, including the current user
+  const allUsersForClustering = useMemo(() => {
+    const users = [...filteredUsers]; // Start with other filtered users
+    if (user && userCoordinates) {
+      // Construct the MapUser object for the current user
+      const currentUserMapUser: MapUser = {
+        user_id: user.id, // Use the actual user ID from auth context
+        name: "Your Location", // Or user.email, user.name if available
+        latitude: userCoordinates[0],
+        longitude: userCoordinates[1]
+        // Removed last_seen and status as they are not in MapUser type
+      };
+      // Only add the current user if they are not already in the filtered list
+      if (!users.some(u => u.user_id === currentUserMapUser.user_id)) {
+        users.push(currentUserMapUser);
+      }
+    }
+    return users;
+  }, [filteredUsers, user, userCoordinates]);
+
 
   // --- Effects (Defined after state, before early returns) ---
   // useEffect for filteredByDistance is removed, as filtering is now memoized in useMapData
@@ -440,8 +460,9 @@ const WorldMap = () => {
               onMarkerMouseOut={handleMarkerMouseOut}
               activeCityId={clickedCity?.id ?? null}
               onClusterClick={handleClusterClick}
-              users={filteredUsers} // <-- Pass filteredUsers to MarkerCluster
-              userCoordinates={userCoordinates} // <-- Pass userCoordinates
+              users={allUsersForClustering} // <-- Pass combined users list
+              userCoordinates={userCoordinates} // Still needed for potential future use? Or remove if MarkerCluster no longer uses it directly. Let's keep for now.
+              currentUserId={user?.id ?? null} // <-- Pass current user ID
             />
 
             {/* REMOVED separate rendering loop for OtherUserMarker - now handled by MarkerCluster */}
@@ -453,10 +474,7 @@ const WorldMap = () => {
               <InfoPopup city={hoveredCity} isHoverPreview={true} />
             ) : null}
 
-            {/* Render current user marker if coordinates exist AND zoom level is high enough */}
-            {userCoordinates && mapZoom >= 14 && ( // <-- Add zoom level check
-                <UserLocationMarker position={userCoordinates} radius={distanceRadius ?? undefined} showRadius={false} onClick={handleUserMarkerClick} />
-            )}
+            {/* Separate UserLocationMarker removed - now handled by MarkerCluster */}
             <RadiusCircle />
           </MapContainer>
 

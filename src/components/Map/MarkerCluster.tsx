@@ -6,7 +6,7 @@ import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData'; // Import MapUser
 import { formatPopulation } from '../../utils/mapUtils';
 import createSvgMarkerIcon from './CityMarkerIcon';
-import { otherUserIconBlue } from './OtherUserIcon'; // Import the blue user icon
+import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // Import blue and red user icons
 
 // Use types from @types/leaflet.markercluster
 
@@ -18,7 +18,8 @@ interface MarkerClusterProps {
   onMarkerMouseOut: () => void;
   activeCityId: number | null;
   onClusterClick: () => void;
-  userCoordinates: LatLngTuple | null; // <-- Add userCoordinates prop
+  userCoordinates: LatLngTuple | null; // Still needed? Maybe remove later if unused.
+  currentUserId: string | null; // <-- Add currentUserId prop
 }
 
 /**
@@ -32,7 +33,8 @@ const MarkerCluster = ({
     onMarkerMouseOut,
     activeCityId,
     onClusterClick,
-    userCoordinates // <-- Destructure userCoordinates
+    userCoordinates, // <-- Destructure userCoordinates
+    currentUserId // <-- Destructure currentUserId
 }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -52,13 +54,13 @@ const MarkerCluster = ({
       const childCount = cluster.getChildCount();
       const childMarkers = cluster.getAllChildMarkers();
 
-      // --- Check if the current user's marker is in this cluster ---
+      // --- Check if any marker in the cluster belongs to the current user ---
       let clusterContainsUser = false;
-      if (userCoordinates) {
-        const userLatLng = L.latLng(userCoordinates);
+      if (currentUserId) {
+        const childMarkers = cluster.getAllChildMarkers();
         for (const marker of childMarkers) {
-          // Check if marker coordinates match the user's coordinates
-          if (marker.getLatLng().equals(userLatLng)) {
+          // Check the userId property we attached during marker creation
+          if ((marker as any).userId === currentUserId) {
             clusterContainsUser = true;
             break; // Found the user marker, no need to check further
           }
@@ -75,8 +77,14 @@ const MarkerCluster = ({
           clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for all other clusters
       }
 
+      // Calculate the count to display (exclude user's own marker from count if present)
+      const displayCount = clusterContainsUser && childCount > 0 ? childCount - 1 : childCount;
+
       const sizeValue = parseInt(sizeClass.split(' ')[0].substring(2)) * 4; // w-8 -> 32px calculation remains correct
-      const html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${childCount}</span></div>`;
+      // Use displayCount in the HTML span
+      const html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${displayCount}</span></div>`;
+
+      // Removed debug logging
 
       return L.divIcon({
         html: html,
@@ -86,7 +94,7 @@ const MarkerCluster = ({
       });
     }
   // Add userCoordinates to dependency array
-  }), [userCoordinates]);
+  }), [userCoordinates, currentUserId]); // Add currentUserId dependency
 
   // Initialize the MarkerClusterGroup
   useEffect(() => {
@@ -139,9 +147,13 @@ const MarkerCluster = ({
         marker.on('mouseout', onMarkerMouseOut);
         marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
       } else { // item.type === 'user'
+        // Determine icon based on whether it's the current user
+        const icon = item.user_id === currentUserId ? currentUserIconRed : otherUserIconBlue;
         marker = L.marker([item.latitude, item.longitude], {
-          icon: otherUserIconBlue // Use the blue icon for other users
+          icon: icon
         });
+        // Attach userId to the marker instance for later checks in iconCreateFunction
+        (marker as any).userId = item.user_id;
         marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
       }
 
@@ -156,7 +168,7 @@ const MarkerCluster = ({
     }
 
   // Dependencies: include users array now
-  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, userCoordinates]); // Add userCoordinates dependency
+  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, userCoordinates, currentUserId]); // Add currentUserId dependency
 
   return null; // Component only manages the Leaflet layer
 };
