@@ -125,17 +125,27 @@ const WorldMap = () => {
     const map = mapRef.current;
     // Zoom only if map is ready, user location known, distance is valid (not "All"), and not currently animating
     if (map && userCoordinates && distance && distance > 0 && distance < 500 && !isFlying) { // Using < 500 like the button/circle logic
-      const radiusInMeters = distance * 1000;
+      // --- Precise Vertical Zoom Calculation ---
+      const diameterInMeters = distance * 2000; // Diameter for vertical fit
       const [userLat, userLng] = userCoordinates;
-      // Approximate calculation for bounds based on radius
-      const latDelta = radiusInMeters / 111132; // meters per degree latitude (approx)
-      const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180)); // meters per degree longitude (approx, depends on latitude)
-      const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
-      const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
-      const calculatedBounds = L.latLngBounds(southWest, northEast);
 
-      // Use fitBounds for smoother zooming that fits the area
-      map.fitBounds(calculatedBounds, { padding: [10, 10], animate: true, duration: 0.5 }); // Increased padding to 150px for tighter zoom, 0.5s animation
+      // Calculate the latitude span needed for the diameter
+      // Approx 111,132 meters per degree of latitude
+      const latDelta = diameterInMeters / 111132;
+
+      // Create bounds representing the vertical span at the user's longitude
+      const southBound = userLat - latDelta / 2;
+      const northBound = userLat + latDelta / 2;
+      const targetVerticalBounds = L.latLngBounds(
+        [southBound, userLng], // Use user's longitude
+        [northBound, userLng]  // Use user's longitude
+      );
+
+      // Calculate the zoom level required to fit these vertical bounds within the map view
+      const targetZoom = map.getBoundsZoom(targetVerticalBounds, false); // 'false' means map view fits *within* bounds vertically
+
+      // Fly to the user's location at the calculated zoom level
+      map.flyTo(userCoordinates, targetZoom, { animate: true, duration: 0.5 });
     }
     // --- End Automatic Zooming Logic ---
 
@@ -232,26 +242,14 @@ const WorldMap = () => {
 
   // Handler for clicking the user's own location marker
   const handleUserMarkerClick = useCallback(() => {
-    const map = mapRef.current;
-    if (!map || !userCoordinates || isFlying) return; // Need map, coordinates, and not be animating
+    // Check if user coordinates are available before proceeding
+    if (!userCoordinates) return;
 
-    // Close any open city popup
-    setClickedCity(null);
-    setHoveredCity(null);
-    setIsFlying(true);
+    // Call handleDistanceFilter with 1km radius.
+    // This will trigger the filtering, circle update, and automatic zoom logic.
+    handleDistanceFilter(1);
 
-    // Get the map's maximum possible zoom level
-    const targetZoom = map.getMaxZoom();
-    map.flyTo(userCoordinates, targetZoom, { duration: 1.0 });
-
-    // Update state after animation
-    setTimeout(() => {
-      setMapCenter(userCoordinates);
-      setMapZoom(targetZoom);
-      setIsFlying(false);
-    }, 1000); // Match flyTo duration
-
-  }, [userCoordinates, isFlying]); // Dependencies
+  }, [userCoordinates, handleDistanceFilter]); // Dependencies updated
 
   // Handler to close popup when a cluster is clicked
   const handleClusterClick = useCallback(() => {
@@ -411,6 +409,7 @@ const WorldMap = () => {
           loading={mapDataLoading || loadingOtherUsers} // Combined loading state for sidebar?
           userPosition={userCoordinates}
           filteredStats={filteredStats} // Stats might need update if based on users too
+          currentDistanceFilter={filters.distance} // <-- Pass current distance filter value
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">
