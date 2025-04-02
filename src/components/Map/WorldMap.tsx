@@ -135,7 +135,7 @@ const WorldMap = () => {
       const calculatedBounds = L.latLngBounds(southWest, northEast);
 
       // Use fitBounds for smoother zooming that fits the area
-      map.fitBounds(calculatedBounds, { padding: [50, 50], animate: true, duration: 0.5 }); // 50px padding, 0.5s animation
+      map.fitBounds(calculatedBounds, { padding: [10, 10], animate: true, duration: 0.5 }); // Increased padding to 150px for tighter zoom, 0.5s animation
     }
     // --- End Automatic Zooming Logic ---
 
