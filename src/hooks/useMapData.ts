@@ -4,6 +4,7 @@ import { cities } from '../data/cities';
 import { sortCitiesByPopulation, filterCitiesByCountry, isCityWithinRadius } from '../utils/mapUtils'; // Import isCityWithinRadius
 import supabase from '../utils/supabaseClient'; // Use default import for Supabase client
 import { useAuth } from '../context/AuthContext'; // Import useAuth to get current user ID
+import { mockUsers } from '../data/mockUsers'; // Import mock users
 
 // Update the structure for user data to include name
 // Export MapUser type so it can be imported elsewhere
@@ -154,12 +155,14 @@ export const useMapData = (): MapData => {
 
       if (data) {
         // Filter out the current user's location
-        const filteredData = currentUserId
+        const fetchedUsers = currentUserId
           ? data.filter((loc: MapUser) => loc.user_id !== currentUserId) // Use MapUser type
           : data;
-        setAllOtherUsers(filteredData); // Store in the raw state
+        const combinedUsers = [...fetchedUsers, ...mockUsers]; // Combine fetched and mock users
+        setAllOtherUsers(combinedUsers); // Store the combined list
       } else {
-        setAllOtherUsers([]);
+        // If fetch fails or returns no data, still show mock users
+        setAllOtherUsers([...mockUsers]);
       }
     } catch (err: any) {
       console.error("Error fetching other user data:", err);
