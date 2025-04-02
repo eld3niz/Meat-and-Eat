@@ -173,11 +173,9 @@ const MarkerCluster = ({
     });
 
     if (markersToAdd.length > 0) {
-      requestAnimationFrame(() => {
-        if (markerClusterGroupRef.current) {
-            markerClusterGroupRef.current.addLayers(markersToAdd);
-        }
-      });
+      if (markerClusterGroupRef.current) {
+          markerClusterGroupRef.current.addLayers(markersToAdd);
+      }
     }
 
   // Dependencies: include users array now
