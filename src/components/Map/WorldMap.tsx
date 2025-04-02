@@ -256,6 +256,26 @@ const WorldMap = () => {
     setHoveredCity(null); // Also clear hover state
   }, []);
 
+  // Handler to zoom the map to the current distance filter radius around the user
+  const handleZoomToRadius = useCallback(() => {
+    const map = mapRef.current;
+    // Use filters.distance from useMapData hook
+    const distance = filters.distance;
+    if (!map || !userCoordinates || !distance || distance <= 0 || distance >= 500 || isFlying) return;
+
+    setIsFlying(true);
+    const radiusInMeters = distance * 1000;
+    const [userLat, userLng] = userCoordinates;
+    const latDelta = radiusInMeters / 111132;
+    const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180));
+    const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
+    const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
+    const calculatedBounds = L.latLngBounds(southWest, northEast);
+    map.flyToBounds(calculatedBounds, { padding: [50, 50], duration: 1.0 });
+
+    setTimeout(() => setIsFlying(false), 1000); // Match duration
+  }, [userCoordinates, filters.distance, isFlying]); // Add filters.distance dependency
+
   // --- Memos (Defined after state, before early returns) ---
 
   // Note: filteredCities from useMapData already includes distance filtering
@@ -430,16 +450,28 @@ const WorldMap = () => {
             <RadiusCircle />
           </MapContainer>
 
-          {/* Zoom to Me Button */}
-          {userCoordinates && (
-            <Button
-              onClick={handleUserMarkerClick}
-              className="absolute top-4 right-4 z-[1000] bg-white hover:bg-gray-100 text-gray-700 font-semibold py-2 px-4 border border-gray-300 rounded shadow"
-              aria-label="Zoom to my location"
-            >
-              Zoom to Me
-            </Button>
-          )}
+          {/* Zoom Buttons Container */}
+          <div className="absolute top-4 right-4 z-[1000] flex flex-col space-y-2">
+            {userCoordinates && (
+              <Button
+                onClick={handleUserMarkerClick} // Smaller padding and text
+                className="bg-white hover:bg-gray-100 text-gray-700 text-sm py-1 px-2 border border-gray-300 rounded shadow"
+                aria-label="Zoom to my location"
+              >
+                Zoom to Me
+              </Button>
+            )}
+            {/* Zoom to Radius Button - Conditionally render based on valid user location and distance filter */}
+            {userCoordinates && filters.distance && filters.distance > 0 && filters.distance < 50 && ( // Update condition to < 50
+               <Button
+                 onClick={handleZoomToRadius}
+                 className="bg-white hover:bg-gray-100 text-gray-700 text-sm py-1 px-2 border border-gray-300 rounded shadow" // Smaller padding and text
+                 aria-label="Zoom to distance filter radius"
+               >
+                 Zoom to Radius ({filters.distance}km)
+               </Button>
+            )}
+          </div>
         </div>
       </div>
       {/* Render City Table and User Table Separately */}

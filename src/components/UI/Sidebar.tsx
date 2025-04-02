@@ -37,7 +37,8 @@ const Sidebar = ({
 }: SidebarProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
-  const [distanceRange, setDistanceRange] = useState<number>(500);
+  // Default distance is 50km (representing "All")
+  const [distanceRange, setDistanceRange] = useState<number>(50);
 
   // Distance filter is enabled only if we have a user position
   const isDistanceFilterEnabled = userPosition !== null;
@@ -57,32 +58,35 @@ const Sidebar = ({
 
   const handleDistanceChange = useCallback((distance: number) => {
     setDistanceRange(distance); // Update local state immediately for slider UI feedback
-    debouncedDistanceFilter(distance >= 500 ? null : distance); // Call debounced filter function
+    // If distance is 50 or more, pass null (meaning "All") to the filter function
+    debouncedDistanceFilter(distance >= 50 ? null : distance); // Call debounced filter function
   }, [debouncedDistanceFilter]); // Depend on the debounced function
 
   const handleReset = useCallback(() => {
     setPopulationRange([0, 40000000]);
-    setDistanceRange(500);
+    setDistanceRange(50); // Reset to 50km ("All")
     onResetFilters();
   }, [onResetFilters]);
 
   // Reset distance filter UI if user position becomes unavailable (e.g., error during session)
   useEffect(() => {
-    if (!isDistanceFilterEnabled && distanceRange < 500) {
-      setDistanceRange(500);
+    // If distance filter becomes disabled and it wasn't set to "All", reset it to "All" (50)
+    if (!isDistanceFilterEnabled && distanceRange < 50) {
+      setDistanceRange(50);
       // No need to call onDistanceFilter(null) here as the parent component
       // should handle filtering based on the actual userPosition state.
     }
-  }, [isDistanceFilterEnabled, distanceRange]);
+  }, [isDistanceFilterEnabled]); // Only depend on enablement status
 
   // Slider color depends only on whether the filter is enabled (user position available)
   const getSliderColor = useCallback(() => {
     if (!isDistanceFilterEnabled) return 'bg-gray-300';
     // Color logic based on range remains the same
-    if (distanceRange < 50) return 'bg-red-500';
-    if (distanceRange < 100) return 'bg-yellow-500';
-    if (distanceRange < 200) return 'bg-blue-500';
-    return 'bg-green-500';
+    // Adjust color thresholds for the new 0-50 range
+    if (distanceRange < 10) return 'bg-red-500';
+    if (distanceRange < 25) return 'bg-yellow-500';
+    if (distanceRange < 40) return 'bg-blue-500';
+    return 'bg-green-500'; // Green for 40-50 ("All")
   }, [isDistanceFilterEnabled, distanceRange]);
 
   // Determine if users should be shown based on length (they are pre-filtered in useMapData)
@@ -125,15 +129,15 @@ const Sidebar = ({
                   </h3>
                   {isDistanceFilterEnabled && (
                     <span className={`text-xs px-2 py-1 rounded-full ${
-                      distanceRange < 500 ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                      distanceRange < 50 ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
                     }`}>
-                      {distanceRange < 500 ? `${distanceRange} km` : "Alle"}
+                      {distanceRange < 50 ? `${distanceRange} km` : "Alle"}
                     </span>
                   )}
                 </div>
                 <div className="px-2">
                   <input
-                    type="range" min="0" max="500" step="10"
+                    type="range" min="1" max="50" step="1" // Changed range and step
                     value={distanceRange}
                     onChange={(e) => handleDistanceChange(parseInt(e.target.value))}
                     className={`w-full ${isDistanceFilterEnabled ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
@@ -141,11 +145,11 @@ const Sidebar = ({
                     style={{ accentColor: getSliderColor() }}
                   />
                   <div className="flex justify-between text-xs text-gray-600">
-                    <span>0 km</span>
+                    <span>1 km</span>
                     <span>Alle</span>
                   </div>
                   {/* Statistics (currently only for cities) */}
-                  {filteredStats && distanceRange < 500 && (
+                  {filteredStats && distanceRange < 50 && ( // Update condition
                     <div className="mt-2 text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700">
                       <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 000 2v3a1 1 001 1h1a1 1 100-2v-3a1 1 00-1-1H9z" clipRule="evenodd" /></svg>
                       <span>
