@@ -54,7 +54,7 @@ const Sidebar = ({
   const debouncedDistanceFilter = useMemo(
     () => debounce((distance: number | null) => {
       onDistanceFilter(distance);
-    }, 300), // Debounce time: 300ms
+    }, 40), // Debounce time: Further reduced to 40ms for maximum responsiveness
     [onDistanceFilter] // Recreate if the original callback changes
   );
 
