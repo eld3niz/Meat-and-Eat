@@ -277,6 +277,14 @@ const WorldMap = () => {
     setTimeout(() => setIsFlying(false), 1000); // Match duration
   }, [userCoordinates, filters.distance, isFlying]); // Add filters.distance dependency
 
+  // Wrapper function for resetting filters to also clear the distance radius circle
+  const handleResetFilters = useCallback(() => {
+    resetFilters(); // Call the original function from the hook
+    setDistanceRadius(null); // Reset the local state for the circle
+    setClickedCity(null); // Close any open popups
+    setHoveredCity(null); // Clear any hover previews
+  }, [resetFilters]); // Dependency on the function from the hook
+
   // --- Memos (Defined after state, before early returns) ---
 
   // Note: filteredCities from useMapData already includes distance filtering
@@ -405,7 +413,7 @@ const WorldMap = () => {
           onCountryFilter={filterByCountry}
           onPopulationFilter={filterByPopulation}
           onDistanceFilter={handleDistanceFilter} // Pass the updated handler
-          onResetFilters={resetFilters}
+          onResetFilters={handleResetFilters} // Pass the new wrapper function
           loading={mapDataLoading || loadingOtherUsers} // Combined loading state for sidebar?
           userPosition={userCoordinates}
           filteredStats={filteredStats} // Stats might need update if based on users too
