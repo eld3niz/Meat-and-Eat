@@ -121,9 +121,25 @@ const WorldMap = () => {
     setDistanceRadius(distance); // Update local state for drawing the circle
     setClickedCity(null); // Close popup on filter change
 
-    // REMOVED: Automatic map zoom/pan when slider changes.
-    // Zooming is now handled explicitly by the "Zoom to Radius" button.
-  }, [filterByDistance]); // Removed userCoordinates and isFlying as dependencies are no longer needed here
+    // --- Automatic Zooming Logic ---
+    const map = mapRef.current;
+    // Zoom only if map is ready, user location known, distance is valid (not "All"), and not currently animating
+    if (map && userCoordinates && distance && distance > 0 && distance < 500 && !isFlying) { // Using < 500 like the button/circle logic
+      const radiusInMeters = distance * 1000;
+      const [userLat, userLng] = userCoordinates;
+      // Approximate calculation for bounds based on radius
+      const latDelta = radiusInMeters / 111132; // meters per degree latitude (approx)
+      const lngDelta = radiusInMeters / (111320 * Math.cos(userLat * Math.PI / 180)); // meters per degree longitude (approx, depends on latitude)
+      const southWest = L.latLng(userLat - latDelta, userLng - lngDelta);
+      const northEast = L.latLng(userLat + latDelta, userLng + lngDelta);
+      const calculatedBounds = L.latLngBounds(southWest, northEast);
+
+      // Use fitBounds for smoother zooming that fits the area
+      map.fitBounds(calculatedBounds, { padding: [50, 50], animate: true, duration: 0.5 }); // 50px padding, 0.5s animation
+    }
+    // --- End Automatic Zooming Logic ---
+
+  }, [filterByDistance, userCoordinates, isFlying]); // Add userCoordinates and isFlying dependencies
   const handleMarkerClick = useCallback((city: City) => {
     const map = mapRef.current;
     if (!map || isFlying) return; // Prevent action if map not ready or already animating
@@ -448,16 +464,7 @@ const WorldMap = () => {
                 Zoom to Me
               </Button>
             )}
-            {/* Zoom to Radius Button - Conditionally render based on valid user location and distance filter */}
-            {userCoordinates && filters.distance && filters.distance > 0 && filters.distance < 500 && ( // Updated condition to < 500
-               <Button
-                 onClick={handleZoomToRadius}
-                 className="bg-white hover:bg-gray-100 text-gray-700 text-sm py-1 px-2 border border-gray-300 rounded shadow" // Smaller padding and text
-                 aria-label="Zoom to distance filter radius"
-               >
-                 Zoom to Radius ({filters.distance}km)
-               </Button>
-            )}
+            {/* Zoom to Radius Button Removed - Zooming is now automatic */}
           </div>
         </div>
       </div>
