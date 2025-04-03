@@ -4,7 +4,8 @@ import { MapUser } from '../../hooks/useMapData'; // Import MapUser
 import { formatPopulation, calculateHaversineDistance } from '../../utils/mapUtils';
 
 // Define combined type
-type MapObject = (City & { type: 'city'; distance: number | null }) | (MapUser & { type: 'user'; distance: number | null });
+// Only users are map objects now
+type MapObject = MapUser & { type: 'user'; distance: number | null };
 
 interface MapObjectTableProps { // Renamed interface
   cities: City[];
@@ -16,7 +17,8 @@ interface MapObjectTableProps { // Renamed interface
 const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosition }) => {
   const [visibleCount, setVisibleCount] = useState(20);
   // Add 'type' to sort options? Maybe not needed if we filter users out for population sort.
-  const [sortBy, setSortBy] = useState<'name' | 'population' | 'distance'>('population');
+  // Removed 'population' sort option
+  const [sortBy, setSortBy] = useState<'name' | 'distance'>('distance'); // Default to distance?
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   // Calculate distance for any map object (city or user)
@@ -34,33 +36,25 @@ const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosi
   // Combine and sort cities and users
   const sortedItems = useMemo(() => {
     // Combine cities and users, adding type and distance
-    const combinedList: MapObject[] = [
-      ...cities.map(city => ({ ...city, type: 'city' as const, distance: calculateDistance(city) })),
-      ...users.map(user => ({ ...user, type: 'user' as const, distance: calculateDistance(user) }))
-    ];
-
-    // Filter out users if sorting by population
-    const listToSort = sortBy === 'population'
-        ? combinedList.filter(item => item.type === 'city')
-        : combinedList;
+    // Only use users, map them to MapObject type
+    const listToSort: MapObject[] = users.map(user => ({
+      ...user,
+      type: 'user' as const,
+      distance: calculateDistance(user)
+    }));
 
 
     return [...listToSort].sort((a, b) => {
       // Sort by Name (City name or User name)
+      // Sort by Name (User name)
       if (sortBy === 'name') {
-        const nameA = a.type === 'city' ? a.name : a.name; // Both have 'name'
-        const nameB = b.type === 'city' ? b.name : b.name;
+        const nameA = a.name;
+        const nameB = b.name;
         const comparison = nameA.localeCompare(nameB);
         return sortOrder === 'asc' ? comparison : -comparison;
       }
 
-      // Sort by Population (Only applies to cities, users are pre-filtered out)
-      if (sortBy === 'population') {
-         // We know a and b are cities here because of pre-filtering
-         const popA = (a as City & { type: 'city' }).population;
-         const popB = (b as City & { type: 'city' }).population;
-         return sortOrder === 'asc' ? popA - popB : popB - popA;
-      }
+      // Sort by Population removed
 
       // Sort by Distance
       if (sortBy === 'distance') {
@@ -74,7 +68,7 @@ const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosi
 
       return 0;
     });
-  }, [cities, users, sortBy, sortOrder, userPosition]); // Added users dependency
+  }, [users, sortBy, sortOrder, userPosition]); // Removed cities dependency
 
   // Slice for visible items
   const visibleItems = useMemo(() => {
@@ -82,7 +76,8 @@ const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosi
   }, [sortedItems, visibleCount]);
 
   // Toggle sort order
-  const toggleSort = (column: 'name' | 'population' | 'distance') => {
+  // Removed 'population' from column type
+  const toggleSort = (column: 'name' | 'distance') => {
     if (sortBy === column) {
       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
@@ -98,27 +93,28 @@ const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosi
   };
 
   // Get sort arrow indicator
-  const getSortArrow = (column: 'name' | 'population' | 'distance') => {
+  // Removed 'population' from column type
+  const getSortArrow = (column: 'name' | 'distance') => {
     if (sortBy !== column) return null;
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
   // No items available (check combined length)
-  if (cities.length === 0 && users.length === 0) {
+  // Check only users length
+  if (users.length === 0) {
     return (
       <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm">
-        <p className="text-center text-gray-500">Keine Städte oder Benutzer gefunden, die den aktuellen Filterkriterien entsprechen.</p>
+        <p className="text-center text-gray-500">Keine Benutzer gefunden, die den aktuellen Filterkriterien entsprechen.</p>
       </div>
     );
   }
 
-  // Determine if population sort is active (to disable the header click)
-  const isPopulationSortActive = sortBy === 'population';
-
+  // Removed population sort check
   return (
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm">
       {/* Changed Title */}
-      <h2 className="text-2xl font-bold text-blue-800 mb-4">Gefilterte Liste</h2>
+      {/* Changed Title */}
+      <h2 className="text-2xl font-bold text-blue-800 mb-4">Benutzerliste</h2>
 
       <div className="overflow-x-auto">
         <table className="min-w-full bg-white">
@@ -135,20 +131,10 @@ const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosi
                 </div>
               </th>
               {/* Type Column */}
-               <th className="py-3 px-4 text-left">Typ</th>
-              {/* Country Column (Only for Cities) */}
-              <th className="py-3 px-4 text-left">Land</th>
-              {/* Population Column (Only for Cities) */}
-              <th
-                onClick={() => toggleSort('population')} // Keep toggle logic
-                className={`py-3 px-4 text-right transition-colors ${isPopulationSortActive ? 'cursor-pointer hover:bg-gray-200' : 'cursor-default text-gray-400'}`} // Style differently if disabled?
-                title={isPopulationSortActive ? "Nach Bevölkerung sortieren" : "Bevölkerung (nur Städte)"}
-              >
-                <div className="flex items-center justify-end">
-                  <span>Bevölkerung</span>
-                  {getSortArrow('population') && <span className="ml-1">{getSortArrow('population')}</span>}
-                </div>
-              </th>
+              {/* Type Column - Kept for clarity */}
+              <th className="py-3 px-4 text-left">Typ</th>
+             {/* Country Column Removed */}
+             {/* Population Column Removed */}
               {/* Distance Column (If userPosition exists) */}
               {userPosition && (
                 <th
@@ -166,22 +152,18 @@ const MapObjectTable: React.FC<MapObjectTableProps> = ({ cities, users, userPosi
           <tbody>
             {visibleItems.map(item => (
               <tr
-                key={item.type === 'city' ? `city-${item.id}` : `user-${item.user_id}`} // Unique key
+                key={`user-${item.user_id}`} // Simpler key, only users now
                 className="border-b hover:bg-blue-50 transition-transform duration-200 hover:scale-[1.01] cursor-default"
               >
                 {/* Name */}
                 <td className="py-3 px-4 font-medium">{item.name}</td>
                  {/* Type */}
                  <td className="py-3 px-4 text-xs">
-                    {item.type === 'city'
-                        ? <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Stadt</span>
-                        : <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">Benutzer</span>
-                    }
+                    {/* Always Benutzer now */}
+                    <span className="bg-green-100 text-green-800 px-2 py-0.5 rounded">Benutzer</span>
                  </td>
-                {/* Country */}
-                <td className="py-3 px-4">{item.type === 'city' ? item.country : '—'}</td>
-                {/* Population */}
-                <td className="py-3 px-4 text-right">{item.type === 'city' ? formatPopulation(item.population) : '—'}</td>
+                {/* Country Column Removed */}
+                {/* Population Column Removed */}
                 {/* Distance */}
                 {userPosition && (
                   <td className="py-3 px-4 text-right">

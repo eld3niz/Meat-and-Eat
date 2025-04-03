@@ -633,11 +633,7 @@ const WorldMap = () => {
       </div>
       {/* Render City Table and User Table Separately */}
       <div className="overflow-y-auto mt-4 mb-8 px-4">
-        {/* City Table */}
-        <CityTable
-          cities={filteredCities}
-          userPosition={userCoordinates}
-        />
+        {/* City Table Removed */}
         {/* User Table (conditionally rendered if there are users) */}
         <UserTable
             users={filteredUsers}
