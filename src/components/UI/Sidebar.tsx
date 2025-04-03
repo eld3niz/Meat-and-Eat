@@ -147,27 +147,31 @@ const Sidebar = ({
                     <span>1 km</span>
                     <span>Alle</span>
                   </div>
-                  {/* Statistics (currently only for cities) */}
-                  {filteredStats && currentDistanceFilter !== null && ( // Check prop is not null
-                    <div className="mt-2 text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 000 2v3a1 1 001 1h1a1 1 100-2v-3a1 1 00-1-1H9z" clipRule="evenodd" /></svg>
-                      <span>
-                        {filteredStats.visibleCities} von {filteredStats.totalCities} Städten ({filteredStats.percentage}%) sichtbar
-                      </span>
-                    </div>
-                  )}
-                </div>
-              {/* User Statistics */}
-              {users && currentDistanceFilter !== null && ( // Check prop is not null and users exist
-                <div className="mt-2 text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700">
-                  {/* Optional: Add an icon */}
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11a6 6 0 011 11.91V19h-1v-1a5 5 0 01-2.07-9.29A6.97 6.97 0 0013 16c0 .34.024.673.07 1h-1.94a6.97 6.97 0 00-.88-2.83A5 5 0 017 11a6 6 0 011-11.91V1H7v1a5 5 0 01-2.07 9.29A6.97 6.97 0 005 16c0 .34.024.673.07 1H4a1 1 0 00-1 1v3a1 1 0 001 1h12a1 1 0 001-1v-3a1 1 0 00-1-1h-1.07z" /></svg>
-                  <span>
-                    {users.length} Benutzer sichtbar
-                  </span>
-                </div>
-              )}
-              </div>
+                </div> {/* End of slider container div */}
+              </div> {/* End of main distance filter container div */}
+
+              {/* Statistics Section (Moved outside filter container) */}
+              <div className="px-2 mb-6 space-y-2"> {/* Container for stats with padding and spacing */}
+                {/* City Statistics */}
+                {filteredStats && currentDistanceFilter !== null && (
+                  <div className="text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700 w-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 000 2v3a1 1 001 1h1a1 1 100-2v-3a1 1 00-1-1H9z" clipRule="evenodd" /></svg>
+                    <span>
+                      {filteredStats.visibleCities} von {filteredStats.totalCities} Städten ({filteredStats.percentage}%) sichtbar
+                    </span>
+                  </div>
+                )}
+                {/* User Statistics */}
+                {users && currentDistanceFilter !== null && (
+                  <div className="text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700 w-full"> {/* Added w-full */}
+                    {/* Optional: Add an icon */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11a6 6 0 011 11.91V19h-1v-1a5 5 0 01-2.07-9.29A6.97 6.97 0 0013 16c0 .34.024.673.07 1h-1.94a6.97 6.97 0 00-.88-2.83A5 5 0 017 11a6 6 0 011-11.91V1H7v1a5 5 0 01-2.07 9.29A6.97 6.97 0 005 16c0 .34.024.673.07 1H4a1 1 0 00-1 1v3a1 1 0 001 1h12a1 1 0 001-1v-3a1 1 0 00-1-1h-1.07z" /></svg>
+                    <span>
+                      {users.length} Menschen in deiner Gegend wollen Gesellschaft
+                    </span>
+                  </div>
+                )}
+              </div> {/* End of statistics container div */}
 
               {/* Reset Button */}
               <div className="mb-4">
