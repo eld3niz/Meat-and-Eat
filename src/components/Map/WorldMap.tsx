@@ -5,8 +5,9 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { useMapData, MapUser } from '../../hooks/useMapData';
-import MarkerCluster from './MarkerCluster';
-import TiledMarkersLayer from './TiledMarkersLayer'; // <-- Import new Tiled Layer
+import MarkerCluster from './MarkerCluster'; // For zoom < 14
+import TileAggregateLayer from './TileAggregateLayer'; // For zoom >= 14
+// TiledMarkersLayer import removed
 import InfoPopup from './InfoPopup'; // Existing city popup
 import UserInfoPopup from './UserInfoPopup'; // <-- Import new User Info Popup
 import TileListPopup from '../UI/TileListPopup'; // <-- Import new Tile List Popup
@@ -16,7 +17,7 @@ import UserTable from '../UI/UserTable';
 import { City } from '../../types';
 import L, { Map as LeafletMap, Popup } from 'leaflet'; // <-- Import Popup type
 import { useMapTilingData } from '../../hooks/useMapTilingData'; // <-- Import new hook
-import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce } from '../../utils/mapUtils';
+import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce, getTileCenterLatLng, getTileId } from '../../utils/mapUtils'; // Added getTileCenterLatLng and getTileId
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import Button from '../UI/Button';
@@ -327,56 +328,61 @@ const WorldMap = () => {
     setHoveredCity(null); // Clear any hover previews
   }, [resetFilters, closeAllPopups]); // Added closeAllPopups
 
-  // --- New Tile Layer Click Handlers ---
-  const handleSingleCityTileClick = useCallback((city: City, marker: L.Marker) => {
-    // Reuse the existing city marker click logic
-    handleMarkerClick(city);
-  }, [handleMarkerClick]);
+  // --- Unified Item Click Handler (for markers at tile centers) ---
+  const handleItemClick = useCallback((item: City | MapUser) => {
+    if ('population' in item) { // It's a City
+      // Reuse existing city marker click logic
+      handleMarkerClick(item);
+    } else { // It's a MapUser
+      // Use logic from handleSingleUserTileClick
+      const map = mapRef.current;
+      if (!map) return;
 
-  const handleSingleUserTileClick = useCallback((mapUser: MapUser, marker: L.Marker) => {
-    const map = mapRef.current;
-    if (!map) return;
+      closeAllPopups(); // Close other popups
 
-    closeAllPopups(); // Close other popups
-
-    const content = ReactDOMServer.renderToString(
-      <UserInfoPopup user={mapUser} onClose={() => userInfoPopupRef.current?.remove()} />
-    );
-
-    const popup = L.popup({ closeButton: false, minWidth: 100 }) // Adjust options as needed
-      .setLatLng(marker.getLatLng())
-      .setContent(content)
-      .openOn(map);
-
-    userInfoPopupRef.current = popup; // Store reference
-    setOpenPopupData({ type: 'user', user: mapUser, ref: userInfoPopupRef }); // Track open user popup
-  }, [closeAllPopups]);
-
-  const handleAggregateTileClick = useCallback((
-    tileId: string,
-    items: (City | MapUser)[],
-    tileCenter: L.LatLng,
-    marker: L.Marker
-  ) => {
-    const map = mapRef.current;
-    if (!map) return;
-
-    closeAllPopups(); // Close other popups
-
-    const content = ReactDOMServer.renderToString(
-      <TileListPopup items={items} onClose={() => aggregatePopupRef.current?.remove()} />
-    );
-
-    const popup = L.popup({ closeButton: false, minWidth: 150, maxHeight: 200 }) // Adjust options
-      .setLatLng(tileCenter)
-      .setContent(content)
-      .openOn(map);
-
-    aggregatePopupRef.current = popup; // Store reference
-    setOpenPopupData({ type: 'aggregate', items, center: tileCenter, ref: aggregatePopupRef }); // Track open aggregate popup
-  }, [closeAllPopups]);
+      // Need the marker's LatLng, which is the tile center.
+      // This will be passed by MarkerCluster or we recalculate it.
+      // For now, assume MarkerCluster provides it or we derive it from item's original coords.
+      // Let's recalculate for simplicity here, though passing from MarkerCluster is better.
+      const tileId = getTileId(item.latitude, item.longitude);
+      const tileCenter = getTileCenterLatLng(tileId);
 
 
+      const content = ReactDOMServer.renderToString(
+        <UserInfoPopup user={item} onClose={() => userInfoPopupRef.current?.remove()} />
+      );
+
+      const popup = L.popup({ closeButton: false, minWidth: 100 })
+        .setLatLng(tileCenter) // Use tile center for popup position
+        .setContent(content)
+        .openOn(map);
+
+      userInfoPopupRef.current = popup; // Store reference
+      // Note: marker instance isn't directly available here, adjust if needed
+      setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef }); // Track open user popup
+    }
+  }, [handleMarkerClick, closeAllPopups]); // Dependencies
+
+  // --- Handler for clicking an aggregate marker representing a tile ---
+  const handleAggregateTileClick = useCallback((items: (City | MapUser)[], tileCenter: L.LatLng) => {
+      const map = mapRef.current;
+      if (!map) return;
+
+      closeAllPopups(); // Close other popups
+
+      const content = ReactDOMServer.renderToString(
+        <TileListPopup items={items} onClose={() => aggregatePopupRef.current?.remove()} />
+      );
+
+      const popup = L.popup({ closeButton: false, minWidth: 150, maxHeight: 200 }) // Adjust options
+        .setLatLng(tileCenter)
+        .setContent(content)
+        .openOn(map);
+
+      aggregatePopupRef.current = popup; // Store reference
+      // Track the open popup state
+      setOpenPopupData({ type: 'aggregate', items, center: tileCenter, ref: aggregatePopupRef });
+    }, [closeAllPopups]);
   // --- Memos (Defined after state, before early returns) ---
 
   // Note: filteredCities from useMapData already includes distance filtering
@@ -405,24 +411,56 @@ const WorldMap = () => {
      return users;
    }, [filteredUsers, user, userCoordinates]);
 
-  // Prepare city data for display (potentially filtered by zoom for clustering)
-  const citiesForDisplay = useMemo(() => {
-    // When zoom < 14 (clustering), apply zoom-based filtering
-    if (mapZoom < 4) {
-      const minPopulation = 5000000;
-      return filteredCities.filter(city => city.population >= minPopulation);
-    }
-    // When zoom >= 14 (tiling), use all filtered cities
-    return filteredCities;
-  }, [filteredCities, mapZoom]);
-
   // --- Hook for Tiling Data Aggregation ---
   const tileAggregationData = useMapTilingData(
-    citiesForDisplay, // Use cities prepared for the current zoom
+    filteredCities, // Use all filtered cities
     allUsersForDisplay, // Use combined user list
-    user?.id ?? null,
-    mapZoom >= 14 // Enable tiling only when zoom is 14 or greater
+    user?.id ?? null
+    // No longer pass zoom condition
   );
+
+  // Define MarkerDefinition interface (or move to types/index.ts)
+  interface MarkerDefinition {
+    id: string;
+    latitude: number;
+    longitude: number;
+    type: 'city' | 'user';
+    name: string;
+    userId?: string | null;
+    population?: number;
+    originalItem: City | MapUser;
+  }
+
+  // --- Transform Tile Data into Markers for Clustering (Always at Tile Centers) ---
+  const markersForClustering = useMemo((): MarkerDefinition[] => {
+    const markers: MarkerDefinition[] = [];
+    tileAggregationData.forEach((tileData, tileId) => {
+      try {
+        const tileCenter = getTileCenterLatLng(tileId);
+        tileData.items.forEach(item => {
+          if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') {
+             console.warn('Item missing coordinates during transformation, skipping:', item);
+             return; // Skip items without valid original coordinates
+          }
+
+          const markerDef: MarkerDefinition = {
+            id: 'population' in item ? `city-${item.id}` : `user-${item.user_id}`,
+            latitude: tileCenter.lat, // Use tile center latitude
+            longitude: tileCenter.lng, // Use tile center longitude
+            type: 'population' in item ? 'city' : 'user',
+            name: item.name,
+            userId: 'user_id' in item ? item.user_id : null,
+            population: 'population' in item ? item.population : undefined,
+            originalItem: item // Keep original item data for click handlers
+          };
+          markers.push(markerDef);
+        });
+      } catch (error) {
+          console.error(`Error processing tile ${tileId}:`, error);
+      }
+    });
+    return markers;
+  }, [tileAggregationData]);
 
 
   // --- Effects (Defined after state, before early returns) ---
@@ -539,25 +577,24 @@ const WorldMap = () => {
             <MapBoundsController />
             <MapEventHandlers onZoomEnd={throttledHandleZoom} onMoveEnd={debouncedHandleMapMove} onMapClick={handleMapClick} />
 
-            {/* --- Conditional Rendering: Cluster or Tiles --- */}
+            {/* --- Conditional Rendering: Cluster (Tile Centers) or Tile Aggregates --- */}
             {mapZoom < 14 ? (
               <MarkerCluster
-                cities={citiesForDisplay} // Pass cities filtered for zoom < 4
-                users={allUsersForDisplay} // Pass combined user list
-                onMarkerClick={handleMarkerClick} // Existing city click
+                markersData={markersForClustering} // Individual items at tile centers
+                onItemClick={handleItemClick} // Handles single item clicks
+                // Pass other existing props needed by MarkerCluster
                 onMarkerMouseOver={handleMarkerMouseOver}
                 onMarkerMouseOut={handleMarkerMouseOut}
                 activeCityId={clickedCity?.id ?? null}
-                onClusterClick={handleClusterClick} // Existing cluster click
-                userCoordinates={userCoordinates} // Keep passing for now
+                onClusterClick={handleClusterClick} // Handles clicks on standard clusters
                 currentUserId={user?.id ?? null}
+                userCoordinates={userCoordinates}
               />
             ) : (
-              <TiledMarkersLayer
-                tileAggregationData={tileAggregationData}
-                onSingleCityTileClick={handleSingleCityTileClick} // New handler
-                onSingleUserTileClick={handleSingleUserTileClick} // New handler
-                onAggregateTileClick={handleAggregateTileClick} // New handler
+              <TileAggregateLayer
+                tileAggregationData={tileAggregationData} // Raw tile data
+                onItemClick={handleItemClick} // Handles single item tile clicks
+                onAggregateTileClick={handleAggregateTileClick} // Handles aggregate tile clicks
                 currentUserId={user?.id ?? null}
               />
             )}

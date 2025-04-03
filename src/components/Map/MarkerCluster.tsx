@@ -8,12 +8,24 @@ import { formatPopulation } from '../../utils/mapUtils';
 import createSvgMarkerIcon from './CityMarkerIcon';
 import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // Import blue and red user icons
 
+// Define MarkerDefinition locally (mirroring WorldMap.tsx)
+// TODO: Consider moving this to a shared types file (e.g., src/types/index.ts)
+interface MarkerDefinition {
+  id: string;
+  latitude: number;
+  longitude: number;
+  type: 'city' | 'user';
+  name: string;
+  userId?: string | null;
+  population?: number;
+  originalItem: City | MapUser;
+}
+
 // Use types from @types/leaflet.markercluster
 
 interface MarkerClusterProps {
-  cities: City[];
-  users: MapUser[]; // <-- Add users prop
-  onMarkerClick: (city: City) => void; // City-specific click handler
+  markersData: MarkerDefinition[]; // <-- New prop for pre-processed markers
+  onItemClick: (item: City | MapUser) => void; // <-- Unified click handler
   onMarkerMouseOver: (city: City) => void; // City-specific mouseover handler
   onMarkerMouseOut: () => void;
   activeCityId: number | null;
@@ -26,9 +38,8 @@ interface MarkerClusterProps {
  * Komponente zur Darstellung der Stadt- und Benutzer-Marker mit Clustering
  */
 const MarkerCluster = ({
-    cities,
-    users, // <-- Destructure users
-    onMarkerClick,
+    markersData, // <-- Destructure new prop
+    onItemClick, // <-- Destructure new prop
     onMarkerMouseOver,
     onMarkerMouseOut,
     activeCityId,
@@ -38,8 +49,7 @@ const MarkerCluster = ({
 }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
-  // Use string keys for the ref to accommodate different ID types (number for city, string for user)
-  const markersRef = useRef<{ [id: string]: L.Marker }>({});
+  const markersRef = useRef<{ [id: string]: L.Marker }>({}); // Keep using string keys for the ref
 
   // Markercluster options remain the same
   const markerClusterOptions = useMemo(() => ({
@@ -117,8 +127,8 @@ const MarkerCluster = ({
     };
   }, [map, markerClusterOptions, onClusterClick]);
 
-  // Update markers based on cities and users
-  // Clear and re-add markers whenever cities or users change
+  // Update markers based on the pre-processed markersData
+  // Clear and re-add markers whenever markersData changes
   useEffect(() => {
     if (!map || !markerClusterGroupRef.current) return;
 
@@ -128,38 +138,42 @@ const MarkerCluster = ({
     currentMarkerGroup.clearLayers(); // Remove all markers from the group
     markersRef.current = {}; // Reset our internal tracking
 
-    // --- Create and add new markers ---
-    // Combine cities and users into a single list
-    const items = [
-        ...cities.map(c => ({ ...c, type: 'city' as const, uniqueId: `city-${c.id}` })),
-        ...users.map(u => ({ ...u, type: 'user' as const, uniqueId: `user-${u.user_id}` }))
-    ];
-
+    // --- Create and add new markers from markersData ---
     const markersToAdd: L.Marker[] = [];
-    items.forEach(item => {
+    markersData.forEach(markerDef => {
       let marker: L.Marker;
-      if (item.type === 'city') {
-        marker = L.marker([item.latitude, item.longitude], {
-          icon: createSvgMarkerIcon(item.population) // City icon
-        });
-        marker.on('click', () => onMarkerClick(item));
-        marker.on('mouseover', () => { if (activeCityId === null) onMarkerMouseOver(item); });
-        marker.on('mouseout', onMarkerMouseOut);
-        marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
-      } else { // item.type === 'user'
-        // Determine icon based on whether it's the current user
-        const icon = item.user_id === currentUserId ? currentUserIconRed : otherUserIconBlue;
-        marker = L.marker([item.latitude, item.longitude], {
-          icon: icon
-        });
-        // Attach userId to the marker instance for later checks in iconCreateFunction
-        (marker as any).userId = item.user_id;
-        marker.bindTooltip(item.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+      let icon: L.Icon | L.DivIcon;
+
+      // Determine icon based on type and current user status
+      if (markerDef.type === 'city') {
+        icon = createSvgMarkerIcon(markerDef.population ?? 0); // Use population if available
+      } else { // markerDef.type === 'user'
+        icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
       }
 
-      markersRef.current[item.uniqueId] = marker; // Track the new marker
+      // Create marker at the provided tile center coordinates
+      marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
+
+      // Attach unified click handler using the original item data
+      marker.on('click', () => onItemClick(markerDef.originalItem));
+
+      // Attach userId for cluster icon logic (important!)
+      (marker as any).userId = markerDef.userId;
+
+      // Keep city-specific mouseover/mouseout for now
+      if (markerDef.type === 'city') {
+        marker.on('mouseover', () => { if (activeCityId === null) onMarkerMouseOver(markerDef.originalItem as City); });
+        marker.on('mouseout', onMarkerMouseOut);
+      }
+
+      // Bind tooltip using the name from markerDef
+      marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+
+      // Use the unique ID from markerDef for tracking
+      markersRef.current[markerDef.id] = marker;
       markersToAdd.push(marker);
     });
+
 
     if (markersToAdd.length > 0) {
       if (markerClusterGroupRef.current) {
@@ -167,8 +181,8 @@ const MarkerCluster = ({
       }
     }
 
-  // Dependencies: include users array now
-  }, [map, cities, users, onMarkerClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, userCoordinates, currentUserId]); // Add currentUserId dependency
+  // Dependencies: Use markersData and onItemClick
+  }, [map, markersData, onItemClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, userCoordinates, currentUserId]); // Keep other dependencies for now
 
   return null; // Component only manages the Leaflet layer
 };

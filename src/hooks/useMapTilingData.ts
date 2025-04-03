@@ -9,26 +9,20 @@ export interface TileData {
 }
 
 /**
- * Custom hook to aggregate city and user data into map tiles based on zoom level 14.
+ * Custom hook to aggregate city and user data into map tiles.
  *
  * @param cities Array of City objects.
  * @param users Array of MapUser objects.
  * @param currentUserId The ID of the currently logged-in user, or null.
- * @param isEnabled Boolean indicating if tiling logic should be active (typically zoom >= 14).
  * @returns A Map where keys are tile IDs (string) and values are TileData objects.
  */
 export const useMapTilingData = (
   cities: City[],
   users: MapUser[],
   currentUserId: string | null,
-  isEnabled: boolean
 ): Map<string, TileData> => {
 
   const tileAggregationData = useMemo(() => {
-    // If tiling is not enabled (e.g., zoom < 14), return an empty map.
-    if (!isEnabled) {
-      return new Map<string, TileData>();
-    }
 
     const aggregation = new Map<string, TileData>();
 
@@ -64,8 +58,8 @@ export const useMapTilingData = (
 
     return aggregation;
 
-  // Dependencies: Recalculate only when input data or enabled status changes.
-  }, [cities, users, currentUserId, isEnabled]);
+  // Dependencies: Recalculate only when input data changes.
+  }, [cities, users, currentUserId]);
 
   return tileAggregationData;
 };
