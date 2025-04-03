@@ -84,7 +84,7 @@ const BlurredBackgroundMap = () => (
 const WorldMap = () => {
   // --- Hooks (MUST be called unconditionally at the top) ---
   // Get userCoordinates from context
-  const { user, locationPermissionStatus, userCoordinates, loading: authLoading, requestLocationPermission } = useAuth(); // Added requestLocationPermission
+  const { user, locationPermissionStatus, userCoordinates, loading: authLoading, isFetchingLocation, requestLocationPermission } = useAuth(); // Added isFetchingLocation, requestLocationPermission
   // Get map data including other user locations
   const {
     loading: mapDataLoading, // Represents city loading state
@@ -582,6 +582,7 @@ const WorldMap = () => {
           currentDistanceFilter={filters.distance} // <-- Pass current distance filter value
           isCollapsed={isSidebarCollapsed} // <-- Pass state
           onToggleCollapse={handleToggleSidebar} // <-- Pass handler
+          isLocationLoading={isFetchingLocation} // <-- Pass location fetching status
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">

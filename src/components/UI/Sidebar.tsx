@@ -20,6 +20,7 @@ interface SidebarProps {
   filteredStats: { totalCities: number; visibleCities: number; percentage: number } | null;
   isCollapsed: boolean; // <-- Add prop for collapsed state
   onToggleCollapse: () => void; // <-- Add prop for toggling collapse
+  isLocationLoading: boolean; // <-- Add prop for location loading status
 }
 
 /**
@@ -39,7 +40,8 @@ const Sidebar = ({
   filteredStats,
   currentDistanceFilter, // <-- Destructure the new prop
   isCollapsed, // <-- Destructure new prop
-  onToggleCollapse // <-- Destructure new prop
+  onToggleCollapse, // <-- Destructure new prop
+  isLocationLoading // <-- Destructure location loading prop
 }: SidebarProps) => {
   // Removed internal isCollapsed state
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
@@ -138,20 +140,29 @@ const Sidebar = ({
                     </span>
                   )}
                 </div>
-                <div className="px-2">
-                  <input
-                    type="range" min="1" max="50" step="1" // Changed range and step
-                    value={currentDistanceFilter ?? 50} // Use prop, map null to 50 for slider max
-                    onChange={(e) => handleDistanceChange(parseInt(e.target.value))}
-                    className={`w-full ${isDistanceFilterEnabled ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
-                    disabled={!isDistanceFilterEnabled}
-                    style={{ accentColor: getSliderColor() }}
-                  />
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>1 km</span>
-                    <span>Alle</span>
+                {/* --- Conditional Rendering: Loading Indicator or Slider --- */}
+                {isLocationLoading ? (
+                  <div className="px-2 py-4 flex items-center justify-center text-sm text-gray-500">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                    <span>Finding location...</span>
                   </div>
-                </div> {/* End of slider container div */}
+                ) : (
+                  <div className="px-2">
+                    <input
+                      type="range" min="1" max="50" step="1" // Changed range and step
+                      value={currentDistanceFilter ?? 50} // Use prop, map null to 50 for slider max
+                      onChange={(e) => handleDistanceChange(parseInt(e.target.value))}
+                      className={`w-full ${isDistanceFilterEnabled ? 'cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}
+                      disabled={!isDistanceFilterEnabled}
+                      style={{ accentColor: getSliderColor() }}
+                    />
+                    <div className="flex justify-between text-xs text-gray-600">
+                      <span>1 km</span>
+                      <span>Alle</span>
+                    </div>
+                  </div>
+                )}
+                {/* --- End Conditional Rendering --- */}
               </div> {/* End of main distance filter container div */}
 
               {/* Statistics Section (Moved outside filter container) */}

@@ -11,6 +11,7 @@ interface AuthContextType {
   error: string | null;
   locationPermissionStatus: LocationPermissionStatus;
   userCoordinates: [number, number] | null;
+  isFetchingLocation: boolean; // <-- Added state for location fetching status
   signOut: () => Promise<void>;
   requestLocationPermission: () => Promise<void>; // Still useful for manual trigger from modal
 }
@@ -28,6 +29,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [error, setError] = useState<string | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<LocationPermissionStatus>('pending');
   const [userCoordinates, setUserCoordinates] = useState<[number, number] | null>(null);
+  const [isFetchingLocation, setIsFetchingLocation] = useState<boolean>(false); // <-- State for location fetch
 
   // --- DB Update Function ---
   const updateUserLocationAndProfile = async (userId: string, latitude: number, longitude: number, accessGranted: boolean) => {
@@ -52,14 +54,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   // --- Function to fetch coordinates (called when permission is granted) ---
   const fetchCoordinates = useCallback(async (userId: string) => {
+    setIsFetchingLocation(true); // <-- Start fetching
     if (!navigator.geolocation) {
       console.error('[AuthContext] Geolocation is not supported.');
       setLocationPermissionStatus('unavailable');
       setUserCoordinates(null);
       await updateUserLocationAndProfile(userId, 0, 0, false); // Update profile status
+      setIsFetchingLocation(false); // <-- Stop fetching
       return;
     }
 
+    console.log('[AuthContext] Fetching coordinates for user:', userId);
     console.log('[AuthContext] Fetching coordinates for user:', userId);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
@@ -78,6 +83,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         if (coords) {
              await updateUserLocationAndProfile(userId, coords[0], coords[1], true);
         }
+        setIsFetchingLocation(false); // <-- Stop fetching (success)
       },
       async (geoError) => {
         console.warn(`[AuthContext] Geolocation error (${geoError.code}): ${geoError.message}.`);
@@ -88,6 +94,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         setLocationPermissionStatus(status);
         setUserCoordinates(null);
         await updateUserLocationAndProfile(userId, 0, 0, false);
+        setIsFetchingLocation(false); // <-- Stop fetching (error)
       },
       { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 } // Allow slightly older cache
     );
@@ -211,7 +218,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const value = {
     session, user, loading, error,
-    locationPermissionStatus, userCoordinates,
+    locationPermissionStatus, userCoordinates, isFetchingLocation, // <-- Expose new state
     signOut, requestLocationPermission,
   };
 
