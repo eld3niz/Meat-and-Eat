@@ -96,7 +96,7 @@ const Sidebar = ({
   const showUsers = users.length > 0;
 
   return (
-    <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
+    <div className={`transition-all duration-300 bg-gray-300 shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
       {/* Toggle-Button remains the same */}
       <button
         onClick={onToggleCollapse} // <-- Use the passed handler
@@ -173,7 +173,7 @@ const Sidebar = ({
               <div className="mb-4">
                 <button
                   onClick={handleReset}
-                  className="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded transition-colors"
+                  className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
                 >
                   Filter zurücksetzen
                 </button>
