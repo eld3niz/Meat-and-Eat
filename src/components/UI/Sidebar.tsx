@@ -157,23 +157,16 @@ const Sidebar = ({
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Population Filter (Applies only to cities) */}
-              <div className="mt-4 mb-6">
-                <h3 className="font-medium text-sm text-gray-700 mb-2">Bevölkerungsfilter (Städte):</h3>
-                <div className="px-2">
-                  <input
-                    type="range" min="0" max="40000000" step="1000000"
-                    value={populationRange[1]}
-                    onChange={(e) => handlePopulationChange([populationRange[0], parseInt(e.target.value)])}
-                    className="w-full"
-                  />
-                  <div className="flex justify-between text-xs text-gray-600">
-                    <span>0</span>
-                    <span>Max: {(populationRange[1] / 1000000).toFixed(0)} Mio.</span>
-                  </div>
+              {/* User Statistics */}
+              {users && currentDistanceFilter !== null && ( // Check prop is not null and users exist
+                <div className="mt-2 text-xs bg-blue-50 p-2 rounded flex items-center text-blue-700">
+                  {/* Optional: Add an icon */}
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1 text-blue-500" viewBox="0 0 20 20" fill="currentColor"><path d="M9 6a3 3 0 11-6 0 3 3 0 016 0zM17 6a3 3 0 11-6 0 3 3 0 016 0zM12.93 17c.046-.327.07-.66.07-1a6.97 6.97 0 00-1.5-4.33A5 5 0 0115 11a6 6 0 011 11.91V19h-1v-1a5 5 0 01-2.07-9.29A6.97 6.97 0 0013 16c0 .34.024.673.07 1h-1.94a6.97 6.97 0 00-.88-2.83A5 5 0 017 11a6 6 0 011-11.91V1H7v1a5 5 0 01-2.07 9.29A6.97 6.97 0 005 16c0 .34.024.673.07 1H4a1 1 0 00-1 1v3a1 1 0 001 1h12a1 1 0 001-1v-3a1 1 0 00-1-1h-1.07z" /></svg>
+                  <span>
+                    {users.length} Benutzer sichtbar
+                  </span>
                 </div>
+              )}
               </div>
 
               {/* Reset Button */}
@@ -186,33 +179,6 @@ const Sidebar = ({
                 </button>
               </div>
 
-              {/* City Filter Component (Displays list of cities) */}
-              <CityFilter
-                cities={cities} // Pass original cities or filteredCities? Let's pass filteredCities
-                onCitySelect={onCitySelect}
-                onCountryFilter={onCountryFilter} // Country filter applies only to cities
-                userPosition={userPosition}
-              />
-
-              {/* --- User List Section --- */}
-              {showUsers && (
-                <div className="mt-6 pt-4 border-t border-gray-200">
-                  <h3 className="font-medium text-sm text-gray-700 mb-2">Andere Benutzer:</h3>
-                  <ul className="max-h-48 overflow-y-auto text-sm"> {/* Limit height and scroll */}
-                    {users.map((user) => (
-                      <li
-                        key={user.user_id}
-                        // TODO: Add onClick handler if user selection is implemented
-                        // onClick={() => onUserSelect(user.user_id)}
-                        className="p-2 hover:bg-gray-100 cursor-pointer rounded" // Basic styling
-                      >
-                        {user.name} {/* Display user name */}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {/* --- End User List Section --- */}
 
             </>
           )}
