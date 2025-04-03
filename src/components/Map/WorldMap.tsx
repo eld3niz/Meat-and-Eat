@@ -115,6 +115,7 @@ const WorldMap = () => {
   const [isFlying, setIsFlying] = useState(false); // State to track map animation
   const aggregatePopupRef = useRef<Popup | null>(null); // Ref for aggregate list popup instance
   const userInfoPopupRef = useRef<Popup | null>(null); // Ref for user info popup instance
+  const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
@@ -123,7 +124,28 @@ const WorldMap = () => {
    const handleDistanceFilter = useCallback((distance: number | null) => {
     filterByDistance(distance); // Call hook function to update filters
     setDistanceRadius(distance); // Update local state for drawing the circle
-    setClickedCity(null); // Close popup on filter change
+    setClickedCity(null); // Close city info popup on filter change
+
+    // --- Close User/Aggregate Popups if outside new radius ---
+    if (openPopupData && userCoordinates && distance !== null && distance < 500) { // Check only if a specific radius is set
+        let popupLocation: L.LatLng | null = null;
+        if (openPopupData.type === 'user') {
+            popupLocation = L.latLng(openPopupData.user.latitude, openPopupData.user.longitude);
+        } else if (openPopupData.type === 'aggregate') {
+            popupLocation = openPopupData.center;
+        }
+
+        if (popupLocation) {
+            const distToPopup = calculateHaversineDistance(userCoordinates[0], userCoordinates[1], popupLocation.lat, popupLocation.lng);
+            if (distToPopup > distance) {
+                // Close the specific popup using its ref stored in openPopupData
+                openPopupData.ref.current?.remove();
+                openPopupData.ref.current = null; // Clear the ref
+                setOpenPopupData(null); // Clear the state
+            }
+        }
+    }
+    // --- End Popup Closing Logic ---
 
     // --- Automatic Zooming Logic ---
     const map = mapRef.current;
@@ -162,6 +184,7 @@ const WorldMap = () => {
     aggregatePopupRef.current = null;
     userInfoPopupRef.current?.remove(); // Close user info popup
     userInfoPopupRef.current = null;
+    setOpenPopupData(null); // Clear open popup data state
   }, []); // No dependencies needed
 
   // --- Existing City Marker Click Handler ---
@@ -326,6 +349,7 @@ const WorldMap = () => {
       .openOn(map);
 
     userInfoPopupRef.current = popup; // Store reference
+    setOpenPopupData({ type: 'user', user: mapUser, ref: userInfoPopupRef }); // Track open user popup
   }, [closeAllPopups]);
 
   const handleAggregateTileClick = useCallback((
@@ -349,6 +373,7 @@ const WorldMap = () => {
       .openOn(map);
 
     aggregatePopupRef.current = popup; // Store reference
+    setOpenPopupData({ type: 'aggregate', items, center: tileCenter, ref: aggregatePopupRef }); // Track open aggregate popup
   }, [closeAllPopups]);
 
 
