@@ -117,6 +117,7 @@ const WorldMap = () => {
   const aggregatePopupRef = useRef<Popup | null>(null); // Ref for aggregate list popup instance
   const userInfoPopupRef = useRef<Popup | null>(null); // Ref for user info popup instance
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // <-- State for sidebar visibility
 
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
@@ -177,6 +178,12 @@ const WorldMap = () => {
     // --- End Automatic Zooming Logic ---
 
   }, [filterByDistance, userCoordinates, isFlying]);
+
+  // --- Sidebar Toggle Handler ---
+  const handleToggleSidebar = useCallback(() => {
+    setIsSidebarCollapsed(prev => !prev);
+  }, []);
+
   // --- Popup Closing Utility ---
   const closeAllPopups = useCallback(() => {
     setClickedCity(null); // Close city info popup
@@ -473,6 +480,16 @@ const WorldMap = () => {
     return () => { window.removeEventListener('resize', handleResize); clearTimeout(timer); }
   }, []);
 
+  // Effect to invalidate map size when sidebar collapses/expands
+  useEffect(() => {
+    // Delay invalidateSize to allow sidebar transition to finish
+    const timer = setTimeout(() => {
+      mapRef.current?.invalidateSize();
+    }, 350); // Slightly longer than sidebar transition (300ms)
+
+    return () => clearTimeout(timer);
+  }, [isSidebarCollapsed]); // Run when sidebar state changes
+
   const RadiusCircle = useCallback(() => {
       // Use userCoordinates from context
       // Ensure radius is valid and positive before rendering
@@ -563,6 +580,8 @@ const WorldMap = () => {
           userPosition={userCoordinates}
           filteredStats={filteredStats} // Stats might need update if based on users too
           currentDistanceFilter={filters.distance} // <-- Pass current distance filter value
+          isCollapsed={isSidebarCollapsed} // <-- Pass state
+          onToggleCollapse={handleToggleSidebar} // <-- Pass handler
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">

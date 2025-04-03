@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'; // Import useMemo
+import { useEffect, useCallback, useMemo, useState } from 'react'; // Import useState moved
 import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData'; // <-- Import MapUser type
 import SearchBar from './SearchBar';
@@ -18,6 +18,8 @@ interface SidebarProps {
   loading: boolean; // Represents city loading, might need combined loading state
   userPosition: [number, number] | null;
   filteredStats: { totalCities: number; visibleCities: number; percentage: number } | null;
+  isCollapsed: boolean; // <-- Add prop for collapsed state
+  onToggleCollapse: () => void; // <-- Add prop for toggling collapse
 }
 
 /**
@@ -35,9 +37,11 @@ const Sidebar = ({
   loading, // Consider passing loadingCities and loadingUsers separately if needed
   userPosition,
   filteredStats,
-  currentDistanceFilter // <-- Destructure the new prop
+  currentDistanceFilter, // <-- Destructure the new prop
+  isCollapsed, // <-- Destructure new prop
+  onToggleCollapse // <-- Destructure new prop
 }: SidebarProps) => {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  // Removed internal isCollapsed state
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
   // Default distance is 50km (representing "All")
   // Removed distanceRange state, now controlled by currentDistanceFilter prop
@@ -95,7 +99,7 @@ const Sidebar = ({
     <div className={`transition-all duration-300 bg-white shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
       {/* Toggle-Button remains the same */}
       <button
-        onClick={() => setIsCollapsed(!isCollapsed)}
+        onClick={onToggleCollapse} // <-- Use the passed handler
         className="absolute right-0 top-4 transform translate-x-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-r-md shadow-lg z-[1100] transition-colors"
         aria-label={isCollapsed ? "Seitenleiste anzeigen" : "Seitenleiste ausblenden"}
       >
