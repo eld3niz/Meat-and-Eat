@@ -125,7 +125,13 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
                 key={user.user_id}
                 className="border-b hover:bg-green-50 transition-transform duration-200 hover:scale-[1.01] cursor-default"
               >
-                <td className="py-3 px-4 font-medium">{user.name}</td>
+                {/* Update cell to include name and bio */}
+                <td className="py-3 px-4 align-top"> {/* Use align-top if content heights vary */}
+                  <div className="font-medium">{user.name}</div>
+                  {user.bio && ( // Conditionally render bio if it exists
+                    <p className="text-sm text-gray-600 mt-1">{user.bio}</p>
+                  )}
+                </td>
                 {userPosition && (
                   <td className="py-3 px-4 text-right">
                     {user.distance !== null

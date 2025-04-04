@@ -99,6 +99,10 @@ const WorldMap = () => {
     loadingOtherUsers,
     errorOtherUsers,
     filterByDistance,        // <-- Get filterByDistance from hook
+    // Destructure new filter functions
+    filterByLocalStatus,
+    filterByBudget,
+    // ---
     filters,                 // <-- Get filters state object
     cities                   // <-- Get original cities array
   } = useMapData();
@@ -575,6 +579,12 @@ const WorldMap = () => {
           onCountryFilter={filterByCountry}
           onPopulationFilter={filterByPopulation}
           onDistanceFilter={handleDistanceFilter} // Pass the updated handler
+          // Pass new filter props
+          onLocalFilter={filterByLocalStatus}
+          onBudgetFilter={filterByBudget}
+          currentLocalFilter={filters.is_local}
+          currentBudgetFilter={filters.budget}
+          // ---
           onResetFilters={handleResetFilters} // Pass the new wrapper function
           loading={mapDataLoading || loadingOtherUsers} // Combined loading state for sidebar?
           userPosition={userCoordinates}

@@ -1,7 +1,11 @@
 import React, { useState } from 'react';
+// Import original slides
 import RegisterSlide1 from './RegisterSlide1';
 import RegisterSlide2 from './RegisterSlide2';
 import RegisterSlide3 from './RegisterSlide3';
+// Import new slides
+import RegisterSlideNew1 from './RegisterSlideNew1';
+import RegisterSlideNew2 from './RegisterSlideNew2';
 import DotIndicator from './DotIndicator';
 import supabase from '../../utils/supabaseClient';
 
@@ -12,14 +16,19 @@ interface MultiStepRegisterFormProps {
 const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess }) => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [formData, setFormData] = useState({
+    // Existing fields
     email: '',
     password: '',
     name: '',
     age: '',
-    languages: [],
-    cuisines: [],
+    languages: [] as string[], // Added type for clarity
+    cuisines: [] as string[], // Added type for clarity
     locationAccess: false,
     city: '',
+    // New fields
+    is_local: null as string | null,
+    budget: null as number | null,
+    bio: '',
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,11 +68,16 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         .from('profiles')
         .upsert({
           id: authData.user.id,
+          // Existing fields
           name: formData.name,
           age: parseInt(formData.age) || null,
           languages: formData.languages,
           cuisines: formData.cuisines,
           city: formData.city,
+          // New fields
+          is_local: formData.is_local,
+          budget: formData.budget,
+          bio: formData.bio,
         }, { onConflict: 'id' });
 
       if (profileError) {
@@ -86,17 +100,22 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
   };
 
   const renderSlide = () => {
+    // Updated slide order: New1, New2, Orig1, Orig2, Orig3
     switch (currentSlide) {
-      case 0:
-        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} />;
-      case 1:
+      case 0: // New Slide 1: Local Status & Budget
+        return <RegisterSlideNew1 updateFormData={updateFormData} nextSlide={nextSlide} />;
+      case 1: // New Slide 2: Bio
+        return <RegisterSlideNew2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
+      case 2: // Original Slide 1: Email/Password
+        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />; // Added prevSlide
+      case 3: // Original Slide 2: Name/Age
         return <RegisterSlide2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 2:
+      case 4: // Original Slide 3: Languages/Cuisines/City + Submit
         return (
-          <RegisterSlide3 
-            updateFormData={updateFormData} 
-            prevSlide={prevSlide} 
-            handleSubmit={handleSubmit} 
+          <RegisterSlide3
+            updateFormData={updateFormData}
+            prevSlide={prevSlide}
+            handleSubmit={handleSubmit}
             isLoading={isLoading}
           />
         );
@@ -107,7 +126,8 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
 
   return (
     <div className="w-full">
-      <DotIndicator currentSlide={currentSlide} totalSlides={3} />
+      {/* Update totalSlides to 5 */}
+      <DotIndicator currentSlide={currentSlide} totalSlides={5} />
       
       {error && (
         <div className="mt-4 p-3 bg-red-100 text-red-700 rounded-md" role="alert">

@@ -14,6 +14,12 @@ interface SidebarProps {
   onPopulationFilter: (min: number, max: number) => void;
   onDistanceFilter: (distance: number | null) => void;
   currentDistanceFilter: number | null; // <-- Add prop for current filter value
+  // New user filter props
+  onLocalFilter: (statuses: string[] | null) => void;
+  onBudgetFilter: (budgets: number[] | null) => void;
+  currentLocalFilter: string[] | null;
+  currentBudgetFilter: number[] | null;
+  // ---
   onResetFilters: () => void;
   loading: boolean; // Represents city loading, might need combined loading state
   userPosition: [number, number] | null;
@@ -34,6 +40,12 @@ const Sidebar = ({
   onCountryFilter,
   onPopulationFilter,
   onDistanceFilter,
+  // Destructure new filter props
+  onLocalFilter,
+  onBudgetFilter,
+  currentLocalFilter,
+  currentBudgetFilter,
+  // ---
   onResetFilters,
   loading, // Consider passing loadingCities and loadingUsers separately if needed
   userPosition,
@@ -45,6 +57,10 @@ const Sidebar = ({
 }: SidebarProps) => {
   // Removed internal isCollapsed state
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
+  // Local state for new user filters
+  const [selectedLocalStatuses, setSelectedLocalStatuses] = useState<string[]>(currentLocalFilter ?? []);
+  const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
+
   // Default distance is 50km (representing "All")
   // Removed distanceRange state, now controlled by currentDistanceFilter prop
 
@@ -73,13 +89,25 @@ const Sidebar = ({
   const handleReset = useCallback(() => {
     setPopulationRange([0, 40000000]);
     // setDistanceRange(50); // No longer needed, parent state handles reset
-    onResetFilters(); // This should trigger parent state update
+    onResetFilters(); // This should trigger parent state update (which clears useMapData state)
+    // Also clear local state for new filters
+    setSelectedLocalStatuses([]);
+    setSelectedBudgets([]);
   }, [onResetFilters]);
 
   // Removed useEffect that reset distanceRange locally.
   // The filter state is now fully controlled by the parent via currentDistanceFilter prop.
   // Parent component (WorldMap -> useMapData) should handle resetting the filter
   // if userPosition becomes unavailable.
+  // Effect to sync local filter state if props change (e.g., on external reset)
+  useEffect(() => {
+    setSelectedLocalStatuses(currentLocalFilter ?? []);
+  }, [currentLocalFilter]);
+
+  useEffect(() => {
+    setSelectedBudgets(currentBudgetFilter ?? []);
+  }, [currentBudgetFilter]);
+
 
   // Slider color depends only on whether the filter is enabled (user position available)
   const getSliderColor = useCallback(() => {
@@ -96,6 +124,30 @@ const Sidebar = ({
 
   // Determine if users should be shown based on length (they are pre-filtered in useMapData)
   const showUsers = users.length > 0;
+  // --- Handlers for new user filters ---
+  const handleLocalStatusChange = (status: string) => {
+    const newSelection = selectedLocalStatuses.includes(status)
+      ? selectedLocalStatuses.filter(s => s !== status)
+      : [...selectedLocalStatuses, status];
+    setSelectedLocalStatuses(newSelection);
+    onLocalFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
+  };
+
+  const handleBudgetChange = (budgetLevel: number) => {
+    const newSelection = selectedBudgets.includes(budgetLevel)
+      ? selectedBudgets.filter(b => b !== budgetLevel)
+      : [...selectedBudgets, budgetLevel];
+    setSelectedBudgets(newSelection);
+    onBudgetFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
+  };
+
+  const localOptions = ["Local", "Expat", "Tourist", "Other"];
+  const budgetOptions = [
+      { level: 1, label: '💰' },
+      { level: 2, label: '💰💰' },
+      { level: 3, label: '💰💰💰' }
+  ];
+
 
   return (
     <div className={`transition-all duration-300 bg-gray-300 shadow-md relative ${isCollapsed ? 'w-12' : 'w-full md:w-96 lg:w-1/4'}`}>
@@ -179,6 +231,48 @@ const Sidebar = ({
                   </div>
                 )}
               </div> {/* End of statistics container div */}
+
+              {/* --- User Filters --- */}
+              <div className="mt-6 mb-6 border-t border-gray-400 pt-4">
+                 <h3 className="font-medium text-sm text-gray-700 mb-3">Filter Users By:</h3>
+
+                 {/* Local Status Filter */}
+                 <div className="mb-4">
+                     <label className="block text-xs font-medium text-gray-600 mb-2">Local Status</label>
+                     <div className="space-y-2">
+                         {localOptions.map(status => (
+                             <label key={status} className="flex items-center text-sm">
+                                 <input
+                                     type="checkbox"
+                                     className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                                     checked={selectedLocalStatuses.includes(status)}
+                                     onChange={() => handleLocalStatusChange(status)}
+                                 />
+                                 <span className="ml-2 text-gray-700">{status}</span>
+                             </label>
+                         ))}
+                     </div>
+                 </div>
+
+                 {/* Budget Filter */}
+                 <div className="mb-4">
+                     <label className="block text-xs font-medium text-gray-600 mb-2">Budget</label>
+                     <div className="space-y-2">
+                         {budgetOptions.map(option => (
+                             <label key={option.level} className="flex items-center text-sm">
+                                 <input
+                                     type="checkbox"
+                                     className="form-checkbox h-4 w-4 text-yellow-500 border-gray-300 rounded focus:ring-yellow-400" // Adjusted color
+                                     checked={selectedBudgets.includes(option.level)}
+                                     onChange={() => handleBudgetChange(option.level)}
+                                 />
+                                 <span className="ml-2 text-gray-700">{option.label}</span>
+                             </label>
+                         ))}
+                     </div>
+                 </div>
+              </div>
+              {/* --- End User Filters --- */}
 
               {/* Reset Button */}
               <div className="mb-4">

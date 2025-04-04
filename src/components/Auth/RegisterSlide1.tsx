@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
+import Button from '../UI/Button'; // Import Button component
 
 interface RegisterSlide1Props {
-  updateFormData: (data: any) => void;
+  updateFormData: (data: { email?: string; password?: string }) => void; // More specific type
   nextSlide: () => void;
+  prevSlide?: () => void; // Add optional prevSlide prop
 }
 
-const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSlide }) => {
+const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSlide, prevSlide }) => { // Destructure prevSlide
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -38,7 +40,8 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSli
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (1/3)</h2>
+      {/* Update step number */}
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (3/5)</h2>
       <div className="mb-4">
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
           E-Mail
@@ -70,12 +73,24 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSli
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
         <p className="mt-1 text-xs text-gray-500">Passwort muss mindestens 8 Zeichen lang sein.</p>
       </div>
-      <button
-        className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-        onClick={handleNext}
-      >
-        Weiter
-      </button>
+      {/* Navigation Buttons */}
+      <div className="flex justify-between pt-4">
+        {prevSlide && ( // Conditionally render Back button
+          <Button
+            onClick={prevSlide}
+            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400" // Secondary style
+          >
+            Zurück
+          </Button>
+        )}
+        {/* Ensure the Next button doesn't take full width if Back is present */}
+        <Button
+           className={`bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 ${!prevSlide ? 'w-full' : ''}`} // Full width only if no Back button
+           onClick={handleNext}
+        >
+          Weiter
+        </Button>
+      </div>
     </div>
   );
 };

@@ -13,6 +13,10 @@ export interface MapUser {
   latitude: number;
   longitude: number;
   name: string; // Added name
+  // Add new optional fields from user profile
+  is_local?: string | null;
+  budget?: number | null;
+  bio?: string | null;
 }
 
 interface Filters {
@@ -23,6 +27,9 @@ interface Filters {
   };
   search: string | null;
   distance: number | null; // Distance filter in km
+  // New user filters
+  is_local: string[] | null; // Array of selected local statuses (e.g., ["Local", "Expat"])
+  budget: number[] | null; // Array of selected budget levels (e.g., [1, 3])
 }
 
 // Update MapData interface
@@ -32,7 +39,7 @@ interface MapData {
   error: string | null; // Represents error state for cities
   selectedCity: City | null;
   filteredCities: City[]; // Cities filtered by country, population, search
-  filteredUsers: MapUser[]; // Users filtered by search (and hidden by country/pop filters)
+  filteredUsers: MapUser[]; // Users filtered by all active filters
   // Consider adding distance-filtered versions if needed separately
   allOtherUsers: MapUser[]; // Raw list of other users fetched
   loadingOtherUsers: boolean;
@@ -42,6 +49,9 @@ interface MapData {
   filterByPopulation: (min: number, max: number) => void;
   filterBySearch: (term: string | null) => void;
   filterByDistance: (distance: number | null) => void; // Keep this for map radius circle
+  // Add new filter functions
+  filterByLocalStatus: (statuses: string[] | null) => void;
+  filterByBudget: (budgets: number[] | null) => void;
   selectCity: (cityId: number | null) => void;
   getTopCities: (count: number) => City[];
   resetFilters: () => void;
@@ -61,7 +71,10 @@ export const useMapData = (): MapData => {
     country: null,
     population: { min: 0, max: Number.MAX_SAFE_INTEGER },
     search: null,
-    distance: null // Distance filter state
+    distance: null, // Distance filter state
+    // Initialize new filters
+    is_local: null,
+    budget: null,
   });
 
   // State for all fetched other user locations (including name)
@@ -100,13 +113,8 @@ export const useMapData = (): MapData => {
     return result;
   }, [filters, userCoordinates]); // Add userCoordinates dependency
 
-  // Memo for users filtered by Search Term and Distance, hidden by Country/Pop filters
+  // Memo for users filtered by Search Term, Distance, Local Status, and Budget
   const filteredUsers = useMemo(() => {
-    // If Country or Population filters are active, hide all users (Option A)
-    if (filters.country || filters.population.min > 0 || filters.population.max < Number.MAX_SAFE_INTEGER) {
-      return [];
-    }
-
     let result = allOtherUsers;
 
     // Filter by Search Term (User Name)
@@ -134,9 +142,18 @@ export const useMapData = (): MapData => {
         result = result.filter(u => isUserWithinRadius(userLat, userLng, u, filters.distance!));
     }
 
+    // Apply Local Status Filter
+    if (filters.is_local && filters.is_local.length > 0) {
+        result = result.filter(u => u.is_local && filters.is_local!.includes(u.is_local));
+    }
+
+    // Apply Budget Filter
+    if (filters.budget && filters.budget.length > 0) {
+        result = result.filter(u => u.budget && filters.budget!.includes(u.budget));
+    }
 
     return result;
-  }, [filters, allOtherUsers, userCoordinates]); // Add dependencies
+  }, [filters, allOtherUsers, userCoordinates]); // Keep dependencies
 
   // --- Data Fetching ---
 
@@ -226,8 +243,26 @@ export const useMapData = (): MapData => {
           country: null,
           population: { min: 0, max: Number.MAX_SAFE_INTEGER }
       }));
-  };
-  const resetFilters = () => { setFilters({ country: null, population: { min: 0, max: Number.MAX_SAFE_INTEGER }, search: null, distance: null }); };
+ };
+ // Add new filter functions
+ const filterByLocalStatus = (statuses: string[] | null) => {
+     setFilters(prev => ({ ...prev, is_local: statuses && statuses.length > 0 ? statuses : null }));
+ };
+ const filterByBudget = (budgets: number[] | null) => {
+     setFilters(prev => ({ ...prev, budget: budgets && budgets.length > 0 ? budgets : null }));
+ };
+
+ // Update resetFilters to include new filters
+ const resetFilters = () => {
+     setFilters({
+         country: null,
+         population: { min: 0, max: Number.MAX_SAFE_INTEGER },
+         search: null,
+         distance: null,
+         is_local: null, // Reset local status
+         budget: null,   // Reset budget
+     });
+ };
 
   // --- City selection and zooming (no changes needed) ---
   const selectCity = (cityId: number | null) => {
@@ -252,7 +287,7 @@ export const useMapData = (): MapData => {
     error: errorCities,     // City error
     selectedCity,
     filteredCities,     // Filtered cities based on all filters
-    filteredUsers,      // Filtered users based on search/distance (hidden by country/pop)
+    filteredUsers,      // Filtered users based on all active filters
     allOtherUsers,      // Raw user list
     loadingOtherUsers,
     errorOtherUsers,
@@ -260,9 +295,12 @@ export const useMapData = (): MapData => {
     filterByPopulation,
     filterBySearch,
     filterByDistance,
+    // Add new filter functions to return object
+    filterByLocalStatus,
+    filterByBudget,
     selectCity,
     getTopCities,
     resetFilters,
     zoomToCity
   };
-};
+}; // End of useMapData hook

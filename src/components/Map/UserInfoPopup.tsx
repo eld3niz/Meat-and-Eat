@@ -24,11 +24,15 @@ const UserInfoPopup: React.FC<UserInfoPopupProps> = ({ user, onClose }) => {
            &times;
          </button> */}
        </div>
-      <p className="text-xs text-gray-600 mt-1">
-        {/* Display user name or a default */}
+      <p className="text-sm font-medium text-gray-800 mt-1">
+        {/* Display user name */}
         {user.name || 'User'}
       </p>
-      {/* Add more user details here if available and desired */}
+      {/* Display bio if available */}
+      {user.bio && (
+        <p className="text-xs text-gray-600 mt-1 border-t pt-1">{user.bio}</p>
+      )}
+      {/* Add more user details here if available and desired (e.g., budget, local status) */}
     </div>
   );
 };
