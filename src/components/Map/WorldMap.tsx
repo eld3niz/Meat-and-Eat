@@ -494,6 +494,76 @@ const WorldMap = () => {
     return () => clearTimeout(timer);
   }, [isSidebarCollapsed]); // Run when sidebar state changes
 
+  // --- Effect to Update or Close Open Popups on Filter Changes ---
+  useEffect(() => {
+    if (!openPopupData || !mapRef.current) return; // No popup open or map not ready
+
+    const map = mapRef.current;
+    const currentPopupRef = openPopupData.ref;
+
+    if (openPopupData.type === 'user') {
+      // Check if the single user is still in the filtered list
+      const userStillVisible = filteredUsers.some(u => u.user_id === openPopupData.user.user_id);
+      if (!userStillVisible) {
+        // User filtered out, close the popup
+        currentPopupRef.current?.remove();
+        currentPopupRef.current = null;
+        setOpenPopupData(null);
+      }
+      // Optional: If user details could change dynamically, re-render and setContent here
+      // else {
+      //   const updatedUser = filteredUsers.find(u => u.user_id === openPopupData.user.user_id);
+      //   if (updatedUser) {
+      //      const content = ReactDOMServer.renderToString(
+      //        <UserInfoPopup user={updatedUser} onClose={() => currentPopupRef.current?.remove()} />
+      //      );
+      //      currentPopupRef.current?.setContent(content);
+      //      // Update state if necessary, careful about infinite loops
+      //      // setOpenPopupData(prev => prev ? { ...prev, user: updatedUser } : null);
+      //   }
+      // }
+
+    } else if (openPopupData.type === 'aggregate') {
+      // Find the corresponding tile data in the *new* tileAggregationData
+      const tileId = getTileId(openPopupData.center.lat, openPopupData.center.lng);
+      const updatedTileData = tileAggregationData.get(tileId);
+
+      if (updatedTileData && updatedTileData.items.length > 0) {
+        // Tile still exists and has items, update the popup content
+        const content = ReactDOMServer.renderToString(
+          <TileListPopup items={updatedTileData.items} onClose={() => currentPopupRef.current?.remove()} />
+        );
+        currentPopupRef.current?.setContent(content);
+
+        // Update state ONLY if items actually changed to prevent infinite loop
+        setOpenPopupData(prev => {
+          if (prev && prev.type === 'aggregate') {
+            // Basic check: compare lengths and maybe first/last item IDs
+            const oldItems = prev.items;
+            const newItems = updatedTileData.items;
+            const oldIds = oldItems.map(item => 'population' in item ? `c-${item.id}` : `u-${item.user_id}`).sort();
+            const newIds = newItems.map(item => 'population' in item ? `c-${item.id}` : `u-${item.user_id}`).sort();
+
+            if (oldIds.join(',') !== newIds.join(',')) {
+              // Items have changed, update state
+              return { ...prev, items: newItems };
+            }
+            // Items are the same, return previous state to avoid re-render trigger
+            return prev;
+          }
+          return null; // Should not happen if type was aggregate, but good practice
+        });
+      } else {
+        // Tile is gone or empty, close the popup
+        currentPopupRef.current?.remove();
+        currentPopupRef.current = null;
+        setOpenPopupData(null);
+      }
+    }
+  // Dependencies: Run when filters change (affecting filteredUsers/tileAggregationData) or when a popup is opened/closed
+  }, [filteredUsers, tileAggregationData, openPopupData, mapRef]);
+
+
   const RadiusCircle = useCallback(() => {
       // Use userCoordinates from context
       // Ensure radius is valid and positive before rendering

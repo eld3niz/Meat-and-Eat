@@ -17,6 +17,7 @@ export interface MapUser {
   is_local?: string | null;
   budget?: number | null;
   bio?: string | null;
+  age?: number | null; // Added age
 }
 
 interface Filters {

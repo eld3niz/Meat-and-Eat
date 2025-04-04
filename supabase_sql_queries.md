@@ -118,7 +118,7 @@ USING (auth.role() = 'authenticated');
 
 
 -- ==============================================
--- Function for Snapped User Locations (Privacy) - Updated [YYYY-MM-DD]
+-- Function for Snapped User Locations (Privacy) - Updated [2025-04-04] to include Age
 -- ==============================================
 
 -- STEP 1: Enable PostGIS Extension (Run this in Supabase SQL Editor if not already enabled)
@@ -136,7 +136,8 @@ RETURNS TABLE(
     name TEXT,
     is_local TEXT,
     budget SMALLINT,
-    bio TEXT
+    bio TEXT,
+    age INTEGER -- Added age column to return type
 )
 LANGUAGE plpgsql
 SECURITY DEFINER -- Important for accessing all locations despite RLS
@@ -156,7 +157,8 @@ BEGIN
         -- Select new profile fields
         p.is_local,
         p.budget,
-        p.bio
+        p.bio,
+        p.age -- Added age column to select list
     FROM
         public.user_locations ul
     JOIN

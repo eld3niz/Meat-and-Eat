@@ -12,27 +12,35 @@ const UserInfoPopup: React.FC<UserInfoPopupProps> = ({ user, onClose }) => {
   // but it's good practice for potential future use or manual closing logic.
 
   return (
-    <div className="user-info-popup-container p-2 max-w-xs bg-white rounded shadow-lg text-center">
-       <div className="flex justify-between items-center mb-1 border-b pb-1">
-         <h3 className="text-sm font-semibold text-gray-700 flex-grow text-center">User Location</h3>
-         {/* Leaflet usually provides its own close button, but we can add one if needed */}
-         {/* <button
-           onClick={onClose}
-           className="text-gray-500 hover:text-gray-700 text-xl font-bold leading-none"
-           aria-label="Close popup"
-         >
-           &times;
-         </button> */}
-       </div>
-      <p className="text-sm font-medium text-gray-800 mt-1">
-        {/* Display user name */}
+    // Increased padding, slightly wider max-width, more prominent shadow, removed text-center for structured layout
+    <div className="user-info-popup-container p-4 max-w-sm bg-white rounded-lg shadow-xl">
+      {/* Removed custom header as Leaflet usually provides a close button */}
+
+      {/* User Name */}
+      <p className="text-lg font-semibold text-gray-900 mb-2 text-center border-b pb-2">
         {user.name || 'User'}
       </p>
+
+      {/* Age and Local Status */}
+      <div className="text-sm text-gray-700 mb-3 space-y-1 pt-2">
+        {user.age !== undefined && user.age !== null && ( // Display age if available and not null/undefined
+          <p><span className="font-medium text-gray-800">Age:</span> {user.age}</p>
+        )}
+        {user.is_local && ( // Display local status if available
+          <p><span className="font-medium text-gray-800">Status:</span> {user.is_local}</p>
+        )}
+        {/* Display message if neither age nor status is available */}
+        {(user.age === undefined || user.age === null) && !user.is_local && (
+            <p className="text-gray-500 italic">No additional details available.</p>
+        )}
+      </div>
+
       {/* Display bio if available */}
       {user.bio && (
-        <p className="text-xs text-gray-600 mt-1 border-t pt-1">{user.bio}</p>
+        <div className="border-t pt-2">
+            <p className="text-xs text-gray-600">{user.bio}</p>
+        </div>
       )}
-      {/* Add more user details here if available and desired (e.g., budget, local status) */}
     </div>
   );
 };
