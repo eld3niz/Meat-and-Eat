@@ -239,17 +239,21 @@ const Sidebar = ({
                  {/* Local Status Filter */}
                  <div className="mb-4">
                      <label className="block text-xs font-medium text-gray-600 mb-2">Local Status</label>
-                     <div className="space-y-2">
+                     {/* Replaced checkboxes with toggle buttons */}
+                     <div className="flex flex-wrap gap-2">
                          {localOptions.map(status => (
-                             <label key={status} className="flex items-center text-sm">
-                                 <input
-                                     type="checkbox"
-                                     className="form-checkbox h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                                     checked={selectedLocalStatuses.includes(status)}
-                                     onChange={() => handleLocalStatusChange(status)}
-                                 />
-                                 <span className="ml-2 text-gray-700">{status}</span>
-                             </label>
+                             <button
+                                 key={status}
+                                 type="button"
+                                 onClick={() => handleLocalStatusChange(status)}
+                                 className={`px-3 py-1 rounded-full text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                                     selectedLocalStatuses.includes(status)
+                                         ? 'bg-blue-600 text-white'
+                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                 }`}
+                             >
+                                 {status}
+                             </button>
                          ))}
                      </div>
                  </div>
@@ -257,17 +261,22 @@ const Sidebar = ({
                  {/* Budget Filter */}
                  <div className="mb-4">
                      <label className="block text-xs font-medium text-gray-600 mb-2">Budget</label>
-                     <div className="space-y-2">
+                     {/* Replaced checkboxes with toggle buttons */}
+                     <div className="flex space-x-3">
                          {budgetOptions.map(option => (
-                             <label key={option.level} className="flex items-center text-sm">
-                                 <input
-                                     type="checkbox"
-                                     className="form-checkbox h-4 w-4 text-yellow-500 border-gray-300 rounded focus:ring-yellow-400" // Adjusted color
-                                     checked={selectedBudgets.includes(option.level)}
-                                     onChange={() => handleBudgetChange(option.level)}
-                                 />
-                                 <span className="ml-2 text-gray-700">{option.label}</span>
-                             </label>
+                             <button
+                                 key={option.level}
+                                 type="button"
+                                 onClick={() => handleBudgetChange(option.level)}
+                                 className={`px-3 py-2 rounded-md text-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 ${
+                                     selectedBudgets.includes(option.level)
+                                         ? 'border-yellow-500 border-2 scale-110 shadow-md' // Emphasize selected
+                                         : 'border-gray-300 border hover:border-gray-400 bg-gray-100' // Standard style
+                                 }`}
+                                 aria-pressed={selectedBudgets.includes(option.level)}
+                             >
+                                 {option.label}
+                             </button>
                          ))}
                      </div>
                  </div>

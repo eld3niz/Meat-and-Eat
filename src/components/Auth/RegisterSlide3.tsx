@@ -8,12 +8,11 @@ import Button from '../UI/Button'; // Import Button component
 
 interface RegisterSlide3Props {
   updateFormData: (data: any) => void;
-  prevSlide: () => void;
-  handleSubmit: () => Promise<void>; // Expecting an async function
-  isLoading: boolean; // Add isLoading prop
+  nextSlide: () => void; // Changed from prevSlide/handleSubmit
+  // isLoading is no longer needed here
 }
 
-const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSlide, handleSubmit, isLoading }) => { // Destructure isLoading
+const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide }) => {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [language, setLanguage] = useState('');
@@ -41,16 +40,17 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSli
     setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
   };
 
-  const handleNext = () => {
-    // Update form data before calling submit
+  // Renamed handleNext to handleProceed for clarity, though not strictly necessary
+  const handleProceed = () => {
+    // Update form data before moving to the next slide
     updateFormData({ languages: selectedLanguages, cuisines: selectedCuisines });
-    // No need to call handleSubmit directly, it's handled by the button onClick
+    nextSlide(); // Call nextSlide prop
   };
 
   return (
     <div>
       {/* Update step number */}
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Interessen (5/5)</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Interessen (1/5)</h2> {/* Update step number */}
 
       <div className="mb-4">
         <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
@@ -140,35 +140,12 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, prevSli
         </div>
       </div>
 
-      <div className="flex justify-between">
-        {/* Use Button component and handle isLoading state */}
+      <div className="flex justify-end"> {/* Only show Next button */}
         <Button
-          onClick={prevSlide}
-          className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400" // Secondary style
-          disabled={isLoading} // Disable if loading
+          className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500" // Standard next button style
+          onClick={handleProceed} // Use the updated handler
         >
-          Zurück
-        </Button>
-        <Button
-          className="bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 flex items-center justify-center" // Changed color to green for final step
-          onClick={() => {
-              // Update form data just before submitting
-              updateFormData({ languages: selectedLanguages, cuisines: selectedCuisines });
-              handleSubmit(); // Call the async submit function
-          }}
-          disabled={isLoading} // Disable if loading
-        >
-          {isLoading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Wird verarbeitet...
-            </>
-          ) : (
-            'Registrierung abschließen' // Changed text
-          )}
+          Weiter
         </Button>
       </div>
     </div>

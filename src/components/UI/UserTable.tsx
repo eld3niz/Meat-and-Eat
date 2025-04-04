@@ -106,17 +106,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
                   {getSortArrow('name') && <span className="ml-1">{getSortArrow('name')}</span>}
                 </div>
               </th>
-              {userPosition && (
-                <th
-                  onClick={() => toggleSort('distance')}
-                  className="py-3 px-4 text-right cursor-pointer hover:bg-gray-200 transition-colors"
-                >
-                  <div className="flex items-center justify-end">
-                    <span>Entfernung</span>
-                    {getSortArrow('distance') && <span className="ml-1">{getSortArrow('distance')}</span>}
-                  </div>
-                </th>
-              )}
+              {/* Removed Distance Header */}
             </tr>
           </thead>
           <tbody>
@@ -125,20 +115,22 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
                 key={user.user_id}
                 className="border-b hover:bg-green-50 transition-transform duration-200 hover:scale-[1.01] cursor-default"
               >
-                {/* Update cell to include name and bio */}
-                <td className="py-3 px-4 align-top"> {/* Use align-top if content heights vary */}
+                {/* Updated cell to include name, bio, and distance */}
+                <td className="py-3 px-4 align-top">
                   <div className="font-medium">{user.name}</div>
-                  {user.bio && ( // Conditionally render bio if it exists
+                  {user.bio && (
                     <p className="text-sm text-gray-600 mt-1">{user.bio}</p>
                   )}
+                  {/* Add distance below bio */}
+                  {userPosition && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      {user.distance !== null
+                        ? `~ ${Math.round(user.distance)} km entfernt`
+                        : 'Entfernung unbekannt'}
+                    </p>
+                  )}
                 </td>
-                {userPosition && (
-                  <td className="py-3 px-4 text-right">
-                    {user.distance !== null
-                      ? `${Math.round(user.distance)} km`
-                      : '—'}
-                  </td>
-                )}
+                {/* Removed second td for distance */}
               </tr>
             ))}
           </tbody>

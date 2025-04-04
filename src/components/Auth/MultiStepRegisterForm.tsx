@@ -100,19 +100,19 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
   };
 
   const renderSlide = () => {
-    // Updated slide order: New1, New2, Orig1, Orig2, Orig3
+    // Desired slide order: 3, 4, 5, 1, 2
     switch (currentSlide) {
-      case 0: // New Slide 1: Local Status & Budget
-        return <RegisterSlideNew1 updateFormData={updateFormData} nextSlide={nextSlide} />;
-      case 1: // New Slide 2: Bio
+      case 0: // Original Slide 3: Languages/Cuisines/City
+        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} />;
+      case 1: // New Slide 1: Local Status & Budget
+        return <RegisterSlideNew1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
+      case 2: // New Slide 2: Bio
         return <RegisterSlideNew2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 2: // Original Slide 1: Email/Password
-        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />; // Added prevSlide
-      case 3: // Original Slide 2: Name/Age
-        return <RegisterSlide2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 4: // Original Slide 3: Languages/Cuisines/City + Submit
+      case 3: // Original Slide 1: Email/Password
+        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
+      case 4: // Original Slide 2: Name/Age + Submit
         return (
-          <RegisterSlide3
+          <RegisterSlide2
             updateFormData={updateFormData}
             prevSlide={prevSlide}
             handleSubmit={handleSubmit}

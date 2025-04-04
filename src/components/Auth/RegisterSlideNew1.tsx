@@ -4,12 +4,12 @@ import Button from '../UI/Button'; // Assuming a Button component exists
 interface RegisterSlideNew1Props {
   updateFormData: (data: { is_local?: string | null; budget?: number | null }) => void;
   nextSlide: () => void;
-  // No prevSlide needed for the first new slide
+  prevSlide: () => void; // Added prevSlide prop
 }
 
 const localOptions = ["Local", "Expat", "Tourist", "Other"];
 
-const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, nextSlide }) => {
+const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, nextSlide, prevSlide }) => { // Destructure prevSlide
   const [selectedLocalStatus, setSelectedLocalStatus] = useState<string | null>(null);
   const [selectedBudget, setSelectedBudget] = useState<number | null>(null);
 
@@ -27,7 +27,8 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, n
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-semibold text-gray-700">About You</h2>
+      {/* Update step number */}
+      <h2 className="text-xl font-semibold text-gray-700">About You (2/5)</h2>
       <p className="text-sm text-gray-500">
         Tell us a bit more. Filling this in leads to more meet up success! (Optional)
       </p>
@@ -80,10 +81,16 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, n
       </div>
 
       {/* Navigation */}
-      <div className="flex justify-end pt-4">
-        {/* No "Back" button on the first new slide */}
-        <Button onClick={nextSlide} className="ml-4">
-          Next
+      <div className="flex justify-between pt-4"> {/* Changed to justify-between */}
+        {/* Add "Back" button */}
+        <Button
+          onClick={prevSlide}
+          className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400" // Secondary style
+        >
+          Zurück
+        </Button>
+        <Button onClick={nextSlide} className="ml-4"> {/* Keep existing Next button */}
+          Weiter
         </Button>
       </div>
     </div>
