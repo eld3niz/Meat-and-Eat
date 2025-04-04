@@ -60,6 +60,7 @@ const Sidebar = ({
   // Local state for new user filters
   const [selectedLocalStatuses, setSelectedLocalStatuses] = useState<string[]>(currentLocalFilter ?? []);
   const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
+  const [hoveredBudgetLevel, setHoveredBudgetLevel] = useState<number | null>(null); // State for hover effect
 
   // Default distance is 50km (representing "All")
   // Removed distanceRange state, now controlled by currentDistanceFilter prop
@@ -133,12 +134,21 @@ const Sidebar = ({
     onLocalFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
   };
 
-  const handleBudgetChange = (budgetLevel: number) => {
-    const newSelection = selectedBudgets.includes(budgetLevel)
-      ? selectedBudgets.filter(b => b !== budgetLevel)
-      : [...selectedBudgets, budgetLevel];
+  const handleBudgetChange = (clickedLevel: number) => {
+    // Determine the current highest selected level
+    const maxSelectedLevel = selectedBudgets.length > 0 ? Math.max(...selectedBudgets) : 0;
+    let newSelection: number[] = [];
+
+    // If clicking the currently highest selected level, deselect all
+    if (clickedLevel === maxSelectedLevel) {
+      newSelection = [];
+    } else {
+      // Otherwise, select all levels up to the clicked level
+      newSelection = Array.from({ length: clickedLevel }, (_, i) => i + 1); // e.g., click 2 -> [1, 2]
+    }
+
     setSelectedBudgets(newSelection);
-    onBudgetFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
+    onBudgetFilter(newSelection.length > 0 ? newSelection : null);
   };
 
   const localOptions = ["Local", "Expat", "Tourist", "Other"];
@@ -166,15 +176,19 @@ const Sidebar = ({
 
       {/* Inhalt der Seitenleiste */}
       {!isCollapsed && (
-        <div className="p-4 h-[calc(100vh-120px)] overflow-y-auto">
-          <h2 className="text-xl font-bold text-blue-800 mb-4">Explorer</h2> {/* Changed Title */}
+        // Apply flex flex-col to the main content container
+        <div className="p-4 h-[calc(100vh-120px)] overflow-y-auto flex flex-col">
+          {/* Title - Shrink if needed */}
+          <h2 className="text-xl font-bold text-blue-800 mb-4 flex-shrink-0">Explorer</h2>
 
-          {loading ? ( // Use combined loading state?
-            <div className="flex justify-center items-center h-32">
+          {loading ? (
+            // Loading state - center the spinner, allow it to grow
+            <div className="flex-grow flex justify-center items-center h-32">
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-500"></div>
             </div>
           ) : (
-            <>
+            // Non-loading state - Main content area that grows
+            <div className="flex-grow">
               {/* Search applies to both cities and users now (handled in useMapData) */}
               <SearchBar cities={cities} onCitySelect={onCitySelect} />
 
@@ -234,11 +248,11 @@ const Sidebar = ({
 
               {/* --- User Filters --- */}
               <div className="mt-6 mb-6 border-t border-gray-400 pt-4">
-                 <h3 className="font-medium text-sm text-gray-700 mb-3">Filter Users By:</h3>
+                 <h3 className="font-medium text-sm text-gray-700 mb-4">Filter Users By:</h3> {/* Increased bottom margin */}
 
                  {/* Local Status Filter */}
-                 <div className="mb-4">
-                     <label className="block text-xs font-medium text-gray-600 mb-2">Local Status</label>
+                 <div className="mb-6"> {/* Increased bottom margin for the group */}
+                     <label className="block text-xs font-medium text-gray-600 mb-3">Local Status</label> {/* Increased bottom margin */}
                      {/* Replaced checkboxes with toggle buttons */}
                      <div className="flex flex-wrap gap-2">
                          {localOptions.map(status => (
@@ -259,43 +273,52 @@ const Sidebar = ({
                  </div>
 
                  {/* Budget Filter */}
-                 <div className="mb-4">
-                     <label className="block text-xs font-medium text-gray-600 mb-2">Budget</label>
+                 <div className="mb-6"> {/* Increased bottom margin for the group */}
+                     <label className="block text-xs font-medium text-gray-600 mb-3">Budget</label> {/* Increased bottom margin */}
                      {/* Replaced checkboxes with toggle buttons */}
                      <div className="flex space-x-3">
-                         {budgetOptions.map(option => (
-                             <button
-                                 key={option.level}
-                                 type="button"
-                                 onClick={() => handleBudgetChange(option.level)}
-                                 className={`px-3 py-2 rounded-md text-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 ${
-                                     selectedBudgets.includes(option.level)
-                                         ? 'bg-yellow-400 text-gray-800' // Selected state: Solid yellow background
-                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300' // Unselected state: Gray background
-                                 }`}
-                                 aria-pressed={selectedBudgets.includes(option.level)}
-                             >
-                                 {option.label}
-                             </button>
-                         ))}
+                         {budgetOptions.map(option => {
+                             const isSelected = selectedBudgets.includes(option.level);
+                             // Determine if the button should appear selected based on hover
+                             const isHoverSelected = hoveredBudgetLevel !== null && option.level <= hoveredBudgetLevel;
+                             // Determine the final background/text color based on selection and hover
+                             let buttonClass = 'bg-gray-200 text-gray-700'; // Default unselected
+                             if (isSelected) {
+                                 buttonClass = 'bg-yellow-400 text-gray-800'; // Actually selected
+                             } else if (isHoverSelected) {
+                                 buttonClass = 'bg-yellow-200 text-gray-600'; // Hover-implied selection
+                             }
+
+                             return (
+                                 <button
+                                     key={option.level}
+                                     type="button"
+                                     onClick={() => handleBudgetChange(option.level)}
+                                     onMouseEnter={() => setHoveredBudgetLevel(option.level)}
+                                     onMouseLeave={() => setHoveredBudgetLevel(null)}
+                                     className={`px-3 py-2 rounded-md text-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 ${buttonClass} ${!isSelected && !isHoverSelected ? 'hover:bg-gray-300' : ''}`} // Add hover only if not selected/hover-selected
+                                     aria-pressed={isSelected} // aria-pressed reflects actual selection
+                                 >
+                                     {option.label}
+                                 </button>
+                             );
+                         })}
                      </div>
                  </div>
               </div>
               {/* --- End User Filters --- */}
-
-              {/* Reset Button */}
-              <div className="mb-4">
-                <button
-                  onClick={handleReset}
-                  className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
-                >
-                  Filter zurücksetzen
-                </button>
-              </div>
-
-
-            </>
+            </div> // End flex-grow wrapper for non-loading content
           )}
+
+          {/* Reset Button - Placed after the conditional rendering, inside the main flex container */}
+          <div className="mt-auto pt-4 flex-shrink-0"> {/* mt-auto pushes to bottom, pt-4 adds space */}
+            <button
+              onClick={handleReset}
+              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+            >
+              Filter zurücksetzen
+            </button>
+          </div>
         </div>
       )}
     </div>
