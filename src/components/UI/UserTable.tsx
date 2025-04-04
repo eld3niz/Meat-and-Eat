@@ -36,11 +36,11 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
         return sortOrder === 'asc' ? comparison : -comparison;
       }
 
+      // Note: Sorting by distance is less relevant now, but kept for name sorting
       if (sortBy === 'distance') {
         if (a.distance === null && b.distance === null) return 0;
-        if (a.distance === null) return 1; // Sort null distances to the end
+        if (a.distance === null) return 1;
         if (b.distance === null) return -1;
-        // Default sort for distance is ASC (closest first)
         return sortOrder === 'asc'
           ? a.distance - b.distance
           : b.distance - a.distance;
@@ -61,7 +61,6 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
       setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc');
     } else {
       setSortBy(column);
-      // Set default sort order based on column
       setSortOrder(column === 'distance' ? 'asc' : 'desc');
     }
   };
@@ -79,69 +78,69 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
 
   // No users available or visible based on filters
   if (users.length === 0) {
-    return null; // Don't render the table if no users match filters
-    // Or display a message:
-    // return (
-    //   <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm mt-4">
-    //     <p className="text-center text-gray-500">Keine anderen Benutzer gefunden, die den aktuellen Filterkriterien entsprechen.</p>
-    //   </div>
-    // );
+    return null;
   }
 
+  // Define column widths (adjust percentages as needed)
+  const nameWidth = '30%';
+  const bioWidth = '40%';
+  const budgetWidth = '15%';
+  const distanceWidth = '15%';
+
   return (
-    // Add margin-top to separate from CityTable
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm mt-4">
       <h2 className="text-2xl font-bold text-green-800 mb-4">Benutzerliste</h2>
 
       <div className="overflow-x-auto">
-        <table className="min-w-full bg-white">
+        {/* Using table-fixed helps align columns based on header widths */}
+        <table className="min-w-full bg-white table-fixed">
+          <colgroup> {/* Define column widths */}
+            <col style={{ width: nameWidth }} />
+            <col style={{ width: bioWidth }} />
+            <col style={{ width: budgetWidth }} />
+            <col style={{ width: distanceWidth }} />
+          </colgroup>
           <thead className="bg-gray-100 border-b">
             <tr>
+              {/* Header Cells - Apply widths and text alignment */}
               <th
                 onClick={() => toggleSort('name')}
-                className="py-3 px-4 text-left cursor-pointer hover:bg-gray-200 transition-colors"
+                className="py-3 px-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700"
               >
-                <div className="flex items-center">
-                  <span>Name</span>
-                  {getSortArrow('name') && <span className="ml-1">{getSortArrow('name')}</span>}
-                </div>
+                 Name {getSortArrow('name') && <span className="ml-1">{getSortArrow('name')}</span>}
               </th>
-              {/* Removed Distance Header */}
+              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Bio</th>
+              <th className="py-3 px-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Budget</th>
+              <th className="py-3 px-4 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Entfernung</th>
             </tr>
           </thead>
           <tbody>
             {visibleUsers.map(user => (
               <tr
                 key={user.user_id}
-                className="border-b hover:bg-green-50 transition-transform duration-200 hover:scale-[1.01] cursor-default"
+                className="border-b hover:bg-green-50 transition-colors duration-150"
               >
-                {/* Updated cell to include name, bio, and distance */}
-                {/* Use flexbox for layout within the cell */}
-                <td className="py-3 px-4">
-                  <div className="flex justify-between items-center w-full">
-                    {/* Name (Left, Bold) */}
-                    <span className="font-bold">{user.name}</span>
-
-                    {/* Bio (Center, Normal weight, truncated if needed) */}
-                    {user.bio && (
-                      <span className="text-sm text-gray-600 px-4 text-center flex-grow flex-shrink min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
-                        {user.bio}
-                      </span>
-                    )}
-
-                    {/* Distance (Right, Bold) */}
-                    {userPosition && (
-                       <span className="text-sm font-bold text-gray-700 whitespace-nowrap"> {/* Added whitespace-nowrap */}
-                         {user.distance !== null
-                           ? `~ ${Math.round(user.distance)} km` // Shortened text
-                           : 'N/A'}
-                       </span>
-                    )}
-                    {/* Placeholder if no userPosition to maintain spacing */}
-                    {!userPosition && <span className="text-sm font-bold text-gray-700">N/A</span>}
-                  </div>
+                {/* Data Cells - Apply consistent alignment and padding */}
+                <td className="py-3 px-4 text-left align-middle"> {/* Added align-middle */}
+                  <span className="font-bold truncate">{user.name}</span>
                 </td>
-                {/* Removed second td for distance */}
+                <td className="py-3 px-4 text-center align-middle"> {/* Added align-middle */}
+                  <span className="text-sm text-gray-600 overflow-hidden text-ellipsis whitespace-nowrap block"> {/* Use block for ellipsis */}
+                    {user.bio || ''}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-center align-middle"> {/* Added align-middle */}
+                  <span className="text-lg">
+                    {user.budget ? '💰'.repeat(user.budget) : ''}
+                  </span>
+                </td>
+                <td className="py-3 px-4 text-right align-middle"> {/* Added align-middle */}
+                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
+                    {userPosition
+                      ? (user.distance !== null ? `~ ${Math.round(user.distance)} km` : 'N/A')
+                      : 'N/A'}
+                  </span>
+                </td>
               </tr>
             ))}
           </tbody>
