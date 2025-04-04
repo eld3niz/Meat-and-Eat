@@ -703,8 +703,8 @@ const WorldMap = () => {
             ) : (
               <TileAggregateLayer
                 tileAggregationData={tileAggregationData} // Raw tile data
-                onItemClick={handleItemClick} // Handles single item tile clicks
-                onAggregateTileClick={handleAggregateTileClick} // Handles aggregate tile clicks
+                onItemClick={() => {}} // Disabled click handler for single items in TileAggregateLayer
+                onAggregateTileClick={() => {}} // Disabled click handler for aggregates in TileAggregateLayer
                 currentUserId={user?.id ?? null}
               />
             )}
