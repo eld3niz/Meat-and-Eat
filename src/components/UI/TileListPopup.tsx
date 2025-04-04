@@ -14,8 +14,8 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
   };
 
   return (
-    // Increased padding, slightly wider max-width, consistent styling with UserInfoPopup
-    <div className="tile-list-popup-container p-4 max-w-sm bg-white rounded-lg shadow-xl">
+    // Increased padding, wider max-width, consistent styling with UserInfoPopup
+    <div className="tile-list-popup-container p-4 max-w-md bg-white rounded-lg shadow-xl popup-open-anim"> {/* Added animation class */}
       <div className="flex justify-between items-center mb-3 border-b pb-2">
         {/* Slightly larger title */}
         <h3 className="text-base font-semibold text-gray-800">Items in this Area ({items.length})</h3>
@@ -27,8 +27,8 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
           &times; {/* Close symbol */}
         </button>
       </div>
-      {/* Increased max-height, slightly larger text size */}
-      <ul className="max-h-48 overflow-y-auto text-sm space-y-2">
+      {/* REMOVED max-h and overflow-y-auto, slightly larger text size */}
+      <ul className="text-sm space-y-2">
         {items.map((item, index) => (
           <li key={isCity(item) ? `city-${item.id}` : `user-${item.user_id}-${index}`} className="p-2 rounded hover:bg-gray-50 cursor-default border border-gray-200">
             {isCity(item) ? (

@@ -194,3 +194,34 @@ section {
   @apply border-none;
 }
 /* --- Blinking Animation Removed --- */
+
+/* --- Popup Opening Animation (macOS Dock Style Bounce) --- */
+@keyframes popup-rubber-band {
+  0% {
+    opacity: 0;
+    transform: scale(0.3); /* Start even smaller */
+  }
+  40% {
+     opacity: 1;
+     transform: scale(1.15); /* Quick, larger overshoot */
+  }
+  60% {
+     transform: scale(0.9); /* Stronger rebound */
+  }
+  80% {
+     transform: scale(1.05); /* Smaller overshoot */
+  }
+  90% {
+     transform: scale(0.98); /* Slight dip before settling */
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1); /* Settle */
+  }
+}
+
+.popup-open-anim {
+  /* Use the new keyframes, increase duration for effect */
+  animation: popup-rubber-band 0.5s ease-out forwards; /* Using ease-out for a smoother settle */
+  transform-origin: center center; /* Ensure scaling happens from the center */
+}

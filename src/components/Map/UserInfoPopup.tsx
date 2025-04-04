@@ -13,7 +13,7 @@ const UserInfoPopup: React.FC<UserInfoPopupProps> = ({ user, onClose }) => {
 
   return (
     // Increased padding, slightly wider max-width, more prominent shadow, removed text-center for structured layout
-    <div className="user-info-popup-container p-4 max-w-sm bg-white rounded-lg shadow-xl">
+    <div className="user-info-popup-container p-4 max-w-sm bg-white rounded-lg shadow-xl popup-open-anim"> {/* Added animation class */}
       {/* Removed custom header as Leaflet usually provides a close button */}
 
       {/* User Name */}
