@@ -268,10 +268,10 @@ const Sidebar = ({
                                  key={option.level}
                                  type="button"
                                  onClick={() => handleBudgetChange(option.level)}
-                                 className={`px-3 py-2 rounded-md text-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-400 ${
+                                 className={`px-3 py-2 rounded-md text-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 ${
                                      selectedBudgets.includes(option.level)
-                                         ? 'border-yellow-500 border-2 scale-110 shadow-md' // Emphasize selected
-                                         : 'border-gray-300 border hover:border-gray-400 bg-gray-100' // Standard style
+                                         ? 'bg-yellow-400 text-gray-800' // Selected state: Solid yellow background
+                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300' // Unselected state: Gray background
                                  }`}
                                  aria-pressed={selectedBudgets.includes(option.level)}
                              >

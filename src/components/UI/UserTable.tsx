@@ -116,19 +116,30 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
                 className="border-b hover:bg-green-50 transition-transform duration-200 hover:scale-[1.01] cursor-default"
               >
                 {/* Updated cell to include name, bio, and distance */}
-                <td className="py-3 px-4 align-top">
-                  <div className="font-medium">{user.name}</div>
-                  {user.bio && (
-                    <p className="text-sm text-gray-600 mt-1">{user.bio}</p>
-                  )}
-                  {/* Add distance below bio */}
-                  {userPosition && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      {user.distance !== null
-                        ? `~ ${Math.round(user.distance)} km entfernt`
-                        : 'Entfernung unbekannt'}
-                    </p>
-                  )}
+                {/* Use flexbox for layout within the cell */}
+                <td className="py-3 px-4">
+                  <div className="flex justify-between items-center w-full">
+                    {/* Name (Left, Bold) */}
+                    <span className="font-bold">{user.name}</span>
+
+                    {/* Bio (Center, Normal weight, truncated if needed) */}
+                    {user.bio && (
+                      <span className="text-sm text-gray-600 px-4 text-center flex-grow flex-shrink min-w-0 overflow-hidden text-ellipsis whitespace-nowrap">
+                        {user.bio}
+                      </span>
+                    )}
+
+                    {/* Distance (Right, Bold) */}
+                    {userPosition && (
+                       <span className="text-sm font-bold text-gray-700 whitespace-nowrap"> {/* Added whitespace-nowrap */}
+                         {user.distance !== null
+                           ? `~ ${Math.round(user.distance)} km` // Shortened text
+                           : 'N/A'}
+                       </span>
+                    )}
+                    {/* Placeholder if no userPosition to maintain spacing */}
+                    {!userPosition && <span className="text-sm font-bold text-gray-700">N/A</span>}
+                  </div>
                 </td>
                 {/* Removed second td for distance */}
               </tr>
