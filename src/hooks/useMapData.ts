@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react'; // Added useRef
 import { City } from '../types';
 import { cities } from '../data/cities';
 import { sortCitiesByPopulation, filterCitiesByCountry, isCityWithinRadius } from '../utils/mapUtils'; // Import isCityWithinRadius
@@ -65,6 +65,7 @@ interface MapData {
  */
 export const useMapData = (): MapData => {
   const { user, userCoordinates } = useAuth(); // Get the current user and their coordinates
+  const hasFetchedInitialData = useRef(false); // Flag to track initial fetch
   const [loadingCities, setLoadingCities] = useState<boolean>(true);
   const [errorCities, setErrorCities] = useState<string | null>(null);
   const [selectedCity, setSelectedCity] = useState<City | null>(null);
@@ -219,9 +220,12 @@ export const useMapData = (): MapData => {
       // Note: Overall loading state is implicitly handled by individual loading flags
     };
 
-    if (user) { // Only fetch data if user is logged in
-      loadInitialData();
-    } else {
+    if (user && !hasFetchedInitialData.current) { // Only fetch data if user is logged in AND first time
+      loadInitialData().then(() => {
+        hasFetchedInitialData.current = true; // Set flag after successful fetch attempt
+      });
+    } else if (!user) { // Reset flag if user logs out
+      hasFetchedInitialData.current = false;
       // Reset state if user logs out
       setLoadingCities(false);
       setLoadingOtherUsers(false);
