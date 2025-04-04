@@ -94,12 +94,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
       <div className="overflow-x-auto">
         {/* Using table-fixed helps align columns based on header widths */}
         <table className="min-w-full bg-white table-fixed">
-          <colgroup> {/* Define column widths */}
-            <col style={{ width: nameWidth }} />
-            <col style={{ width: bioWidth }} />
-            <col style={{ width: budgetWidth }} />
-            <col style={{ width: distanceWidth }} />
-          </colgroup>
+          <colgroup>{/* Define column widths */}<col style={{ width: nameWidth }} /><col style={{ width: bioWidth }} /><col style={{ width: budgetWidth }} /><col style={{ width: distanceWidth }} /></colgroup>
           <thead className="bg-gray-100 border-b">
             <tr>
               {/* Header Cells - Apply widths and text alignment */}
