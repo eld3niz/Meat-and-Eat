@@ -360,13 +360,18 @@ const WorldMap = () => {
 
 
       const content = ReactDOMServer.renderToString(
-        <UserInfoPopup user={item} onClose={() => userInfoPopupRef.current?.remove()} />
+        // Pass closeAllPopups to handle state clearing and ref removal
+        <UserInfoPopup user={item} onClose={closeAllPopups} />
       );
 
-      const popup = L.popup({ closeButton: false, minWidth: 100 })
+      // Add className for custom styling, ensure closeButton is false
+      const popup = L.popup({ closeButton: false, minWidth: 100, className: 'custom-leaflet-popup' })
         .setLatLng(tileCenter) // Use tile center for popup position
         .setContent(content)
         .openOn(map);
+
+      // Add DOM listener for custom close button
+      popup.getElement()?.querySelector('#user-popup-close-btn')?.addEventListener('click', closeAllPopups);
 
       userInfoPopupRef.current = popup; // Store reference
       // Note: marker instance isn't directly available here, adjust if needed
@@ -382,13 +387,18 @@ const WorldMap = () => {
       closeAllPopups(); // Close other popups
 
       const content = ReactDOMServer.renderToString(
-        <TileListPopup items={items} onClose={() => aggregatePopupRef.current?.remove()} />
+        // Pass closeAllPopups to handle state clearing and ref removal
+        <TileListPopup items={items} onClose={closeAllPopups} />
       );
 
-      const popup = L.popup({ closeButton: false, minWidth: 150, maxHeight: 200 }) // Adjust options
+      // Add className for custom styling, ensure closeButton is false
+      const popup = L.popup({ closeButton: false, minWidth: 150, maxHeight: 200, className: 'custom-leaflet-popup' }) // Adjust options
         .setLatLng(tileCenter)
         .setContent(content)
         .openOn(map);
+
+      // Add DOM listener for custom close button
+      popup.getElement()?.querySelector('#tile-popup-close-btn')?.addEventListener('click', closeAllPopups);
 
       aggregatePopupRef.current = popup; // Store reference
       // Track the open popup state

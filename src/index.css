@@ -225,3 +225,18 @@ section {
   animation: popup-rubber-band 0.5s ease-out forwards; /* Using ease-out for a smoother settle */
   transform-origin: center center; /* Ensure scaling happens from the center */
 }
+
+/* --- Custom Leaflet Popup Styling (Remove default frame) --- */
+.custom-leaflet-popup .leaflet-popup-content-wrapper {
+  @apply bg-transparent border-none shadow-none p-0; /* Remove default wrapper styles */
+  overflow: visible; /* Allow content (like our shadow) to overflow */
+}
+
+.custom-leaflet-popup .leaflet-popup-content {
+  @apply p-0 m-0; /* Remove default content padding/margin */
+}
+
+/* Hide the default popup tip/arrow for our custom popups */
+.custom-leaflet-popup .leaflet-popup-tip-container {
+  display: none;
+}
