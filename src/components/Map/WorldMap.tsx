@@ -542,17 +542,13 @@ const WorldMap = () => {
       const tileId = getTileId(openPopupData.center.lat, openPopupData.center.lng);
       const updatedTileData = tileAggregationData.get(tileId);
 
+      // For aggregate popups, we only check if the data changed to update state,
+      // or if the tile became empty to close the popup. We DO NOT set content here.
       if (updatedTileData && updatedTileData.items.length > 0) {
-        // Tile still exists and has items, update the popup content
-        const content = ReactDOMServer.renderToString(
-          <TileListPopup items={updatedTileData.items} onClose={() => currentPopupRef.current?.remove()} />
-        );
-        currentPopupRef.current?.setContent(content);
-
+        // Tile still exists and has items.
         // Update state ONLY if items actually changed to prevent infinite loop
         setOpenPopupData(prev => {
           if (prev && prev.type === 'aggregate') {
-            // Basic check: compare lengths and maybe first/last item IDs
             const oldItems = prev.items;
             const newItems = updatedTileData.items;
             const oldIds = oldItems.map(item => 'population' in item ? `c-${item.id}` : `u-${item.user_id}`).sort();
@@ -569,6 +565,7 @@ const WorldMap = () => {
         });
       } else {
         // Tile is gone or empty, close the popup
+        console.log(`Closing aggregate popup for tile ${tileId} as it's now empty.`);
         currentPopupRef.current?.remove();
         currentPopupRef.current = null;
         setOpenPopupData(null);
