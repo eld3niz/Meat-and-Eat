@@ -305,12 +305,7 @@ const WorldMap = () => {
 
   }, [userCoordinates, handleDistanceFilter]); // Dependencies updated
 
-  // Handler to close popup when a cluster is clicked
-  const handleClusterClick = useCallback(() => {
-    setClickedCity(null);
-    setHoveredCity(null); // Also clear hover state
-  }, [closeAllPopups]); // Added closeAllPopups
-
+// This block is intentionally left empty to effectively "cut" the code.
   // Handler to zoom the map to the current distance filter radius around the user
   const handleZoomToRadius = useCallback(() => {
     const map = mapRef.current;
@@ -483,6 +478,14 @@ const WorldMap = () => {
     return markers;
   }, [tileAggregationData]);
 
+
+// Removed handleClusterClick as it's no longer needed; default zoom is handled by MarkerCluster component itself.
+// Popup logic is now handled by handleAggregateTileClick for the TileAggregateLayer.
+
+
+  // --- Cluster Click Handler (Opens TileListPopup) ---
+  // Moved after markersForClustering definition to resolve dependency order issue
+// Removing duplicate handleClusterClick definition
 
   // --- Effects (Defined after state, before early returns) ---
   // useEffect for filteredByDistance is removed, as filtering is now memoized in useMapData
@@ -696,7 +699,7 @@ const WorldMap = () => {
                 onMarkerMouseOver={handleMarkerMouseOver}
                 onMarkerMouseOut={handleMarkerMouseOut}
                 activeCityId={clickedCity?.id ?? null}
-                onClusterClick={handleClusterClick} // Handles clicks on standard clusters
+                // onClusterClick prop removed from MarkerCluster
                 currentUserId={user?.id ?? null}
                 userCoordinates={userCoordinates}
               />
@@ -704,7 +707,7 @@ const WorldMap = () => {
               <TileAggregateLayer
                 tileAggregationData={tileAggregationData} // Raw tile data
                 onItemClick={() => {}} // Disabled click handler for single items in TileAggregateLayer
-                onAggregateTileClick={() => {}} // Disabled click handler for aggregates in TileAggregateLayer
+                onAggregateTileClick={handleAggregateTileClick} // Use existing handler for tile popups
                 currentUserId={user?.id ?? null}
               />
             )}

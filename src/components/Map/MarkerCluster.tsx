@@ -29,7 +29,7 @@ interface MarkerClusterProps {
   onMarkerMouseOver: (city: City) => void; // City-specific mouseover handler
   onMarkerMouseOut: () => void;
   activeCityId: number | null;
-  onClusterClick: () => void;
+  // onClusterClick prop removed - using default zoom behavior
   userCoordinates: LatLngTuple | null; // Still needed? Maybe remove later if unused.
   currentUserId: string | null; // <-- Add currentUserId prop
 }
@@ -43,7 +43,7 @@ const MarkerCluster = ({
     onMarkerMouseOver,
     onMarkerMouseOut,
     activeCityId,
-    onClusterClick,
+    // onClusterClick, // Removed
     userCoordinates, // <-- Destructure userCoordinates
     currentUserId // <-- Destructure currentUserId
 }: MarkerClusterProps) => {
@@ -57,7 +57,7 @@ const MarkerCluster = ({
     spiderfyOnMaxZoom: false, // <-- Disable spiderfication
     disableClusteringAtZoom: 14,
     maxClusterRadius: 80,
-    zoomToBoundsOnClick: true,
+    zoomToBoundsOnClick: true, // Restore default zoom behavior
     removeOutsideVisibleBounds: true,
     animate: window.innerWidth > 768,
     iconCreateFunction: (cluster: L.MarkerCluster) => {
@@ -113,11 +113,11 @@ const MarkerCluster = ({
       markerClusterGroupRef.current = new L.MarkerClusterGroup(markerClusterOptions);
       map.addLayer(markerClusterGroupRef.current);
       const clusterGroup = markerClusterGroupRef.current;
-      clusterGroup.on('clusterclick', onClusterClick);
+      // clusterGroup.on('clusterclick', onClusterClick); // Removed custom handler attachment
     }
     return () => {
       if (map && markerClusterGroupRef.current) {
-        markerClusterGroupRef.current.off('clusterclick', onClusterClick);
+        // markerClusterGroupRef.current.off('clusterclick', onClusterClick); // Removed custom handler detachment
         // Use clearLayers() for efficiency before removing the group
         markerClusterGroupRef.current.clearLayers();
         map.removeLayer(markerClusterGroupRef.current);
@@ -125,7 +125,7 @@ const MarkerCluster = ({
         markersRef.current = {};
       }
     };
-  }, [map, markerClusterOptions, onClusterClick]);
+  }, [map, markerClusterOptions]); // Removed onClusterClick dependency
 
   // Update markers based on the pre-processed markersData
   // Clear and re-add markers whenever markersData changes
