@@ -124,35 +124,27 @@ const WorldMap = () => {
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // <-- State for sidebar visibility
 
+  // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
+  const closeAllPopups = useCallback(() => {
+    setClickedCity(null); // Close city info popup
+    setHoveredCity(null); // Close hover preview
+    aggregatePopupRef.current?.remove(); // Close aggregate list popup
+    aggregatePopupRef.current = null;
+    userInfoPopupRef.current?.remove(); // Close user info popup
+    userInfoPopupRef.current = null;
+    setOpenPopupData(null); // Clear open popup data state
+  }, []); // No dependencies needed
+
   // --- Callbacks (Defined after state, before early returns) ---
   // Removed handleUserPositionUpdate as position comes from context
 
   // Update handleDistanceFilter to use the function from the hook and manage radius state
    const handleDistanceFilter = useCallback((distance: number | null) => {
+    closeAllPopups(); // Close any existing popups immediately
     filterByDistance(distance); // Call hook function to update filters
     setDistanceRadius(distance); // Update local state for drawing the circle
-    setClickedCity(null); // Close city info popup on filter change
-
-    // --- Close User/Aggregate Popups if outside new radius ---
-    if (openPopupData && userCoordinates && distance !== null && distance < 500) { // Check only if a specific radius is set
-        let popupLocation: L.LatLng | null = null;
-        if (openPopupData.type === 'user') {
-            popupLocation = L.latLng(openPopupData.user.latitude, openPopupData.user.longitude);
-        } else if (openPopupData.type === 'aggregate') {
-            popupLocation = openPopupData.center;
-        }
-
-        if (popupLocation) {
-            const distToPopup = calculateHaversineDistance(userCoordinates[0], userCoordinates[1], popupLocation.lat, popupLocation.lng);
-            if (distToPopup > distance) {
-                // Close the specific popup using its ref stored in openPopupData
-                openPopupData.ref.current?.remove();
-                openPopupData.ref.current = null; // Clear the ref
-                setOpenPopupData(null); // Clear the state
-            }
-        }
-    }
-    // --- End Popup Closing Logic ---
+    // setClickedCity(null); // No longer needed, closeAllPopups handles it
+    // The logic to close popups outside the radius is also redundant now
 
     // --- Automatic Zooming Logic ---
     const map = mapRef.current;
@@ -182,52 +174,59 @@ const WorldMap = () => {
     }
     // --- End Automatic Zooming Logic ---
 
-  }, [filterByDistance, userCoordinates, isFlying]);
+  }, [filterByDistance, userCoordinates, isFlying, closeAllPopups]); // Dependency is now valid
 
   // --- Sidebar Toggle Handler ---
   const handleToggleSidebar = useCallback(() => {
     setIsSidebarCollapsed(prev => !prev);
   }, []);
 
-  // --- Popup Closing Utility ---
-  const closeAllPopups = useCallback(() => {
-    setClickedCity(null); // Close city info popup
-    setHoveredCity(null); // Close hover preview
-    aggregatePopupRef.current?.remove(); // Close aggregate list popup
-    aggregatePopupRef.current = null;
-    userInfoPopupRef.current?.remove(); // Close user info popup
-    userInfoPopupRef.current = null;
-    setOpenPopupData(null); // Clear open popup data state
-  }, []); // No dependencies needed
+  // --- (closeAllPopups definition moved up) ---
 
-  // --- Existing City Marker Click Handler ---
-  const handleMarkerClick = useCallback((city: City) => {
-    const map = mapRef.current;
-    if (!map || isFlying) return;
-
-    closeAllPopups(); // Close any other open popups first
-    setIsFlying(true);
-    const targetCoords: [number, number] = [city.latitude, city.longitude];
-    const currentZoom = map.getZoom();
-    const minDetailZoom = 7;
-    const targetZoom = Math.max(currentZoom, minDetailZoom);
-
-    map.flyTo(targetCoords, targetZoom, { duration: 1.0 });
-
-    setTimeout(() => {
-      setMapCenter(targetCoords);
-      setMapZoom(targetZoom);
-      setClickedCity(city); // Set clicked city *after* animation
-      setIsFlying(false);
-    }, 1000);
-  }, [isFlying, closeAllPopups]); // Added closeAllPopups dependency
-
+  // --- Popup Close Handler (Needed by handleMarkerClick) ---
   const handlePopupClose = useCallback(() => {
     // This might be called by the InfoPopup component's close button
     setClickedCity(null);
     // Note: Leaflet handles closing its own popups (aggregate/user) on map click by default
     // We manually remove them if another popup needs to open.
   }, []);
+
+  // --- Existing City Marker Click Handler ---
+  const handleMarkerClick = useCallback((city: City, event?: L.LeafletMouseEvent) => { // Add optional event parameter
+    const map = mapRef.current;
+    if (!map || isFlying) return;
+
+    closeAllPopups(); // Close any other open popups first
+    setIsFlying(true);
+    // Use event latlng if available, otherwise fallback to city coords (e.g., if called from table)
+    const targetLatLng = event ? event.latlng : L.latLng(city.latitude, city.longitude);
+    const targetCoords: [number, number] = [targetLatLng.lat, targetLatLng.lng];
+    const currentZoom = map.getZoom();
+    const minDetailZoom = 7;
+    const targetZoom = Math.max(currentZoom, minDetailZoom);
+
+    map.flyTo(targetCoords, targetZoom, { duration: 1.0 });
+
+    // Open the popup *immediately* at the clicked location, animation happens separately
+    const popupContent = ReactDOMServer.renderToString(<InfoPopup city={city} onClose={handlePopupClose} />);
+    L.popup({ closeButton: true, minWidth: 250, className: 'info-popup-container' }) // Use the correct class
+      .setLatLng(targetLatLng) // Use the clicked LatLng
+      .setContent(popupContent)
+      .openOn(map);
+
+    // Set clicked city state *immediately* to manage the popup instance logic, but don't rely on it for position
+    setClickedCity(city);
+
+    // Animation still happens, but popup is already open
+    setTimeout(() => {
+      // setMapCenter(targetCoords); // State update might not be needed if flyTo handles it
+      // setMapZoom(targetZoom); // State update might not be needed if flyTo handles it
+      // setClickedCity(city); // Already set above
+      setIsFlying(false);
+    }, 1000);
+  }, [isFlying, closeAllPopups, handlePopupClose]); // Dependency is now valid
+
+  // --- (handlePopupClose definition moved up) ---
 
   // TODO: Update handleCitySelect if users should also be selectable/zoomable from Sidebar/Table
   const handleCitySelect = useCallback((cityId: number) => {
@@ -336,10 +335,10 @@ const WorldMap = () => {
   }, [resetFilters, closeAllPopups]); // Added closeAllPopups
 
   // --- Unified Item Click Handler (for markers at tile centers) ---
-  const handleItemClick = useCallback((item: City | MapUser) => {
+  const handleItemClick = useCallback((item: City | MapUser, event: L.LeafletMouseEvent) => { // Add event parameter
     if ('population' in item) { // It's a City
-      // Reuse existing city marker click logic
-      handleMarkerClick(item);
+      // Reuse existing city marker click logic, passing the event
+      handleMarkerClick(item, event);
     } else { // It's a MapUser
       // Use logic from handleSingleUserTileClick
       const map = mapRef.current;
@@ -347,12 +346,8 @@ const WorldMap = () => {
 
       closeAllPopups(); // Close other popups
 
-      // Need the marker's LatLng, which is the tile center.
-      // This will be passed by MarkerCluster or we recalculate it.
-      // For now, assume MarkerCluster provides it or we derive it from item's original coords.
-      // Let's recalculate for simplicity here, though passing from MarkerCluster is better.
-      const tileId = getTileId(item.latitude, item.longitude);
-      const tileCenter = getTileCenterLatLng(tileId);
+      // Use the actual click event's LatLng for the popup position
+      const clickLatLng = event.latlng;
 
 
       const content = ReactDOMServer.renderToString(
@@ -362,7 +357,7 @@ const WorldMap = () => {
 
       // Add className for custom styling, ensure closeButton is false
       const popup = L.popup({ closeButton: false, minWidth: 100, className: 'custom-leaflet-popup' })
-        .setLatLng(tileCenter) // Use tile center for popup position
+        .setLatLng(clickLatLng) // Use click location for popup position
         .setContent(content)
         .openOn(map);
 
