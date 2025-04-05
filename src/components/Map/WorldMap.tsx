@@ -381,22 +381,23 @@ const WorldMap = () => {
 
       closeAllPopups(); // Close other popups
 
-      const content = ReactDOMServer.renderToString(
-        // Pass closeAllPopups to handle state clearing and ref removal
-        <TileListPopup items={items} onClose={closeAllPopups} />
-      );
+      // --- Modification: Create an empty popup ---
+      // Comment out the rendering of TileListPopup to prevent content display
+      // const content = ReactDOMServer.renderToString(
+      //   <TileListPopup items={items} onClose={closeAllPopups} />
+      // );
 
-      // Add className for custom styling, ensure closeButton is false
-      const popup = L.popup({ closeButton: false, minWidth: 150, maxHeight: 200, className: 'custom-leaflet-popup' }) // Adjust options
+      // Create the popup with default close button and explicitly empty content
+      const popup = L.popup({ closeButton: true }) // Ensure default close button is enabled
         .setLatLng(tileCenter)
-        .setContent(content)
+        .setContent('') // Set content to an empty string
         .openOn(map);
 
-      // Add DOM listener for custom close button
-      popup.getElement()?.querySelector('#tile-popup-close-btn')?.addEventListener('click', closeAllPopups);
+      // Remove listener logic for the custom close button from TileListPopup
+      // popup.getElement()?.querySelector('#tile-popup-close-btn')?.addEventListener('click', closeAllPopups);
 
       aggregatePopupRef.current = popup; // Store reference
-      // Track the open popup state
+      // Track the open popup state (items are kept for potential future use, but not displayed)
       setOpenPopupData({ type: 'aggregate', items, center: tileCenter, ref: aggregatePopupRef });
     }, [closeAllPopups]);
   // --- Memos (Defined after state, before early returns) ---
