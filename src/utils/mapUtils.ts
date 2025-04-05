@@ -134,6 +134,69 @@ const deg2rad = (deg: number): number => {
   return deg * (Math.PI/180);
 };
 
+/**
+ * Hilfsfunktion zur Umrechnung von Radian in Grad
+ * @param rad Radian
+ * @returns Grad
+ */
+const rad2deg = (rad: number): number => {
+  return rad * (180 / Math.PI);
+};
+
+/**
+ * Calculates the geographical point on the circumference of a circle.
+ * Given a center point, a target point outside the circle, and a radius,
+ * this function finds the point on the circle's edge that lies on the line
+ * connecting the center and the target.
+ *
+ * @param center The center of the circle (user's location).
+ * @param target The original target point (e.g., tile center) outside the circle.
+ * @param radiusKm The radius of the circle in kilometers.
+ * @returns The L.LatLng point on the circle's border.
+ */
+export const calculateBorderPoint = (
+  center: L.LatLng,
+  target: L.LatLng,
+  radiusKm: number
+): L.LatLng => {
+  const lat1 = center.lat;
+  const lon1 = center.lng;
+  const lat2 = target.lat;
+  const lon2 = target.lng;
+
+  const distanceToTarget = calculateHaversineDistance(lat1, lon1, lat2, lon2);
+
+  // If target is already inside or on the border, return target itself
+  if (distanceToTarget <= radiusKm) {
+    return target;
+  }
+
+  // Calculate bearing from center to target
+  const phi1 = deg2rad(lat1);
+  const lambda1 = deg2rad(lon1);
+  const phi2 = deg2rad(lat2);
+  const lambda2 = deg2rad(lon2);
+
+  const y = Math.sin(lambda2 - lambda1) * Math.cos(phi2);
+  const x = Math.cos(phi1) * Math.sin(phi2) -
+            Math.sin(phi1) * Math.cos(phi2) * Math.cos(lambda2 - lambda1);
+  const theta = Math.atan2(y, x); // Bearing in radians
+
+  // Calculate destination point
+  const R = 6371; // Earth radius in km
+  const delta = radiusKm / R; // Angular distance in radians
+
+  const phiDest = Math.asin(Math.sin(phi1) * Math.cos(delta) +
+                           Math.cos(phi1) * Math.sin(delta) * Math.cos(theta));
+  const lambdaDest = lambda1 + Math.atan2(Math.sin(theta) * Math.sin(delta) * Math.cos(phi1),
+                                         Math.cos(delta) - Math.sin(phi1) * Math.sin(phiDest));
+
+  const latDest = rad2deg(phiDest);
+  const lonDest = rad2deg(lambdaDest);
+
+  return L.latLng(latDest, lonDest);
+};
+
 // --- OSM Tile Calculation Utilities ---
 
 /**

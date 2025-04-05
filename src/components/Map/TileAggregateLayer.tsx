@@ -3,16 +3,19 @@ import L from 'leaflet';
 import { useMap } from 'react-leaflet';
 import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData';
-import { TileData } from '../../hooks/useMapTilingData'; // Assuming TileData is exported
-import { getTileCenterLatLng } from '../../utils/mapUtils';
+import { TileData } from '../../hooks/useMapTilingData';
+// Import necessary utils
+import { getTileCenterLatLng, calculateHaversineDistance, calculateBorderPoint } from '../../utils/mapUtils';
 import createSvgMarkerIcon from './CityMarkerIcon';
 import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon';
 
 interface TileAggregateLayerProps {
   tileAggregationData: Map<string, TileData>;
-  onItemClick: (item: City | MapUser) => void; // Handler for single items
-  onAggregateTileClick: (items: (City | MapUser)[], tileCenter: L.LatLng) => void; // Handler for aggregates
+  onItemClick: (item: City | MapUser) => void;
+  onAggregateTileClick: (items: (City | MapUser)[], tileCenter: L.LatLng) => void;
   currentUserId: string | null;
+  currentUserLocation: L.LatLng | null; // <-- Add user location prop
+  distanceRadius: number | null; // <-- Add distance radius prop (in km)
 }
 
 const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
@@ -20,6 +23,8 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
   onItemClick,
   onAggregateTileClick,
   currentUserId,
+  currentUserLocation, // <-- Destructure prop
+  distanceRadius, // <-- Destructure prop
 }) => {
   const map = useMap();
   const layerRef = useRef<L.LayerGroup | null>(null);
@@ -70,6 +75,37 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
       let marker: L.Marker;
       let icon: L.Icon | L.DivIcon;
       let clickHandler: () => void;
+      let finalPosition = tileCenter; // Default position is the tile center
+
+      // --- Start of New Logic ---
+      if (currentUserLocation && distanceRadius !== null && items.length > 0) {
+        // Check if any item in the tile is *actually* within the radius
+        const isAnyItemInsideRadius = items.some(item => {
+          const itemLatLng = L.latLng(item.latitude, item.longitude);
+          const distanceToItem = calculateHaversineDistance(
+            currentUserLocation.lat, currentUserLocation.lng,
+            itemLatLng.lat, itemLatLng.lng
+          );
+          return distanceToItem <= distanceRadius;
+        });
+
+        if (isAnyItemInsideRadius) {
+          // At least one item is within the radius. Now check the tile center's distance.
+          const distanceToTileCenter = calculateHaversineDistance(
+            currentUserLocation.lat, currentUserLocation.lng,
+            tileCenter.lat, tileCenter.lng
+          );
+
+          if (distanceToTileCenter > distanceRadius) {
+            // An item is inside, but the tile center is outside. Adjust position to border.
+            finalPosition = calculateBorderPoint(currentUserLocation, tileCenter, distanceRadius);
+          }
+          // else: An item is inside, and the tile center is also inside. Use original tileCenter (finalPosition).
+        }
+        // else: No items in this tile are within the radius. Use original tileCenter (finalPosition).
+      }
+      // --- End of New Logic ---
+
 
       if (items.length === 0) {
         // Should not happen, but handle defensively
@@ -93,11 +129,11 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
         // Check if marker exists and update, otherwise create new
         if (currentMarkers[tileId]) {
           marker = currentMarkers[tileId];
-          marker.setLatLng(tileCenter);
+          marker.setLatLng(finalPosition); // <-- Use finalPosition
           marker.setIcon(icon);
           marker.off('click').on('click', clickHandler);
         } else {
-          marker = L.marker(tileCenter, { icon: icon });
+          marker = L.marker(finalPosition, { icon: icon }); // <-- Use finalPosition
           marker.on('click', clickHandler);
           layer.addLayer(marker);
         }
@@ -107,16 +143,16 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
       } else {
         // --- Aggregate Tile ---
         icon = createAggregateIcon(items.length, containsCurrentUser);
+        // Pass the *original* tileCenter to the click handler for context
         clickHandler = () => onAggregateTileClick(items, tileCenter);
 
-        // Check if marker exists and update, otherwise create new
         if (currentMarkers[tileId]) {
           marker = currentMarkers[tileId];
-          marker.setLatLng(tileCenter);
+          marker.setLatLng(finalPosition); // <-- Use finalPosition
           marker.setIcon(icon);
           marker.off('click').on('click', clickHandler);
         } else {
-          marker = L.marker(tileCenter, { icon: icon });
+          marker = L.marker(finalPosition, { icon: icon }); // <-- Use finalPosition
           marker.on('click', clickHandler);
           layer.addLayer(marker);
         }
@@ -133,7 +169,7 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
     Object.values(currentMarkers).forEach(marker => layer.removeLayer(marker));
     markersRef.current = newMarkers; // Update the ref
 
-  }, [map, tileAggregationData, onItemClick, onAggregateTileClick, currentUserId]); // Dependencies
+  }, [map, tileAggregationData, onItemClick, onAggregateTileClick, currentUserId, currentUserLocation, distanceRadius]); // <-- Add dependencies
 
   // Cleanup effect
   useEffect(() => {

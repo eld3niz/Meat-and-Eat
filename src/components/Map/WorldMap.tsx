@@ -710,6 +710,8 @@ const WorldMap = () => {
                 onItemClick={() => {}} // Disabled click handler for single items in TileAggregateLayer
                 onAggregateTileClick={handleAggregateTileClick} // Use existing handler for tile popups
                 currentUserId={user?.id ?? null}
+                currentUserLocation={userCoordinates ? L.latLng(userCoordinates[0], userCoordinates[1]) : null} // Pass user location
+                distanceRadius={distanceRadius} // Pass distance radius
               />
             )}
             {/* --- End Conditional Rendering --- */}
