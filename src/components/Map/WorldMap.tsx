@@ -15,6 +15,7 @@ import Sidebar from '../UI/Sidebar';
 import CityTable from '../UI/CityTable';
 import UserTable from '../UI/UserTable';
 import { City } from '../../types';
+import UserLocationMarker from './UserLocationMarker'; // <-- Import UserLocationMarker
 import L, { Map as LeafletMap, Popup } from 'leaflet'; // <-- Import Popup type
 import { useMapTilingData } from '../../hooks/useMapTilingData'; // <-- Import new hook
 import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce, getTileCenterLatLng, getTileId } from '../../utils/mapUtils'; // Added getTileCenterLatLng and getTileId
@@ -411,22 +412,24 @@ const WorldMap = () => {
       return { totalCities, visibleCities, percentage: Math.round((visibleCities / totalCities) * 100) };
   }, [userCoordinates, filters.distance, filteredCities, cities]);
 
-  // Prepare combined user list (needed for both clustering and tiling)
-   const allUsersForDisplay = useMemo(() => {
-     const users = [...filteredUsers];
-     if (user && userCoordinates) {
-       const currentUserMapUser: MapUser = {
-         user_id: user.id,
-         name: "Your Location",
-         latitude: userCoordinates[0],
-         longitude: userCoordinates[1]
-       };
-       if (!users.some(u => u.user_id === currentUserMapUser.user_id)) {
-         users.push(currentUserMapUser);
-       }
-     }
-     return users;
-   }, [filteredUsers, user, userCoordinates]);
+  // Prepare user list for display. Include current user ONLY if zoom < 14 for clustering.
+  const allUsersForDisplay = useMemo(() => {
+    const users = [...filteredUsers]; // Start with other users
+    // Conditionally add the current user if zoom is low enough for clustering
+    if (mapZoom < 14 && user && userCoordinates) {
+      const currentUserMapUser: MapUser = {
+        user_id: user.id,
+        name: "Your Location", // Name used within cluster data
+        latitude: userCoordinates[0],
+        longitude: userCoordinates[1]
+      };
+      // Add only if not somehow already present (unlikely but safe)
+      if (!users.some(u => u.user_id === currentUserMapUser.user_id)) {
+        users.push(currentUserMapUser);
+      }
+    }
+    return users;
+  }, [filteredUsers, user, userCoordinates, mapZoom]); // Add mapZoom dependency
 
   // --- Hook for Tiling Data Aggregation ---
   const tileAggregationData = useMapTilingData(
@@ -723,7 +726,15 @@ const WorldMap = () => {
                <InfoPopup city={hoveredCity} isHoverPreview={true} />
             )}
 
-            {/* Separate UserLocationMarker removed - now handled by MarkerCluster */}
+            {/* --- User Location Marker (Rendered separately ONLY at high zoom) --- */}
+            {userCoordinates && mapZoom >= 14 && ( // <-- Added mapZoom condition
+              <UserLocationMarker
+                position={userCoordinates}
+                onClick={handleUserMarkerClick} // Reuse existing handler to zoom on click
+              />
+            )}
+
+            {/* --- Radius Circle (conditionally rendered by its internal logic) --- */}
             <RadiusCircle />
           </MapContainer>
 
