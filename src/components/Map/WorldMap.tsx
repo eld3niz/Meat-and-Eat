@@ -18,7 +18,7 @@ import { City } from '../../types';
 import UserLocationMarker from './UserLocationMarker'; // <-- Import UserLocationMarker
 import L, { Map as LeafletMap, Popup } from 'leaflet'; // <-- Import Popup type
 import { useMapTilingData } from '../../hooks/useMapTilingData'; // <-- Import new hook
-import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce, getTileCenterLatLng, getTileId } from '../../utils/mapUtils'; // Added getTileCenterLatLng and getTileId
+import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce, getTileCenterLatLng, getTileId, calculateBorderPoint } from '../../utils/mapUtils'; // Added getTileCenterLatLng, getTileId, and calculateBorderPoint
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import Button from '../UI/Button';
@@ -451,12 +451,51 @@ const WorldMap = () => {
     originalItem: City | MapUser;
   }
 
-  // --- Transform Tile Data into Markers for Clustering (Always at Tile Centers) ---
+  // --- Transform Tile Data into Markers for Clustering (Adjusted Positions) ---
   const markersForClustering = useMemo((): MarkerDefinition[] => {
     const markers: MarkerDefinition[] = [];
+    const currentUserLatLng = userCoordinates ? L.latLng(userCoordinates[0], userCoordinates[1]) : null;
+
     tileAggregationData.forEach((tileData, tileId) => {
       try {
         const tileCenter = getTileCenterLatLng(tileId);
+        let finalPosition = tileCenter; // Default to tile center
+
+        // --- Start of Position Adjustment Logic ---
+        if (currentUserLatLng && distanceRadius !== null && tileData.items.length > 0) {
+          // Check if any item in the tile is *actually* within the radius
+          const isAnyItemInsideRadius = tileData.items.some(item => {
+            // Ensure item has valid coordinates before calculating distance
+            if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') {
+                return false; // Skip items without coordinates
+            }
+            const itemLatLng = L.latLng(item.latitude, item.longitude);
+            const distanceToItem = calculateHaversineDistance(
+              currentUserLatLng.lat, currentUserLatLng.lng,
+              itemLatLng.lat, itemLatLng.lng
+            );
+            return distanceToItem <= distanceRadius;
+          });
+
+          if (isAnyItemInsideRadius) {
+            // At least one item is inside. Now check the tile center's distance.
+            const distanceToTileCenter = calculateHaversineDistance(
+              currentUserLatLng.lat, currentUserLatLng.lng,
+              tileCenter.lat, tileCenter.lng
+            );
+
+            if (distanceToTileCenter > distanceRadius) {
+              // An item is inside, but the tile center is outside. Adjust position to border.
+              finalPosition = calculateBorderPoint(currentUserLatLng, tileCenter, distanceRadius);
+            }
+            // else: An item is inside, and the tile center is also inside. Use original tileCenter (finalPosition).
+          }
+          // else: No items in this tile are within the radius. Use original tileCenter (finalPosition).
+        }
+        // --- End of Position Adjustment Logic ---
+
+
+        // Create markers using the calculated finalPosition for this tile
         tileData.items.forEach(item => {
           if (typeof item.latitude !== 'number' || typeof item.longitude !== 'number') {
              console.warn('Item missing coordinates during transformation, skipping:', item);
@@ -465,8 +504,8 @@ const WorldMap = () => {
 
           const markerDef: MarkerDefinition = {
             id: 'population' in item ? `city-${item.id}` : `user-${item.user_id}`,
-            latitude: tileCenter.lat, // Use tile center latitude
-            longitude: tileCenter.lng, // Use tile center longitude
+            latitude: finalPosition.lat, // <-- Use adjusted latitude
+            longitude: finalPosition.lng, // <-- Use adjusted longitude
             type: 'population' in item ? 'city' : 'user',
             name: item.name,
             userId: 'user_id' in item ? item.user_id : null,
@@ -480,7 +519,8 @@ const WorldMap = () => {
       }
     });
     return markers;
-  }, [tileAggregationData]);
+    // Add userCoordinates and distanceRadius as dependencies
+  }, [tileAggregationData, userCoordinates, distanceRadius]);
 
 
 // Removed handleClusterClick as it's no longer needed; default zoom is handled by MarkerCluster component itself.
