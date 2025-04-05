@@ -184,7 +184,9 @@ export const calculateBorderPoint = (
 
   // Calculate destination point
   const R = 6371; // Earth radius in km
-  const delta = radiusKm / R; // Angular distance in radians
+  // Use 99.9% of the radius for calculation to ensure point is visually inside/on border
+  const effectiveRadiusKm = radiusKm * 0.999;
+  const delta = effectiveRadiusKm / R; // Angular distance in radians
 
   const phiDest = Math.asin(Math.sin(phi1) * Math.cos(delta) +
                            Math.cos(phi1) * Math.sin(delta) * Math.cos(theta));
