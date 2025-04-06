@@ -191,8 +191,8 @@ const MarkerCluster = ({
       // Attach userId for cluster icon logic (important!)
       (marker as any).userId = markerDef.userId;
 
-      // Bind tooltip using the name from markerDef
-      marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+      // Bind tooltip using the name from markerDef - REMOVED
+      // marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
 
       // Use the unique ID from markerDef for tracking
       markersRef.current[markerDef.id] = marker;

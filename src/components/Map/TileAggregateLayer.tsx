@@ -137,8 +137,9 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
           marker.on('click', clickHandler);
           layer.addLayer(marker);
         }
-        // Add/Update tooltip
-        marker.unbindTooltip().bindTooltip(tooltipText, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+        // Add/Update tooltip - REMOVED
+        // marker.unbindTooltip().bindTooltip(tooltipText, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+        marker.unbindTooltip(); // Ensure any previous tooltip is removed
 
       } else {
         // --- Aggregate Tile ---
