@@ -12,18 +12,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, isOpen, onClose }) =>
     return null;
   }
 
-  // Prevent background scroll when modal is open
-  React.useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'unset';
-    }
-    // Cleanup function to restore scroll on unmount
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, [isOpen]);
+  // Removed useEffect for body scroll lock to potentially resolve React internal warning
 
 
   return (
