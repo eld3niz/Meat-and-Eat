@@ -37,9 +37,9 @@ const MarkerCluster = ({
   // Markercluster options remain the same
   const markerClusterOptions = useMemo(() => ({
     chunkedLoading: true,
-    spiderfyOnMaxZoom: false, // <-- Disable spiderfication
-    disableClusteringAtZoom: 19, // Disable clustering *at* max zoom (assuming 19 for OSM)
-    maxClusterRadius: 80,
+    spiderfyOnMaxZoom: false,
+    singleMarkerMode: true, // <-- Add this line
+    maxClusterRadius: 80, // Adjust as needed
     zoomToBoundsOnClick: true, // Restore default zoom behavior
     removeOutsideVisibleBounds: true,
     animate: window.innerWidth > 768,
@@ -51,45 +51,31 @@ const MarkerCluster = ({
       let html = '';
       let clusterColorClass = '';
 
-      if (childCount === 1) {
-        // --- Use original icon for single-item clusters ---
-        const singleMarker = childMarkers[0] as any; // Cast to any to access custom properties
-        const markerType = singleMarker.markerType;
-        const markerUserId = singleMarker.userId;
-        const markerPopulation = singleMarker.population;
+      let clusterContainsUser = false;
 
-        if (markerType === 'city') {
-          // Return the city SVG icon
-          return createSvgMarkerIcon(markerPopulation ?? 0);
-        } else { // markerType === 'user'
-          // Return the appropriate user icon
-          return markerUserId === currentUserId ? currentUserIconRed : otherUserIconBlue;
-        }
-        // Note: We are returning the icon directly here, not creating HTML for a divIcon
-      } else {
-        // --- Style for multi-item clusters (existing logic) ---
-        let clusterContainsUser = false;
-        if (currentUserId) {
-          for (const marker of childMarkers) {
-            if ((marker as any).userId === currentUserId) {
-              clusterContainsUser = true;
-              break;
-            }
+      // --- Always style as a cluster ---
+      if (currentUserId) {
+        for (const marker of childMarkers) {
+          if ((marker as any).userId === currentUserId) {
+            clusterContainsUser = true;
+            break;
           }
         }
-
-        if (clusterContainsUser) {
-            clusterColorClass = 'bg-red-500 border-red-600'; // Red for user's cluster
-        } else {
-            clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for other clusters
-        }
-
-        // Calculate the count to display (exclude user's own marker if present)
-        const displayCount = clusterContainsUser ? childCount - 1 : childCount;
-
-        // Use displayCount in the HTML span
-        html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${displayCount}</span></div>`;
       }
+
+      if (clusterContainsUser) {
+          clusterColorClass = 'bg-red-500 border-red-600'; // Red for user's cluster
+      } else {
+          clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for other clusters
+      }
+
+      // Calculate the count to display
+      // If the cluster contains the current user, decide if you want to show count-1 or the full count
+      // For now, let's show the full count always for simplicity when always clustering
+      const displayCount = childCount; // Always show the total count in the cluster
+
+      // Use displayCount in the HTML span
+      html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${displayCount}</span></div>`;
 
       // Removed debug logging
 
