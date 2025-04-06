@@ -4,7 +4,6 @@ import supabase from '../../utils/supabaseClient';
 import { languageOptions, cuisineOptions } from '../../data/options';
 import AvatarUpload from './AvatarUpload';
 import ImageModal from '../UI/ImageModal'; // Import the ImageModal
-// Removed: import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
   id: string;
@@ -22,7 +21,6 @@ interface ProfileData {
 
 const UserProfile = () => {
   const { user, signOut } = useAuth(); // Get signOut from context
-  // Removed: const navigate = useNavigate();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -46,12 +44,9 @@ const UserProfile = () => {
   // New state for edit mode preview & file selection
   const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
   const [editAvatarPreviewUrl, setEditAvatarPreviewUrl] = useState<string | null>(null);
-  // State for password change
-  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  // State for password change (integrated into main form)
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordUpdateMessage, setPasswordUpdateMessage] = useState({ type: '', text: '' });
-  const [passwordLoading, setPasswordLoading] = useState(false);
   // State for image modal
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
@@ -69,7 +64,6 @@ const UserProfile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        // Select all required fields, including avatar_url
         .select('id, name, age, languages, cuisines, created_at, is_local, budget, bio, avatar_url')
         .eq('id', user.id)
         .single();
@@ -80,18 +74,15 @@ const UserProfile = () => {
 
       if (data) {
         setProfile(data);
-        // Set initial state for multi-select and original values
         setOriginalName(data.name || '');
         setOriginalAge(data.age?.toString() || '');
         setSelectedLanguages(data.languages || []);
         setSelectedCuisines(data.cuisines || []);
-        // Set initial state for new editable fields
         setEditIsLocal(data.is_local);
         setEditBudget(data.budget);
         setEditBio(data.bio || '');
-        // Set avatar state
         setAvatarUrl(data.avatar_url);
-        setEditAvatarPreviewUrl(data.avatar_url); // Initialize preview with the currently saved URL
+        setEditAvatarPreviewUrl(data.avatar_url);
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -123,17 +114,31 @@ const UserProfile = () => {
     setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
   };
 
-
-  // Handle Save Changes (including potential avatar upload)
+  // Handle Save Changes (including potential avatar upload and password change)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setUploadingAvatar(true); // Indicate loading for potential avatar ops
+    setUploadingAvatar(true); // Indicate loading for potential avatar/password ops
     setUpdateMessage({ type: '', text: '' });
 
     if (!user?.id) {
       setUploadingAvatar(false);
       return;
     }
+
+    // --- Password Validation (only if fields are filled) ---
+    if (newPassword || confirmPassword) {
+      if (newPassword !== confirmPassword) {
+        setUpdateMessage({ type: 'error', text: 'New passwords do not match.' });
+        setUploadingAvatar(false); // Stop loading
+        return;
+      }
+      if (newPassword.length < 6) {
+        setUpdateMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
+        setUploadingAvatar(false); // Stop loading
+        return;
+      }
+    }
+    // --- End Password Validation ---
 
     try {
       let newAvatarUrl = avatarUrl; // Start with the current URL
@@ -147,27 +152,23 @@ const UserProfile = () => {
         const filePath = `${user.id}/${fileName}`;
         uploadedFilePath = filePath; // Store for potential cleanup
 
-        // Perform the upload
         const { error: uploadError } = await supabase.storage
           .from('avatars')
-          .upload(filePath, file); // Use plain upload, RLS handles permissions
+          .upload(filePath, file);
 
         if (uploadError) {
           throw new Error(`Avatar upload failed: ${uploadError.message}`);
         }
 
-        // Get public URL after successful upload
         const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
         if (!urlData?.publicUrl) {
-          // Attempt cleanup if URL retrieval fails
           if (uploadedFilePath) await supabase.storage.from('avatars').remove([uploadedFilePath]);
           throw new Error('Failed to get public URL for uploaded avatar.');
         }
-        newAvatarUrl = urlData.publicUrl; // This is the URL to save in the profile
+        newAvatarUrl = urlData.publicUrl;
       }
 
       // 2. Prepare Profile Data to Update
-      // Include avatar_url only if a new file was successfully uploaded
       const profileUpdates: Partial<ProfileData> & { updated_at: string } = {
         languages: selectedLanguages,
         cuisines: selectedCuisines,
@@ -175,7 +176,7 @@ const UserProfile = () => {
         budget: editBudget,
         bio: editBio,
         updated_at: new Date().toISOString(),
-        ...(editAvatarFile && { avatar_url: newAvatarUrl }), // Conditionally add avatar_url
+        ...(editAvatarFile && { avatar_url: newAvatarUrl }), // Conditionally add avatar_url if a new one was uploaded
       };
 
       // 3. Update Profile Table
@@ -185,23 +186,41 @@ const UserProfile = () => {
         .eq('id', user.id);
 
       if (profileError) {
-        // If profile update fails after a *new* avatar was uploaded, try removing the orphaned file
         if (editAvatarFile && uploadedFilePath) {
            console.warn('Profile update failed after avatar upload. Attempting to remove orphaned avatar:', uploadedFilePath);
            await supabase.storage.from('avatars').remove([uploadedFilePath]);
         }
-        throw profileError; // Throw the original profile update error
+        throw profileError;
       }
 
-      // 4. Update Local State (Crucial for immediate UI update)
-      setAvatarUrl(newAvatarUrl); // Update the main display URL state
-      // Update profile state - merge existing profile with updates and the potentially new avatar URL
+      // 4. Update Password (if new password was provided and valid)
+      let passwordUpdateError = null;
+      if (newPassword) {
+        const { error: pwdError } = await supabase.auth.updateUser({ password: newPassword });
+        if (pwdError) {
+          console.error("Password update failed during profile save:", pwdError);
+          passwordUpdateError = pwdError;
+        }
+      }
+
+      // 5. Update Local State
+      setAvatarUrl(newAvatarUrl);
       setProfile(prev => prev ? { ...prev, ...profileUpdates, avatar_url: newAvatarUrl } : null);
-      setEditAvatarFile(null); // Clear the selected file state
-      setEditAvatarPreviewUrl(newAvatarUrl); // Ensure preview matches the new saved URL
+      setEditAvatarFile(null);
+      setEditAvatarPreviewUrl(newAvatarUrl);
+      setNewPassword(''); // Clear password fields on success/attempt
+      setConfirmPassword('');
 
       setEditMode(false); // Exit edit mode
-      setUpdateMessage({ type: 'success', text: 'Profile updated successfully!' });
+
+      // Determine success/warning message
+      if (passwordUpdateError) {
+          setUpdateMessage({ type: 'warning', text: `Profile updated, but password change failed: ${passwordUpdateError.message}` });
+      } else if (newPassword) {
+          setUpdateMessage({ type: 'success', text: 'Profile and password updated successfully!' });
+      } else {
+          setUpdateMessage({ type: 'success', text: 'Profile updated successfully!' });
+      }
 
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -229,26 +248,21 @@ const UserProfile = () => {
           .eq('id', user.id);
         if (profileDeleteError) throw profileDeleteError;
 
-        // 2. Optionally delete avatar from storage (best effort)
+        // 2. Optionally delete avatar from storage
         if (avatarUrl) {
            try {
-             // Attempt to extract path - THIS IS FRAGILE, depends on URL structure
              const urlParts = avatarUrl.split('/avatars/');
              if (urlParts.length > 1) {
                const filePath = urlParts[1];
-               console.log('Attempting to remove avatar from storage:', filePath);
                await supabase.storage.from('avatars').remove([filePath]);
              }
            } catch (storageError) {
              console.error("Failed to remove avatar from storage during profile deletion:", storageError);
-             // Don't block profile deletion if storage removal fails
            }
         }
 
         // 3. Delete Auth User (Requires server-side handling or elevated privileges)
         console.warn(`Profile data for user ${user.id} deleted. Auth user deletion should be handled server-side.`);
-        // const { error: authDeleteError } = await supabase.rpc('delete_user_account');
-        // if (authDeleteError) throw authDeleteError;
 
         // 4. Sign out locally
         await signOut();
@@ -265,49 +279,13 @@ const UserProfile = () => {
     }
   };
 
-  // Handle password change
-  const handlePasswordChange = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setPasswordLoading(true);
-    setPasswordUpdateMessage({ type: '', text: '' });
-
-    if (newPassword !== confirmPassword) {
-      setPasswordUpdateMessage({ type: 'error', text: 'New passwords do not match.' });
-      setPasswordLoading(false);
-      return;
-    }
-    if (newPassword.length < 6) {
-      setPasswordUpdateMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
-      setPasswordLoading(false);
-      return;
-    }
-
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-
-      setPasswordUpdateMessage({ type: 'success', text: 'Password updated successfully!' });
-      setNewPassword('');
-      setConfirmPassword('');
-      setShowPasswordChange(false);
-    } catch (error: any) {
-      console.error('Error updating password:', error);
-      setPasswordUpdateMessage({ type: 'error', text: error.message || 'Failed to update password.' });
-    } finally {
-      setPasswordLoading(false);
-    }
-  };
-
   // Handle avatar file SELECTION and preview generation
   const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     setUpdateMessage({ type: '', text: '' });
-    setEditAvatarFile(null); // Reset file state initially
-    // Don't reset preview here, let it show the old one until new one loads
+    setEditAvatarFile(null);
 
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-
-      // Validation
       const allowedTypes = ['image/png', 'image/jpeg', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
         setUpdateMessage({ type: 'error', text: 'Invalid file type (PNG, JPG, GIF only).' });
@@ -321,33 +299,28 @@ const UserProfile = () => {
         return;
       }
 
-      // Set file state
       setEditAvatarFile(file);
 
-      // Generate preview URL
       const reader = new FileReader();
       reader.onloadend = () => {
-        setEditAvatarPreviewUrl(reader.result as string); // Update preview
+        setEditAvatarPreviewUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
 
     } else {
-        // If selection was cancelled, reset preview to current saved URL
         setEditAvatarPreviewUrl(avatarUrl);
     }
-    // Reset input value so the same file can be selected again
     event.target.value = '';
   };
 
    // Handle removing the avatar
    const handleRemoveAvatar = async () => {
-    // Can only remove if there's a currently saved avatar URL or a preview URL
     if (!user?.id || !editAvatarPreviewUrl) return;
 
     const confirmation = window.confirm("Are you sure you want to remove your profile picture?");
     if (!confirmation) return;
 
-    setUploadingAvatar(true); // Use same loading state
+    setUploadingAvatar(true);
     setUpdateMessage({ type: '', text: '' });
 
     try {
@@ -359,29 +332,26 @@ const UserProfile = () => {
 
       if (updateError) throw updateError;
 
-      // 2. Attempt to remove file from storage (best effort, path extraction is fragile)
-      // Only attempt removal if there was a previously saved avatarUrl
+      // 2. Attempt to remove file from storage
       if (avatarUrl) {
         try {
-          const urlParts = avatarUrl.split('/avatars/'); // Assumes '/avatars/' is in the path
+          const urlParts = avatarUrl.split('/avatars/');
           if (urlParts.length > 1) {
             const filePath = urlParts[1];
-            console.log('Attempting to remove avatar file from storage:', filePath);
             await supabase.storage.from('avatars').remove([filePath]);
           } else {
             console.warn("Could not extract file path from avatar URL for removal:", avatarUrl);
           }
         } catch (storageError) {
           console.error("Error removing avatar file from storage (proceeding anyway):", storageError);
-          // Don't block the UI update if storage removal fails
         }
       }
 
-      // 3. Update local state immediately for UI feedback
-      setAvatarUrl(null); // Clear the saved URL state
-      setEditAvatarPreviewUrl(null); // Clear the preview
-      setEditAvatarFile(null); // Clear any selected file
-      setProfile(prev => prev ? { ...prev, avatar_url: null } : null); // Update profile state
+      // 3. Update local state
+      setAvatarUrl(null);
+      setEditAvatarPreviewUrl(null);
+      setEditAvatarFile(null);
+      setProfile(prev => prev ? { ...prev, avatar_url: null } : null);
       setUpdateMessage({ type: 'success', text: 'Avatar removed.' });
 
     } catch (error: any) {
@@ -409,7 +379,9 @@ const UserProfile = () => {
       {updateMessage.text && (
         <div
           className={`p-3 mb-4 rounded ${
-            updateMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+            updateMessage.type === 'success' ? 'bg-green-100 text-green-700' :
+            updateMessage.type === 'warning' ? 'bg-yellow-100 text-yellow-700' :
+            'bg-red-100 text-red-700'
           }`}
         >
           {updateMessage.text}
@@ -417,8 +389,8 @@ const UserProfile = () => {
       )}
 
       {!editMode ? (
-        // --- NEW VIEW MODE (Popup Style) ---
-        <div className="space-y-4 p-1"> {/* Reduced padding for popup */}
+        // --- VIEW MODE ---
+        <div className="space-y-4 p-1">
           {/* Top Section */}
           <div className="flex items-start space-x-4">
             {/* Left Column: Avatar & Rating */}
@@ -428,17 +400,16 @@ const UserProfile = () => {
                 uploading={false}
                 isReadOnly={true}
                 onClick={() => { if (avatarUrl) setIsImageModalOpen(true); }}
-                size={80} // Smaller avatar for popup
+                size={80}
               />
-              {/* Placeholder Rating */}
-              <p className="text-xs text-gray-500 mt-1">★★★★☆ (4.5/5)</p>
+              <p className="text-xs text-gray-500 mt-1">★★★★☆ (4.5/5)</p> {/* Placeholder */}
             </div>
 
             {/* Right Column: Info */}
             <div className="flex-grow space-y-1">
               <h3 className="text-xl font-semibold flex items-center">
                 {profile?.name || 'User Name'}
-                <span className="ml-2">🇩🇪</span> {/* Placeholder Flag */}
+                <span className="ml-2">🇩🇪</span> {/* Placeholder */}
               </h3>
               <p className="text-sm text-gray-600">{profile?.age ? `${profile.age} yrs` : 'Age not specified'}</p>
               <p className="text-sm text-gray-600">
@@ -450,7 +421,6 @@ const UserProfile = () => {
             </div>
           </div>
 
-          {/* Separator 1 */}
           <hr className="border-gray-200" />
 
           {/* Bio Section */}
@@ -461,7 +431,6 @@ const UserProfile = () => {
             </p>
           </div>
 
-          {/* Separator 2 */}
           <hr className="border-gray-200" />
 
           {/* Details Section */}
@@ -480,7 +449,6 @@ const UserProfile = () => {
               </p>
           </div>
 
-          {/* Separator 3 */}
           <hr className="border-gray-200" />
 
           {/* Buttons Section */}
@@ -501,22 +469,22 @@ const UserProfile = () => {
             </button>
           </div>
 
-          {/* Keep Edit/Delete/Password Change outside the main popup content flow? */}
-          {/* For now, let's keep the Edit button separate, maybe below the popup content */}
           <div className="mt-6 text-center">
              <button
                onClick={() => { // Enter edit mode
                    setEditMode(true);
-                   setEditAvatarPreviewUrl(avatarUrl);
-                   setEditAvatarFile(null);
-                   setUpdateMessage({ type: '', text: '' });
+                   setEditAvatarPreviewUrl(avatarUrl); // Reset preview to current saved
+                   setEditAvatarFile(null); // Clear any previously selected file
+                   setNewPassword(''); // Clear password fields when entering edit mode
+                   setConfirmPassword('');
+                   setUpdateMessage({ type: '', text: '' }); // Clear messages
                }}
                className="text-blue-600 hover:text-blue-800 text-sm hover:underline"
              >
                Edit My Profile
              </button>
            </div>
-           {/* TODO: Re-integrate Delete Profile & Change Password buttons appropriately if needed in this view */}
+           {/* TODO: Add Delete Profile button here if needed */}
         </div>
 
       ) : (
@@ -526,16 +494,15 @@ const UserProfile = () => {
           <div className="flex flex-col items-center mb-6 space-y-2">
             <AvatarUpload
               avatarUrl={editAvatarPreviewUrl} // Show the preview URL during edit
-              uploading={uploadingAvatar} // Indicate status during save/remove operations
-              onUpload={handleAvatarSelect} // Connect the SELECT handler
+              uploading={uploadingAvatar}
+              onUpload={handleAvatarSelect}
               size={120}
             />
-            {/* Show Remove button only if there's a preview URL */}
             {editAvatarPreviewUrl && (
               <button
                 type="button"
-                onClick={handleRemoveAvatar} // Connect the remove handler
-                disabled={uploadingAvatar} // Disable while saving/removing
+                onClick={handleRemoveAvatar}
+                disabled={uploadingAvatar}
                 className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Remove Avatar
@@ -543,22 +510,60 @@ const UserProfile = () => {
             )}
           </div>
 
-          {/* Profile Edit Fields (Condensed for brevity) */}
+          {/* Email (Non-Editable) */}
            <div>
              <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
              <input type="email" value={user?.email || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100" />
-             <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+             <p className="mt-1 text-xs text-gray-500">Email cannot be changed.</p>
            </div>
+
+           {/* --- Change Password Section --- */}
+           <div className="border-t border-gray-200 pt-6 mt-6">
+             <h3 className="text-lg font-medium text-gray-800 mb-4">Change Password</h3>
+             <p className="text-sm text-gray-500 mb-4">Leave these fields blank to keep your current password.</p>
+             <div className="space-y-4">
+               <div>
+                 <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                 <input
+                   id="newPassword"
+                   name="newPassword"
+                   type="password"
+                   value={newPassword}
+                   onChange={(e) => setNewPassword(e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Enter new password (min. 6 chars)"
+                 />
+               </div>
+               <div>
+                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                 <input
+                   id="confirmPassword"
+                   name="confirmPassword"
+                   type="password"
+                   value={confirmPassword}
+                   onChange={(e) => setConfirmPassword(e.target.value)}
+                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                   placeholder="Confirm new password"
+                 />
+               </div>
+             </div>
+           </div>
+           {/* --- End Change Password Section --- */}
+
+           {/* Name (Non-Editable) */}
            <div>
              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
              <input id="name" name="name" type="text" value={originalName} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" />
-             <p className="mt-1 text-xs text-gray-500">Name cannot be changed</p>
+             <p className="mt-1 text-xs text-gray-500">Name cannot be changed.</p>
            </div>
+
+           {/* Age (Non-Editable) */}
            <div>
              <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">Age</label>
              <input id="age" name="age" type="number" value={originalAge} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" />
-             <p className="mt-1 text-xs text-gray-500">Age cannot be changed</p>
+             <p className="mt-1 text-xs text-gray-500">Age cannot be changed.</p>
            </div>
+
            {/* Languages Multi-Select */}
            <div className="mb-4">
              <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">Languages I Speak</label>
@@ -586,6 +591,7 @@ const UserProfile = () => {
                </button>
              </div>
            </div>
+
            {/* Cuisines Multi-Select */}
            <div className="mb-6">
              <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">Cuisines I Like</label>
@@ -613,6 +619,7 @@ const UserProfile = () => {
                </button>
              </div>
            </div>
+
            {/* is_local Radio Buttons */}
            <div className="mb-4">
              <label className="block text-sm font-medium text-gray-700 mb-2">Are you a Local or a Traveler?</label>
@@ -631,6 +638,7 @@ const UserProfile = () => {
                </label>
              </div>
            </div>
+
            {/* Budget Select */}
            <div className="mb-4">
              <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-1">Budget Level (Optional)</label>
@@ -642,46 +650,48 @@ const UserProfile = () => {
              </select>
              <p className="mt-1 text-xs text-gray-500">Indicate your typical spending preference for meetups.</p>
            </div>
+
            {/* Bio Textarea */}
            <div className="mb-6">
              <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Bio (Optional, max 255 characters)</label>
              <textarea id="bio" name="bio" rows={4} maxLength={255} value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Tell others a bit about yourself..." />
            </div>
-          {/* End Profile Edit Fields */}
 
-          <div className="flex space-x-3">
-            <button
-              type="submit"
-              disabled={uploadingAvatar || passwordLoading} // Disable save if avatar or password ops are in progress
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50"
-            >
-              {uploadingAvatar ? 'Saving...' : 'Save Changes'}
-            </button>
-            <button
-              type="button"
-              onClick={() => { // Cancel Logic
-                setEditMode(false);
-                // Reset editable fields to original profile values
-                if (profile) {
-                  setSelectedLanguages(profile.languages || []);
-                  setSelectedCuisines(profile.cuisines || []);
-                  setEditIsLocal(profile.is_local);
-                  setEditBudget(profile.budget);
-                  setEditBio(profile.bio || '');
-                }
-                // Reset avatar edit state specifically
-                setEditAvatarFile(null);
-                setEditAvatarPreviewUrl(avatarUrl); // Reset preview to the actual current avatarUrl state
-                // Reset dropdown helpers
-                setCurrentLanguage('');
-                setCurrentCuisine('');
-                setUpdateMessage({ type: '', text: '' }); // Clear any previous messages
-              }}
-              className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
-            >
-              Cancel Profile Edit
-            </button>
-          </div>
+           {/* Buttons */}
+           <div className="flex space-x-3">
+             <button
+               type="submit"
+               disabled={uploadingAvatar}
+               className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50"
+             >
+               {uploadingAvatar ? 'Saving...' : 'Save Changes'}
+             </button>
+             <button
+               type="button"
+               onClick={() => { // Cancel Logic
+                 setEditMode(false);
+                 // Reset editable fields to original profile values
+                 if (profile) {
+                   setSelectedLanguages(profile.languages || []);
+                   setSelectedCuisines(profile.cuisines || []);
+                   setEditIsLocal(profile.is_local);
+                   setEditBudget(profile.budget);
+                   setEditBio(profile.bio || '');
+                 }
+                 setEditAvatarFile(null);
+                 setEditAvatarPreviewUrl(avatarUrl);
+                 setCurrentLanguage('');
+                 setCurrentCuisine('');
+                 setUpdateMessage({ type: '', text: '' });
+                 // Also clear password fields on cancel
+                 setNewPassword('');
+                 setConfirmPassword('');
+               }}
+               className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
+             >
+               Cancel
+             </button>
+           </div>
         </form>
       )}
 
@@ -689,7 +699,7 @@ const UserProfile = () => {
       <ImageModal
         isOpen={isImageModalOpen}
         onClose={() => setIsImageModalOpen(false)}
-        imageUrl={avatarUrl} // Pass the current avatar URL
+        imageUrl={avatarUrl}
       />
     </div>
   );
