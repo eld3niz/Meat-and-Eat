@@ -4,14 +4,14 @@ import Button from '../UI/Button'; // Assuming a Button component exists
 interface RegisterSlideNew2Props {
   updateFormData: (data: { bio?: string }) => void;
   nextSlide: () => void;
-  // prevSlide is removed for the first slide
+  prevSlide: () => void; // Added prevSlide back
   currentSlide: number;
   totalSlides: number;
 }
 
 const MAX_BIO_LENGTH = 255;
 
-const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, nextSlide, currentSlide, totalSlides }) => {
+const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
   const [bio, setBio] = useState('');
   const [charCount, setCharCount] = useState(0);
 
@@ -52,8 +52,13 @@ const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, n
 
       {/* Slide Indicator and Navigation */}
       <div className="flex items-center justify-between pt-4">
-        {/* Placeholder for Back button alignment */}
-        <div className="w-20"></div>
+        {/* Back Button */}
+        <Button
+          onClick={prevSlide}
+          className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center"
+        >
+          Back
+        </Button>
         
         {/* Slide Indicator */}
         <span className="text-sm text-gray-500">
@@ -61,7 +66,10 @@ const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, n
         </span>
 
         {/* Next Button */}
-        <Button onClick={nextSlide}>
+        <Button
+           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 text-center"
+           onClick={nextSlide}
+        >
           Next
         </Button>
       </div>

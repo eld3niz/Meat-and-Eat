@@ -7,14 +7,14 @@ import Button from '../UI/Button'; // Import Button component
 // const cuisineOptions = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
 
 interface RegisterSlide3Props {
-  updateFormData: (data: { languages?: string[]; cuisines?: string[]; city?: string }) => void; // More specific type
+  updateFormData: (data: { languages?: string[]; cuisines?: string[]; city?: string }) => void;
   nextSlide: () => void;
-  prevSlide: () => void; // Add prevSlide
+  // prevSlide removed for the first slide
   currentSlide: number;
   totalSlides: number;
 }
 
-const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
+const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, currentSlide, totalSlides }) => {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [language, setLanguage] = useState('');
@@ -144,13 +144,8 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
 
       {/* Slide Indicator and Navigation */}
       <div className="flex items-center justify-between pt-4">
-         {/* Back Button */}
-         <Button
-            onClick={prevSlide}
-            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center"
-          >
-            Zurück
-          </Button>
+         {/* Placeholder for Back button alignment */}
+         <div className="w-20"></div>
 
         {/* Slide Indicator */}
         <span className="text-sm text-gray-500">
