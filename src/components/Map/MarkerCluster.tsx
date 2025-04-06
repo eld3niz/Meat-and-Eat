@@ -25,27 +25,21 @@ interface MarkerDefinition {
 
 interface MarkerClusterProps {
   markersData: MarkerDefinition[];
-  onItemClick: (item: City | MapUser, event: L.LeafletMouseEvent) => void; // Keep passing the event
-  onMarkerMouseOver: (city: City) => void; // City-specific mouseover handler
-  onMarkerMouseOut: () => void;
+  onItemClick: (item: City | MapUser, position?: L.LatLng, event?: L.LeafletMouseEvent) => void;
   activeCityId: number | null;
-  // onClusterClick prop removed - using default zoom behavior
-  userCoordinates: LatLngTuple | null; // Still needed? Maybe remove later if unused.
-  currentUserId: string | null; // <-- Add currentUserId prop
+  currentUserId: string | null;
+  userCoordinates: [number, number] | null;
 }
 
 /**
  * Komponente zur Darstellung der Stadt- und Benutzer-Marker mit Clustering
  */
 const MarkerCluster = ({
-    markersData, // <-- Destructure new prop
-    onItemClick, // <-- Destructure new prop
-    onMarkerMouseOver,
-    onMarkerMouseOut,
+    markersData,
+    onItemClick,
     activeCityId,
-    // onClusterClick, // Removed
-    userCoordinates, // <-- Destructure userCoordinates
-    currentUserId // <-- Destructure currentUserId
+    userCoordinates,
+    currentUserId
 }: MarkerClusterProps) => {
   const map = useMap();
   const markerClusterGroupRef = useRef<L.MarkerClusterGroup | null>(null);
@@ -160,12 +154,6 @@ const MarkerCluster = ({
       // Attach userId for cluster icon logic (important!)
       (marker as any).userId = markerDef.userId;
 
-      // Keep city-specific mouseover/mouseout for now
-      if (markerDef.type === 'city') {
-        marker.on('mouseover', () => { if (activeCityId === null) onMarkerMouseOver(markerDef.originalItem as City); });
-        marker.on('mouseout', onMarkerMouseOut);
-      }
-
       // Bind tooltip using the name from markerDef
       marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
 
@@ -182,7 +170,7 @@ const MarkerCluster = ({
     }
 
   // Dependencies: Use markersData and onItemClick
-  }, [map, markersData, onItemClick, onMarkerMouseOver, onMarkerMouseOut, activeCityId, userCoordinates, currentUserId]); // Keep other dependencies for now
+  }, [map, markersData, onItemClick, activeCityId, userCoordinates, currentUserId]); // Keep other dependencies for now
 
   return null; // Component only manages the Leaflet layer
 };

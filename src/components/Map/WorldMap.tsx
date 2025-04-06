@@ -109,7 +109,6 @@ const WorldMap = () => {
   } = useMapData();
   const { openAuthModal } = useModal(); // Get modal function
   const [clickedCity, setClickedCity] = useState<City | null>(null);
-  const [hoveredCity, setHoveredCity] = useState<City | null>(null); // State for hover preview
   const [mapCenter, setMapCenter] = useState<[number, number]>([20, 0]);
   const [mapZoom, setMapZoom] = useState<number>(2);
   // Fix: Use renamed LeafletMap type for ref
@@ -127,7 +126,6 @@ const WorldMap = () => {
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
     setClickedCity(null); // Close city info popup
-    setHoveredCity(null); // Close hover preview
     aggregatePopupRef.current?.remove(); // Close aggregate list popup
     aggregatePopupRef.current = null;
     userInfoPopupRef.current?.remove(); // Close user info popup
@@ -139,18 +137,19 @@ const WorldMap = () => {
   // Removed handleUserPositionUpdate as position comes from context
 
   // Update handleDistanceFilter to use the function from the hook and manage radius state
-   const handleDistanceFilter = useCallback((distance: number | null) => {
+  const handleDistanceFilter = useCallback((distance: number | null) => {
     closeAllPopups(); // Close any existing popups immediately
     filterByDistance(distance); // Call hook function to update filters
     setDistanceRadius(distance); // Update local state for drawing the circle
-    // setClickedCity(null); // No longer needed, closeAllPopups handles it
-    // The logic to close popups outside the radius is also redundant now
 
     // --- Automatic Zooming Logic ---
     const map = mapRef.current;
     // Zoom only if map is ready, user location known, distance is valid (not "All"), and not currently animating
-    if (map && userCoordinates && distance && distance > 0 && distance < 500 && !isFlying) { // Using < 500 like the button/circle logic
-      // --- Precise Vertical Zoom Calculation ---
+    if (map && userCoordinates && distance && distance > 0 && distance < 500 && !isFlying) {
+      // Save current flying state and update it
+      setIsFlying(true);
+
+      // Rest of the zoom calculation logic remains the same
       const diameterInMeters = distance * 2000; // Diameter for vertical fit
       const [userLat, userLng] = userCoordinates;
 
@@ -171,10 +170,13 @@ const WorldMap = () => {
 
       // Fly to the user's location at the calculated zoom level
       map.flyTo(userCoordinates, targetZoom, { animate: true, duration: 0.5 });
-    }
-    // --- End Automatic Zooming Logic ---
 
-  }, [filterByDistance, userCoordinates, isFlying, closeAllPopups]); // Dependency is now valid
+      // Reset flying state after animation completes
+      setTimeout(() => {
+        setIsFlying(false);
+      }, 600); // Slightly longer than the animation duration
+    }
+  }, [filterByDistance, userCoordinates, isFlying, closeAllPopups, mapRef, setIsFlying]);
 
   // --- Sidebar Toggle Handler ---
   const handleToggleSidebar = useCallback(() => {
@@ -283,27 +285,56 @@ const WorldMap = () => {
     closeAllPopups();
   }, [closeAllPopups]); // Dependency on closeAllPopups
 
-  // Handlers for marker hover events
-  const handleMarkerMouseOver = useCallback((city: City) => {
-    if (!clickedCity) { // Only show hover if no city is actively clicked
-      setHoveredCity(city);
-    }
-  }, [clickedCity]); // Dependency on clickedCity
-
-  const handleMarkerMouseOut = useCallback(() => {
-    setHoveredCity(null);
-  }, []);
-
   // Handler for clicking the user's own location marker
   const handleUserMarkerClick = useCallback(() => {
+    // First, ensure we're not in flying state to prevent animation conflicts
+    setIsFlying(false);
+    
+    // Close all existing popups
+    closeAllPopups();
+    
     // Check if user coordinates are available before proceeding
-    if (!userCoordinates) return;
-
+    if (!userCoordinates || !mapRef.current) return;
+    
+    // Force animation to happen by explicitly setting flying state
+    setIsFlying(true);
+    
     // Call handleDistanceFilter with 1km radius.
-    // This will trigger the filtering, circle update, and automatic zoom logic.
-    handleDistanceFilter(1);
-
-  }, [userCoordinates, handleDistanceFilter]); // Dependencies updated
+    // This will trigger the filtering, circle update, and UI updates
+    filterByDistance(1); // Update filter state
+    setDistanceRadius(1); // Update radius circle
+    
+    // Calculate proper zoom level for 1km radius
+    const map = mapRef.current;
+    const [userLat, userLng] = userCoordinates;
+    
+    // Calculate bounds for 1km radius (2km diameter)
+    const diameterInMeters = 2000; // 2km diameter (1km radius)
+    const latDelta = diameterInMeters / 111132;
+    
+    // Calculate bounds precisely
+    const southBound = userLat - latDelta / 2;
+    const northBound = userLat + latDelta / 2;
+    const targetBounds = L.latLngBounds(
+      [southBound, userLng],
+      [northBound, userLng]
+    );
+    
+    // Get optimal zoom level to fit the radius
+    const targetZoom = map.getBoundsZoom(targetBounds, false);
+    
+    // Explicitly fly to user location with the calculated zoom
+    map.flyTo(userCoordinates, targetZoom, { 
+      animate: true, 
+      duration: 0.8  // Slightly longer for smoother animation
+    });
+    
+    // Reset flying state after animation completes
+    setTimeout(() => {
+      setIsFlying(false);
+    }, 1000); // Slightly longer than animation duration
+    
+  }, [userCoordinates, mapRef, closeAllPopups, setIsFlying, filterByDistance, setDistanceRadius]);
 
   // Handler to zoom the map to the current distance filter radius around the user
   const handleZoomToRadius = useCallback(() => {
@@ -330,7 +361,6 @@ const WorldMap = () => {
     resetFilters(); // Call the original function from the hook
     setDistanceRadius(null); // Reset the local state for the circle
     setClickedCity(null); // Close any open popups
-    setHoveredCity(null); // Clear any hover previews
   }, [resetFilters, closeAllPopups]); // Added closeAllPopups
 
   // --- Unified Item Click Handler (for markers at tile centers) ---
@@ -519,7 +549,6 @@ const WorldMap = () => {
 
 // Removed handleClusterClick as it's no longer needed; default zoom is handled by MarkerCluster component itself.
 // Popup logic is now handled by handleAggregateTileClick for the TileAggregateLayer.
-
 
   // --- Cluster Click Handler (Opens TileListPopup) ---
   // Moved after markersForClustering definition to resolve dependency order issue
@@ -730,11 +759,7 @@ const WorldMap = () => {
               <MarkerCluster
                 markersData={markersForClustering} // Individual items at tile centers
                 onItemClick={handleItemClick} // Handles single item clicks
-                // Pass other existing props needed by MarkerCluster
-                onMarkerMouseOver={handleMarkerMouseOver}
-                onMarkerMouseOut={handleMarkerMouseOut}
                 activeCityId={clickedCity?.id ?? null}
-                // onClusterClick prop removed from MarkerCluster
                 currentUserId={user?.id ?? null}
                 userCoordinates={userCoordinates}
               />
@@ -752,14 +777,9 @@ const WorldMap = () => {
 
             {/* REMOVED separate rendering loop for OtherUserMarker - now handled by MarkerCluster */}
 
-            {/* Render clicked popup OR hover popup (if no city is clicked) */}
-            {/* Render city info popup (managed by state) */}
+            {/* Render clicked popup */}
             {clickedCity && (
               <InfoPopup city={clickedCity} onClose={handlePopupClose} />
-            )}
-            {/* Hover popup logic remains unchanged for now, might need review if hover is desired on tiles */}
-            {hoveredCity && !clickedCity && !aggregatePopupRef.current && !userInfoPopupRef.current && (
-               <InfoPopup city={hoveredCity} isHoverPreview={true} />
             )}
 
             {/* --- User Location Marker (Rendered separately ONLY at high zoom) --- */}
