@@ -61,8 +61,8 @@ const MarkerCluster = ({
             // should ideally not be called for count=1. If it IS called, returning
             // the original icon *might* work depending on internal library details,
             // but the standard way is relying on singleMarkerMode.
-            // Let's log a warning if this case is hit unexpectedly.
-            console.warn("iconCreateFunction called for childCount=1 despite singleMarkerMode=true. Returning original icon.", singleMarker.options.icon);
+            // The explicit return below handles the case where singleMarkerMode doesn't prevent this function call.
+            // Removed console.warn as the behavior is now understood and handled.
             return singleMarker.options.icon;
         }
         // Fallback if icon somehow isn't found (shouldn't happen)
