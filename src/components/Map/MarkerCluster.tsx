@@ -230,7 +230,7 @@ const MarkerCluster = ({
       }
 
       // Bind tooltip using the name from markerDef - REMOVED
-      // marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+      marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
 
       // Use the unique ID from markerDef for tracking
       markersRef.current[markerDef.id] = marker;
