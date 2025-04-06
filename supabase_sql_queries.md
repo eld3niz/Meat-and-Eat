@@ -18,6 +18,17 @@ ADD COLUMN is_local TEXT NULL,
 ADD COLUMN budget SMALLINT NULL CHECK (budget >= 1 AND budget <= 3),
 ADD COLUMN bio TEXT NULL CHECK (char_length(bio) <= 255);
 
+-- Add avatar_url column for profile pictures - Added [Date, e.g., 2025-04-06]
+ALTER TABLE public.profiles
+ADD COLUMN avatar_url TEXT NULL;
+
+-- NOTE: Supabase Storage Setup Required for Avatars:
+-- 1. Create a Storage bucket (e.g., named 'avatars'). Make it Public for easier URL access.
+-- 2. Add Row Level Security (RLS) policies to the 'avatars' bucket:
+--    - Allow authenticated users to SELECT (view).
+--    - Allow authenticated users to INSERT their own avatar (using user_id in path).
+--    - Allow authenticated users to UPDATE/DELETE their own avatar (using user_id in path).
+--    (Refer to implementation guide for specific policy conditions).
 
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;

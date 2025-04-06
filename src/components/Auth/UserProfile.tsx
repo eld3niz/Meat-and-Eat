@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'; // Import React
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../utils/supabaseClient';
 import { languageOptions, cuisineOptions } from '../../data/options';
+import AvatarUpload from './AvatarUpload'; // Import the new component
 // Removed: import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
@@ -15,6 +16,7 @@ interface ProfileData {
   is_local: string | null;
   budget: number | null;
   bio: string | null;
+  avatar_url: string | null; // Add avatar_url
 }
 
 const UserProfile = () => {
@@ -37,6 +39,9 @@ const UserProfile = () => {
   const [editBio, setEditBio] = useState<string>('');
 
   const [updateMessage, setUpdateMessage] = useState({ type: '', text: '' });
+  // State for avatar
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   // State for password change
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -58,8 +63,8 @@ const UserProfile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        // Select all required fields, including new ones
-        .select('id, name, age, languages, cuisines, created_at, is_local, budget, bio')
+        // Select all required fields, including avatar_url
+        .select('id, name, age, languages, cuisines, created_at, is_local, budget, bio, avatar_url')
         .eq('id', user.id)
         .single();
 
@@ -78,6 +83,7 @@ const UserProfile = () => {
         setEditIsLocal(data.is_local);
         setEditBudget(data.budget);
         setEditBio(data.bio || '');
+        setAvatarUrl(data.avatar_url); // Set avatar URL state
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -233,6 +239,74 @@ const UserProfile = () => {
     }
   };
 
+  // Handle avatar upload
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploadingAvatar(true);
+      setUpdateMessage({ type: '', text: '' }); // Clear previous messages
+
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('You must select an image to upload.');
+      }
+      if (!user?.id) {
+        throw new Error('User not logged in.');
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Math.random()}.${fileExt}`; // Use random name to prevent caching issues
+      const filePath = `${user.id}/${fileName}`; // Store under user's ID folder
+
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars') // Use the bucket name you created
+        .upload(filePath, file); // Remove upsert: true for testing pure INSERT policy
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get the public URL (adjust if your bucket is private and requires signed URLs)
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      if (!urlData?.publicUrl) {
+        // Attempt to clean up if URL retrieval fails but upload succeeded
+        await supabase.storage.from('avatars').remove([filePath]);
+        throw new Error('Failed to get public URL for the uploaded avatar.');
+      }
+      const newAvatarUrl = urlData.publicUrl;
+
+      // Update the profile table with the new avatar_url
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: newAvatarUrl, updated_at: new Date().toISOString() })
+        .eq('id', user.id);
+
+      if (updateError) {
+        // Attempt to clean up storage if profile update fails
+        await supabase.storage.from('avatars').remove([filePath]);
+        throw updateError;
+      }
+
+      // Update local state
+      setAvatarUrl(newAvatarUrl);
+      setProfile(prev => prev ? { ...prev, avatar_url: newAvatarUrl } : null); // Update profile state too
+      setUpdateMessage({ type: 'success', text: 'Avatar updated successfully!' });
+
+    } catch (error: any) {
+      console.error('Error uploading avatar:', error);
+      setUpdateMessage({ type: 'error', text: error.message || 'Failed to upload avatar.' });
+    } finally {
+      setUploadingAvatar(false);
+      // Reset the file input value so the same file can be selected again if needed
+      if (event.target) {
+        event.target.value = '';
+      }
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-10">
@@ -257,7 +331,18 @@ const UserProfile = () => {
       )}
 
       {!editMode ? (
+        // --- VIEW MODE ---
         <div className="space-y-6">
+          {/* Avatar Display (View Mode) */}
+          <div className="flex justify-center mb-4">
+            <AvatarUpload
+              avatarUrl={avatarUrl}
+              uploading={false} // Not uploading in view mode
+              onUpload={() => setEditMode(true)} // Trigger edit mode on click/label click
+              size={120}
+            />
+          </div>
+
           <div className="border-b pb-3">
             <p className="text-sm font-medium text-gray-500">Email</p>
             <p className="text-lg">{user?.email}</p>
@@ -424,7 +509,18 @@ const UserProfile = () => {
 
         </div>
       ) : (
+        // --- EDIT MODE ---
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Avatar Upload (Edit Mode) */}
+          <div className="flex justify-center mb-6">
+            <AvatarUpload
+              avatarUrl={avatarUrl}
+              uploading={uploadingAvatar}
+              onUpload={handleAvatarUpload} // Connect the upload handler
+              size={120}
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Email
@@ -664,10 +760,11 @@ const UserProfile = () => {
                   setCurrentCuisine('');
                 }
                 setUpdateMessage({ type: '', text: '' }); // Clear any previous messages
+                // No need to reset avatarUrl here, it reflects the current saved state
               }}
               className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
             >
-              Cancel
+              Cancel Profile Edit
             </button>
           </div>
         </form>
