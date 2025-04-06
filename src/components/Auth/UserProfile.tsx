@@ -11,6 +11,10 @@ interface ProfileData {
   languages: string[] | null;
   cuisines: string[] | null;
   created_at: string | null;
+  // Added fields
+  is_local: string | null;
+  budget: number | null;
+  bio: string | null;
 }
 
 const UserProfile = () => {
@@ -27,8 +31,18 @@ const UserProfile = () => {
   // Keep original name/age for display in edit mode (non-editable)
   const [originalName, setOriginalName] = useState('');
   const [originalAge, setOriginalAge] = useState('');
+  // State for new editable fields
+  const [editIsLocal, setEditIsLocal] = useState<string | null>(null);
+  const [editBudget, setEditBudget] = useState<number | null>(null);
+  const [editBio, setEditBio] = useState<string>('');
 
   const [updateMessage, setUpdateMessage] = useState({ type: '', text: '' });
+  // State for password change
+  const [showPasswordChange, setShowPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordUpdateMessage, setPasswordUpdateMessage] = useState({ type: '', text: '' });
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -44,7 +58,8 @@ const UserProfile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, age, languages, cuisines, created_at')
+        // Select all required fields, including new ones
+        .select('id, name, age, languages, cuisines, created_at, is_local, budget, bio')
         .eq('id', user.id)
         .single();
 
@@ -59,6 +74,10 @@ const UserProfile = () => {
         setOriginalAge(data.age?.toString() || '');
         setSelectedLanguages(data.languages || []);
         setSelectedCuisines(data.cuisines || []);
+        // Set initial state for new editable fields
+        setEditIsLocal(data.is_local);
+        setEditBudget(data.budget);
+        setEditBio(data.bio || '');
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -99,13 +118,16 @@ const UserProfile = () => {
       
       if (!user?.id) return;
 
-      // Only update languages and cuisines (name and age are not editable)
+      // Update languages, cuisines, and new fields
       const { error } = await supabase
         .from('profiles')
         .update({
           languages: selectedLanguages,
           cuisines: selectedCuisines,
-          updated_at: new Date().toISOString()
+          is_local: editIsLocal,
+          budget: editBudget,
+          bio: editBio,
+          updated_at: new Date().toISOString(),
         })
         .eq('id', user.id);
 
@@ -177,7 +199,39 @@ const UserProfile = () => {
       // No finally block needed here as navigation happens on success
     }
   };
-  
+
+  // Handle password change
+  const handlePasswordChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPasswordLoading(true);
+    setPasswordUpdateMessage({ type: '', text: '' });
+
+    if (newPassword !== confirmPassword) {
+      setPasswordUpdateMessage({ type: 'error', text: 'New passwords do not match.' });
+      setPasswordLoading(false);
+      return;
+    }
+    if (newPassword.length < 6) { // Basic check, align with Supabase default
+      setPasswordUpdateMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
+      setPasswordLoading(false);
+      return;
+    }
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+
+      setPasswordUpdateMessage({ type: 'success', text: 'Password updated successfully!' });
+      setNewPassword('');
+      setConfirmPassword('');
+      setShowPasswordChange(false); // Hide form on success
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      setPasswordUpdateMessage({ type: 'error', text: error.message || 'Failed to update password.' });
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -234,19 +288,36 @@ const UserProfile = () => {
               {profile?.cuisines && profile.cuisines.length > 0 
                 ? profile.cuisines.join(', ') 
                 : 'Not specified'}
-            </p>
-          </div>
-          
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Member Since</p>
-            <p className="text-lg">
-              {profile?.created_at 
-                ? new Date(profile.created_at).toLocaleDateString() 
-                : 'Not available'}
-            </p>
-          </div>
-          
-          <button
+           </p>
+         </div>
+
+         {/* Display New Fields */}
+         <div className="border-b pb-3">
+           <p className="text-sm font-medium text-gray-500">Status</p>
+           <p className="text-lg">{profile?.is_local ? (profile.is_local === 'local' ? 'Local' : 'Traveler') : 'Not specified'}</p>
+         </div>
+
+         <div className="border-b pb-3">
+           <p className="text-sm font-medium text-gray-500">Budget</p>
+           <p className="text-lg">{profile?.budget ? `Level ${profile.budget}` : 'Not specified'}</p> {/* Assuming budget 1, 2, 3 */}
+         </div>
+
+         <div className="border-b pb-3">
+           <p className="text-sm font-medium text-gray-500">Bio</p>
+           <p className="text-lg whitespace-pre-wrap">{profile?.bio || 'Not specified'}</p> {/* Use pre-wrap for line breaks */}
+         </div>
+         {/* End Display New Fields */}
+
+         <div className="border-b pb-3">
+           <p className="text-sm font-medium text-gray-500">Member Since</p>
+           <p className="text-lg">
+             {profile?.created_at
+               ? new Date(profile.created_at).toLocaleDateString()
+               : 'Not available'}
+           </p>
+         </div>
+
+         <button
             onClick={() => setEditMode(true)}
             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
           >
@@ -262,6 +333,95 @@ const UserProfile = () => {
               Delete My Profile
             </button>
           </div>
+
+          {/* --- Password Change Section --- */}
+          <div className="mt-6 pt-6 border-t">
+            {!showPasswordChange ? (
+              <button
+                onClick={() => {
+                  setShowPasswordChange(true);
+                  setPasswordUpdateMessage({ type: '', text: '' }); // Clear previous messages
+                }}
+                className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200"
+              >
+                Change Password
+              </button>
+            ) : (
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <h3 className="text-lg font-semibold text-gray-700">Change Password</h3>
+                {passwordUpdateMessage.text && (
+                  <div
+                    className={`p-3 rounded ${
+                      passwordUpdateMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                    }`}
+                  >
+                    {passwordUpdateMessage.text}
+                  </div>
+                )}
+                <div>
+                  <label
+                    htmlFor="newPassword"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    New Password
+                  </label>
+                  <input
+                    id="newPassword"
+                    name="newPassword"
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter new password (min. 6 characters)"
+                  />
+                </div>
+                <div>
+                  <label
+                    htmlFor="confirmPassword"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    Confirm New Password
+                  </label>
+                  <input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Confirm new password"
+                  />
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    type="submit"
+                    disabled={passwordLoading}
+                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 disabled:opacity-50"
+                  >
+                    {passwordLoading ? 'Saving...' : 'Save New Password'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowPasswordChange(false);
+                      setNewPassword('');
+                      setConfirmPassword('');
+                      setPasswordUpdateMessage({ type: '', text: '' });
+                    }}
+                    className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+          {/* --- End Password Change Section --- */}
+
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -400,6 +560,85 @@ const UserProfile = () => {
             </div>
           </div>
 
+          {/* New Editable Fields */}
+          {/* is_local Radio Buttons */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Are you a Local or a Traveler?</label>
+            <div className="flex items-center space-x-4">
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="is_local"
+                  value="local"
+                  checked={editIsLocal === 'local'}
+                  onChange={(e) => setEditIsLocal(e.target.value)}
+                  className="form-radio h-4 w-4 text-blue-600"
+                />
+                <span className="ml-2 text-gray-700">Local</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="is_local"
+                  value="traveler"
+                  checked={editIsLocal === 'traveler'}
+                  onChange={(e) => setEditIsLocal(e.target.value)}
+                  className="form-radio h-4 w-4 text-blue-600"
+                />
+                <span className="ml-2 text-gray-700">Traveler</span>
+              </label>
+              <label className="inline-flex items-center">
+                <input
+                  type="radio"
+                  name="is_local"
+                  value="" // Represents 'Not specified' or null
+                  checked={editIsLocal === null || editIsLocal === ''}
+                  onChange={() => setEditIsLocal(null)}
+                  className="form-radio h-4 w-4 text-gray-400"
+                />
+                <span className="ml-2 text-gray-500 italic">Clear</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Budget Select */}
+          <div className="mb-4">
+            <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-1">
+              Budget Level (Optional)
+            </label>
+            <select
+              id="budget"
+              name="budget"
+              value={editBudget ?? ''} // Handle null value for select
+              onChange={(e) => setEditBudget(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">Select Budget...</option>
+              <option value="1">Budget-friendly ($)</option>
+              <option value="2">Mid-range ($$)</option>
+              <option value="3">Premium ($$$)</option>
+            </select>
+            <p className="mt-1 text-xs text-gray-500">Indicate your typical spending preference for meetups.</p>
+          </div>
+
+          {/* Bio Textarea */}
+          <div className="mb-6">
+            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
+              Bio (Optional, max 255 characters)
+            </label>
+            <textarea
+              id="bio"
+              name="bio"
+              rows={4}
+              maxLength={255}
+              value={editBio}
+              onChange={(e) => setEditBio(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
+              placeholder="Tell others a bit about yourself..."
+            />
+          </div>
+          {/* End New Editable Fields */}
+
           <div className="flex space-x-3">
             <button
               type="submit"
@@ -413,8 +652,14 @@ const UserProfile = () => {
                 setEditMode(false);
                 // Reset multi-select state to current profile values when cancelling
                 if (profile) {
+                  // Reset original fields
                   setSelectedLanguages(profile.languages || []);
                   setSelectedCuisines(profile.cuisines || []);
+                  // Reset new fields
+                  setEditIsLocal(profile.is_local);
+                  setEditBudget(profile.budget);
+                  setEditBio(profile.bio || '');
+                  // Reset dropdown helpers
                   setCurrentLanguage('');
                   setCurrentCuisine('');
                 }
