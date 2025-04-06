@@ -10,9 +10,11 @@ const Header = () => {
   const { user, signOut } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
+  const [showNewProfilePopup, setShowNewProfilePopup] = useState(false); // State for the new profile popup
   const [userName, setUserName] = useState('');
   const menuRef = useRef<HTMLDivElement>(null);
   const profilePageRef = useRef<HTMLDivElement>(null);
+  const newProfilePopupRef = useRef<HTMLDivElement>(null); // Ref for the new popup
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -88,6 +90,21 @@ const Header = () => {
     };
   }, [showProfilePage]);
 
+  // Close new profile popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (newProfilePopupRef.current &&
+          !newProfilePopupRef.current.contains(event.target as Node) &&
+          showNewProfilePopup) {
+        setShowNewProfilePopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showNewProfilePopup]);
   // Navigation-Handler
   const handleNavigation = (path: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -166,7 +183,16 @@ const Header = () => {
                         }}
                         className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
-                        My Profile
+                        Account
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowNewProfilePopup(true);
+                          setShowProfileMenu(false);
+                        }}
+                        className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        Profile
                       </button>
                       <button
                         onClick={handleLogout}
@@ -218,6 +244,34 @@ const Header = () => {
               </svg>
             </button>
             <UserProfile />
+          </div>
+        </div>
+      )}
+
+      {/* New Profile Popup */}
+      {showNewProfilePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[1001] flex items-center justify-center p-4" // Increased z-index and opacity
+             onClick={(e) => {
+               if (e.target === e.currentTarget) {
+                 setShowNewProfilePopup(false);
+               }
+             }}>
+          <div className="relative bg-white rounded-lg w-full max-w-4xl h-[80vh] overflow-y-auto p-6 shadow-xl flex flex-col" // Larger size (max-w-4xl, h-[80vh])
+               ref={newProfilePopupRef}>
+            <button
+              onClick={() => setShowNewProfilePopup(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10" // Ensure button is above content
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-xl font-semibold mb-4">Profile</h2>
+            {/* Content for the new profile popup will go here */}
+            <div className="flex-grow flex items-center justify-center text-gray-500">
+              {/* Placeholder for empty content */}
+              <p>Profile content will be added later.</p>
+            </div>
           </div>
         </div>
       )}

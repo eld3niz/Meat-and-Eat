@@ -164,7 +164,7 @@ const Sidebar = ({
       {/* Toggle-Button remains the same */}
       <button
         onClick={onToggleCollapse} // <-- Use the passed handler
-        className="absolute right-0 top-4 transform translate-x-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-r-md shadow-lg z-[1100] transition-colors"
+        className="absolute right-0 top-4 transform translate-x-6 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-r-md shadow-lg z-[999] transition-colors"
         aria-label={isCollapsed ? "Seitenleiste anzeigen" : "Seitenleiste ausblenden"}
       >
         {isCollapsed ? (

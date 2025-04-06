@@ -758,10 +758,6 @@ const WorldMap = () => {
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">
-          {/* Zoom Level Display */}
-          <div className="absolute top-2 left-2 z-[1000] bg-white bg-opacity-75 p-1 px-2 rounded text-sm font-semibold shadow">
-            Zoom: {mapZoom}
-          </div>
 
           {/* Map Container */}
           <MapContainer
@@ -815,7 +811,7 @@ const WorldMap = () => {
           </MapContainer>
 
           {/* Zoom Buttons Container */}
-          <div className="absolute top-4 right-4 z-[1000] flex flex-col space-y-2">
+          <div className="absolute top-4 right-4 z-[999] flex flex-col space-y-2"> {/* Reverted top, kept z-index */}
             {userCoordinates && (
               <Button
                 onClick={handleUserMarkerClick} // Smaller padding and text
