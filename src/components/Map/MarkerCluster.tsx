@@ -131,28 +131,10 @@ const MarkerCluster = ({
 
       // console.log(`[MarkerCluster] Cluster clicked. Zoom: ${currentZoom}, MaxZoom: ${maxZoom}, ChildCount: ${cluster.getChildCount()}`); // DEBUG
 
-      // Check if it's max zoom and a single marker cluster
-      if (currentZoom === maxZoom && cluster.getChildCount() === 1) {
-        const childMarkers = cluster.getAllChildMarkers();
-        if (childMarkers.length > 0) {
-          const singleMarker = childMarkers[0] as any; // Cast to any to access custom property
-          if (singleMarker.originalItemData) {
-            // console.log('[MarkerCluster] Max zoom single marker cluster clicked, triggering onItemClick manually.'); // DEBUG
-            // Manually trigger onItemClick with the stored data
-            // Use cluster's LatLng and attempt to cast originalEvent
-            onItemClick(singleMarker.originalItemData, e.layer.getLatLng(), (e as any).originalEvent as L.LeafletMouseEvent);
-
-            // Prevent default cluster actions (like zooming which is impossible at max zoom)
-            // and stop the event from potentially propagating further.
-            L.DomEvent.stop((e as any).originalEvent);
-          } else {
-             console.warn('[MarkerCluster] Could not find originalItemData on single marker in cluster click.');
-          }
-        }
-      }
-      // Note: No 'else' needed here. If it's not max zoom or not a single marker,
-      // the default library behavior (zoomToBoundsOnClick or spiderfy) will occur,
-      // or the individual marker click (handled elsewhere) will fire on lower zooms.
+      // Removed specific max zoom handling for single clusters, as this component
+      // should only be active below zoom 14 according to WorldMap.tsx.
+      // Default library behavior (zoomToBoundsOnClick or spiderfy) handles cluster clicks.
+      // Individual marker clicks are handled directly on the marker now.
     };
 
 
@@ -214,8 +196,16 @@ const MarkerCluster = ({
       marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
 
       // Bind a simple popup with the item's name on click
-      // This replaces the previous onItemClick handler for these markers
-      marker.bindPopup(markerDef.name);
+      // Attach the primary click handler directly to the marker BEFORE adding to the cluster.
+      // This ensures clicks work even for single markers not forming a cluster visually.
+      marker.on('click', (e) => {
+          // Pass the original item data and the Leaflet mouse event
+          onItemClick(markerDef.originalItem, e.latlng, e);
+          // Temporarily removed stopPropagation for debugging
+          // L.DomEvent.stopPropagation(e);
+      });
+      // Remove bindPopup as onItemClick now handles opening the correct popup.
+      // marker.bindPopup(markerDef.name);
 
       // Attach userId for cluster icon logic (important!)
       // Attach data needed by iconCreateFunction for single-item clusters

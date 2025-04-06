@@ -369,12 +369,7 @@ const WorldMap = () => {
       // Reuse existing city marker click logic
       handleMarkerClick(item, event);
     } else { // It's a MapUser
-      // --- START: Zoom Level Check ---
-      // If zoom is 14 or higher, let the simple bindPopup in TileAggregateLayer handle the click
-      if (mapZoom >= 14) {
-        return; // Do nothing here, allow bindPopup to work
-      }
-      // --- END: Zoom Level Check ---
+      // Removed zoom level check for users to allow consistent popup behavior
 
       // Use the marker's actual position if provided, otherwise fall back to event or item coordinates
       const position = markerPosition ||
@@ -385,7 +380,7 @@ const WorldMap = () => {
 
       closeAllPopups();
 
-      // Content will be set later or dynamically if needed
+      // Render content immediately
 
       // Add fixed offset of 15px above the marker
       const popup = L.popup({
@@ -395,13 +390,12 @@ const WorldMap = () => {
         offset: [0, -15] // Add 15px vertical offset
       })
         .setLatLng(position) // Use the position from marker
-        .setContent('') // Set initial content to empty
+        .setContent(ReactDOMServer.renderToString(<UserInfoPopup user={item} onClose={closeAllPopups} />))
         .openOn(map);
 
-      popup.getElement()?.querySelector('#user-popup-close-btn')?.addEventListener('click', closeAllPopups);
-
+      // Store ref if needed, but remove state update as content is set directly
       userInfoPopupRef.current = popup;
-      setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef });
+      // setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef }); // No longer needed for content rendering
     }
   }, [handleMarkerClick, closeAllPopups, mapZoom]); // Added mapZoom dependency
 

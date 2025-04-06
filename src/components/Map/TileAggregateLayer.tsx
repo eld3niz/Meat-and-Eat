@@ -13,7 +13,7 @@ import { MarkerDefinition } from '../../utils/mapIconUtils'; // Keep MarkerDefin
 
 interface TileAggregateLayerProps {
   tileAggregationData: Map<string, TileData>;
-  onItemClick: (item: City | MapUser, position?: L.LatLng) => void; // Update to accept position
+  onItemClick: (item: City | MapUser, position?: L.LatLng, event?: L.LeafletMouseEvent) => void; // Allow event object
   onAggregateTileClick: (items: (City | MapUser)[], position: L.LatLng) => void; // Update to accept position
   currentUserId: string | null;
   currentUserLocation: L.LatLng | null;
@@ -115,7 +115,7 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
       } else if (items.length === 1) {
         // --- Single Item Tile ---
         const item = items[0];
-        // let tooltipText = item.name; // Tooltips are removed anyway
+        // Tooltips are removed
 
         // Create a MarkerDefinition object to pass to the shared icon function
         const markerDef: MarkerDefinition = {
@@ -136,23 +136,30 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
           icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
         }
 
-        // Assign the click handler
-
+        // Click handler is now defined inline below when attaching to marker
         // Check if marker exists and update, otherwise create new
         if (currentMarkers[tileId]) {
           marker = currentMarkers[tileId];
           marker.setLatLng(finalPosition); // <-- Use finalPosition
           marker.setIcon(icon);
-          marker.off('click'); // Remove previous click handler if any
+          // Define handler inline to avoid type conflict and pass event
+          marker.off('click').on('click', (e: L.LeafletMouseEvent) => {
+              onItemClick(item, finalPosition, e);
+              // Temporarily removed stopPropagation for debugging
+              // L.DomEvent.stopPropagation(e);
+          });
         } else {
           marker = L.marker(finalPosition, { icon: icon }); // <-- Use finalPosition
+          // Define handler inline for new markers
+          marker.on('click', (e: L.LeafletMouseEvent) => {
+              onItemClick(item, finalPosition, e);
+              // Temporarily removed stopPropagation for debugging
+              // L.DomEvent.stopPropagation(e);
+          });
           layer.addLayer(marker);
+        // Removed duplicate else block from previous incorrect diff application
         }
-        // Add/Update tooltip - REMOVED
-        // Add tooltip using the name from markerDef
-        // Bind the popup directly
-        marker.bindPopup(markerDef.name);
-
+        // Popup is handled by onItemClick (handleItemClick in WorldMap)
       } else {
         // --- Aggregate Tile ---
         icon = createAggregateIcon(items.length, containsCurrentUser);
