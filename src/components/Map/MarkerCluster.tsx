@@ -46,6 +46,35 @@ const MarkerCluster = ({
     iconCreateFunction: (cluster: L.MarkerCluster) => {
       const childCount = cluster.getChildCount();
       const childMarkers = cluster.getAllChildMarkers();
+
+      // --- START: Handle single marker case ---
+      if (childCount === 1) {
+        // If there's only one marker, return its original icon
+        const singleMarker = childMarkers[0];
+        // Ensure the marker and its options/icon exist before returning
+        if (singleMarker && singleMarker.options && singleMarker.options.icon) {
+            // We need to return the icon itself, not create a new one.
+            // The library handles using the original marker's icon when singleMarkerMode is true.
+            // However, to force it here if singleMarkerMode isn't working as expected,
+            // we might need a different approach or ensure singleMarkerMode is truly active.
+            // For now, let's assume singleMarkerMode *should* work and this function
+            // should ideally not be called for count=1. If it IS called, returning
+            // the original icon *might* work depending on internal library details,
+            // but the standard way is relying on singleMarkerMode.
+            // Let's log a warning if this case is hit unexpectedly.
+            console.warn("iconCreateFunction called for childCount=1 despite singleMarkerMode=true. Returning original icon.", singleMarker.options.icon);
+            return singleMarker.options.icon;
+        }
+        // Fallback if icon somehow isn't found (shouldn't happen)
+        // Create a minimal default icon or handle error appropriately
+        console.error("Could not retrieve original icon for single marker cluster.");
+        // Return a default divIcon or handle error
+         return L.divIcon({ html: '?', className: 'leaflet-marker-icon', iconSize: [20, 20] });
+      }
+      // --- END: Handle single marker case ---
+
+
+      // --- Logic for multi-item clusters (childCount > 1) ---
       const sizeClass = 'w-8 h-8 text-xs'; // Uniform size
       const sizeValue = 32; // w-8 -> 32px
       let html = '';
