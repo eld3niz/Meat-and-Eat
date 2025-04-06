@@ -101,7 +101,7 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, p
 
         {/* Next Button */}
         <Button
-           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 text-center"
+           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 flex items-center justify-center" // Added flex for centering
            onClick={nextSlide} // Call nextSlide now
         >
           Weiter

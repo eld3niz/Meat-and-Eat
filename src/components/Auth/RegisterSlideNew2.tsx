@@ -57,7 +57,7 @@ const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, n
           onClick={prevSlide}
           className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center"
         >
-          Back
+          Zurück
         </Button>
         
         {/* Slide Indicator */}
@@ -67,10 +67,10 @@ const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, n
 
         {/* Next Button */}
         <Button
-           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 text-center"
+           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 flex items-center justify-center" // Added flex for centering
            onClick={nextSlide}
         >
-          Next
+          Weiter
         </Button>
       </div>
     </div>
