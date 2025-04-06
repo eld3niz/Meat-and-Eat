@@ -384,18 +384,17 @@ const WorldMap = () => {
 
       // Add fixed offset of 15px above the marker
       const popup = L.popup({
-        closeButton: false,
-        minWidth: 100,
-        className: 'custom-leaflet-popup',
-        offset: [0, -15] // Add 15px vertical offset
+        closeButton: true, // Enable close button for empty popup
+        // Removed minWidth and className to match aggregate popup appearance
+        offset: [0, -15] // Keep vertical offset
       })
         .setLatLng(position) // Use the position from marker
-        .setContent(ReactDOMServer.renderToString(<UserInfoPopup user={item} onClose={closeAllPopups} />))
+        .setContent('') // Set content to empty string as requested
         .openOn(map);
 
       // Store ref if needed, but remove state update as content is set directly
       userInfoPopupRef.current = popup;
-      // setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef }); // No longer needed for content rendering
+      // setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef }); // State update not needed for empty popup
     }
   }, [handleMarkerClick, closeAllPopups, mapZoom]); // Added mapZoom dependency
 
