@@ -305,7 +305,6 @@ const WorldMap = () => {
 
   }, [userCoordinates, handleDistanceFilter]); // Dependencies updated
 
-// This block is intentionally left empty to effectively "cut" the code.
   // Handler to zoom the map to the current distance filter radius around the user
   const handleZoomToRadius = useCallback(() => {
     const map = mapRef.current;
@@ -335,67 +334,67 @@ const WorldMap = () => {
   }, [resetFilters, closeAllPopups]); // Added closeAllPopups
 
   // --- Unified Item Click Handler (for markers at tile centers) ---
-  const handleItemClick = useCallback((item: City | MapUser, event: L.LeafletMouseEvent) => { // Add event parameter
+  const handleItemClick = useCallback((item: City | MapUser, markerPosition?: L.LatLng, event?: L.LeafletMouseEvent) => {
     if ('population' in item) { // It's a City
-      // Reuse existing city marker click logic, passing the event
+      // Reuse existing city marker click logic
       handleMarkerClick(item, event);
     } else { // It's a MapUser
-      // Use logic from handleSingleUserTileClick
+      // Use the marker's actual position if provided, otherwise fall back to event or item coordinates
+      const position = markerPosition || 
+                      (event ? event.latlng : L.latLng(item.latitude, item.longitude));
+      
       const map = mapRef.current;
       if (!map) return;
 
-      closeAllPopups(); // Close other popups
-
-      // Use the actual click event's LatLng for the popup position
-      const clickLatLng = event.latlng;
-
+      closeAllPopups();
 
       const content = ReactDOMServer.renderToString(
-        // Pass closeAllPopups to handle state clearing and ref removal
         <UserInfoPopup user={item} onClose={closeAllPopups} />
       );
 
-      // Add className for custom styling, ensure closeButton is false
-      const popup = L.popup({ closeButton: false, minWidth: 100, className: 'custom-leaflet-popup' })
-        .setLatLng(clickLatLng) // Use click location for popup position
+      // Add fixed offset of 15px above the marker
+      const popup = L.popup({ 
+        closeButton: false, 
+        minWidth: 100, 
+        className: 'custom-leaflet-popup',
+        offset: [0, -15] // Add 15px vertical offset
+      })
+        .setLatLng(position) // Use the position from marker
         .setContent(content)
         .openOn(map);
 
-      // Add DOM listener for custom close button
       popup.getElement()?.querySelector('#user-popup-close-btn')?.addEventListener('click', closeAllPopups);
 
-      userInfoPopupRef.current = popup; // Store reference
-      // Note: marker instance isn't directly available here, adjust if needed
-      setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef }); // Track open user popup
+      userInfoPopupRef.current = popup;
+      setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef });
     }
-  }, [handleMarkerClick, closeAllPopups]); // Dependencies
+  }, [handleMarkerClick, closeAllPopups]);
 
   // --- Handler for clicking an aggregate marker representing a tile ---
-  const handleAggregateTileClick = useCallback((items: (City | MapUser)[], tileCenter: L.LatLng) => {
-      const map = mapRef.current;
-      if (!map) return;
+  const handleAggregateTileClick = useCallback((items: (City | MapUser)[], markerPosition: L.LatLng) => {
+    const map = mapRef.current;
+    if (!map) return;
 
-      closeAllPopups(); // Close other popups
+    closeAllPopups();
 
-      // --- Modification: Create an empty popup ---
-      // Comment out the rendering of TileListPopup to prevent content display
-      // const content = ReactDOMServer.renderToString(
-      //   <TileListPopup items={items} onClose={closeAllPopups} />
-      // );
+    // Create the popup at the marker's position with offset
+    const popup = L.popup({ 
+      closeButton: true,
+      offset: [0, -15] // Add 15px vertical offset
+    })
+      .setLatLng(markerPosition) // Use actual marker position
+      .setContent('') // Set content to an empty string as before
+      .openOn(map);
 
-      // Create the popup with default close button and explicitly empty content
-      const popup = L.popup({ closeButton: true }) // Ensure default close button is enabled
-        .setLatLng(tileCenter)
-        .setContent('') // Set content to an empty string
-        .openOn(map);
+    aggregatePopupRef.current = popup;
+    setOpenPopupData({ 
+      type: 'aggregate', 
+      items, 
+      center: markerPosition, // Store the marker position
+      ref: aggregatePopupRef 
+    });
+  }, [closeAllPopups]);
 
-      // Remove listener logic for the custom close button from TileListPopup
-      // popup.getElement()?.querySelector('#tile-popup-close-btn')?.addEventListener('click', closeAllPopups);
-
-      aggregatePopupRef.current = popup; // Store reference
-      // Track the open popup state (items are kept for potential future use, but not displayed)
-      setOpenPopupData({ type: 'aggregate', items, center: tileCenter, ref: aggregatePopupRef });
-    }, [closeAllPopups]);
   // --- Memos (Defined after state, before early returns) ---
 
   // Note: filteredCities from useMapData already includes distance filtering
@@ -741,12 +740,12 @@ const WorldMap = () => {
               />
             ) : (
               <TileAggregateLayer
-                tileAggregationData={tileAggregationData} // Raw tile data
-                onItemClick={() => {}} // Disabled click handler for single items in TileAggregateLayer
-                onAggregateTileClick={handleAggregateTileClick} // Use existing handler for tile popups
+                tileAggregationData={tileAggregationData}
+                onItemClick={handleItemClick} // Updated handler accepts position
+                onAggregateTileClick={handleAggregateTileClick} // Updated handler accepts position
                 currentUserId={user?.id ?? null}
-                currentUserLocation={userCoordinates ? L.latLng(userCoordinates[0], userCoordinates[1]) : null} // Pass user location
-                distanceRadius={distanceRadius} // Pass distance radius
+                currentUserLocation={userCoordinates ? L.latLng(userCoordinates[0], userCoordinates[1]) : null}
+                distanceRadius={distanceRadius}
               />
             )}
             {/* --- End Conditional Rendering --- */}

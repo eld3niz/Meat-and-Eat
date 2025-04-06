@@ -11,11 +11,11 @@ import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon';
 
 interface TileAggregateLayerProps {
   tileAggregationData: Map<string, TileData>;
-  onItemClick: (item: City | MapUser) => void;
-  onAggregateTileClick: (items: (City | MapUser)[], tileCenter: L.LatLng) => void;
+  onItemClick: (item: City | MapUser, position?: L.LatLng) => void; // Update to accept position
+  onAggregateTileClick: (items: (City | MapUser)[], position: L.LatLng) => void; // Update to accept position
   currentUserId: string | null;
-  currentUserLocation: L.LatLng | null; // <-- Add user location prop
-  distanceRadius: number | null; // <-- Add distance radius prop (in km)
+  currentUserLocation: L.LatLng | null;
+  distanceRadius: number | null;
 }
 
 const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
@@ -117,10 +117,10 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
 
         if ('population' in item) { // It's a City
           icon = createSvgMarkerIcon(item.population);
-          clickHandler = () => onItemClick(item);
+          clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick
         } else { // It's a MapUser
           icon = item.user_id === currentUserId ? currentUserIconRed : otherUserIconBlue;
-          clickHandler = () => onItemClick(item);
+          clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick
           if (item.user_id === currentUserId) {
             tooltipText = "Your Location"; // Override tooltip for current user
           }
@@ -143,8 +143,8 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
       } else {
         // --- Aggregate Tile ---
         icon = createAggregateIcon(items.length, containsCurrentUser);
-        // Pass the *original* tileCenter to the click handler for context
-        clickHandler = () => onAggregateTileClick(items, tileCenter);
+        // Pass the marker's actual position to the click handler for context
+        clickHandler = () => onAggregateTileClick(items, finalPosition); // Use finalPosition instead of tileCenter
 
         if (currentMarkers[tileId]) {
           marker = currentMarkers[tileId];

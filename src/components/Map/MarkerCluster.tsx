@@ -24,8 +24,8 @@ interface MarkerDefinition {
 // Use types from @types/leaflet.markercluster
 
 interface MarkerClusterProps {
-  markersData: MarkerDefinition[]; // <-- New prop for pre-processed markers
-  onItemClick: (item: City | MapUser, event: L.LeafletMouseEvent) => void; // <-- Pass event too
+  markersData: MarkerDefinition[];
+  onItemClick: (item: City | MapUser, event: L.LeafletMouseEvent) => void; // Keep passing the event
   onMarkerMouseOver: (city: City) => void; // City-specific mouseover handler
   onMarkerMouseOut: () => void;
   activeCityId: number | null;
@@ -155,7 +155,7 @@ const MarkerCluster = ({
       marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
 
       // Attach unified click handler using the original item data
-      marker.on('click', (e) => onItemClick(markerDef.originalItem, e)); // Pass event 'e'
+      marker.on('click', (e) => onItemClick(markerDef.originalItem, e)); // Pass event
 
       // Attach userId for cluster icon logic (important!)
       (marker as any).userId = markerDef.userId;
