@@ -85,7 +85,7 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         throw new Error(`Profile creation failed: ${profileError.message}`);
       }
 
-      console.log('Registration successful:', authData.user);
+      // console.log('Registration successful:', authData.user);
       
       // Call the success callback if provided
       if (onSuccess) {

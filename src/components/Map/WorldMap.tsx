@@ -629,7 +629,7 @@ const WorldMap = () => {
         });
       } else {
         // Tile is gone or empty, close the popup
-        console.log(`Closing aggregate popup for tile ${tileId} as it's now empty.`);
+        // console.log(`Closing aggregate popup for tile ${tileId} as it's now empty.`);
         currentPopupRef.current?.remove();
         currentPopupRef.current = null;
         setOpenPopupData(null);

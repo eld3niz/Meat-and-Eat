@@ -54,7 +54,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
       // You can store session info in localStorage or a context for app-wide access
       localStorage.setItem('supabase_session', JSON.stringify(session));
       
-      console.log('Login successful', data.user);
+      // console.log('Login successful', data.user);
       onSuccess();
     } catch (error: any) {
       // Error handling

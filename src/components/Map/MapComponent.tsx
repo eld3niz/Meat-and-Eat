@@ -48,7 +48,7 @@ const MapComponent = ({ allMarkers, selectedRadius, ...props }) => {
             ? data.filter(loc => loc.user_id !== user.id) 
             : data;
           setUserLocations(otherUsersLocations);
-          console.log('Fetched user locations:', otherUsersLocations);
+          // console.log('Fetched user locations:', otherUsersLocations);
         }
       } catch (error) {
         console.error('Error fetching user locations:', error.message);
@@ -132,7 +132,7 @@ const MapComponent = ({ allMarkers, selectedRadius, ...props }) => {
             longitude: position.longitude
           });
       }
-      console.log('User location stored successfully');
+      // console.log('User location stored successfully');
     } catch (error) {
       console.error('Error storing user location:', error);
     }

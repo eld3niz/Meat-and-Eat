@@ -129,7 +129,7 @@ const MarkerCluster = ({
       const currentZoom = map.getZoom();
       const maxZoom = map.getMaxZoom();
 
-      console.log(`[MarkerCluster] Cluster clicked. Zoom: ${currentZoom}, MaxZoom: ${maxZoom}, ChildCount: ${cluster.getChildCount()}`); // DEBUG
+      // console.log(`[MarkerCluster] Cluster clicked. Zoom: ${currentZoom}, MaxZoom: ${maxZoom}, ChildCount: ${cluster.getChildCount()}`); // DEBUG
 
       // Check if it's max zoom and a single marker cluster
       if (currentZoom === maxZoom && cluster.getChildCount() === 1) {
@@ -137,7 +137,7 @@ const MarkerCluster = ({
         if (childMarkers.length > 0) {
           const singleMarker = childMarkers[0] as any; // Cast to any to access custom property
           if (singleMarker.originalItemData) {
-            console.log('[MarkerCluster] Max zoom single marker cluster clicked, triggering onItemClick manually.'); // DEBUG
+            // console.log('[MarkerCluster] Max zoom single marker cluster clicked, triggering onItemClick manually.'); // DEBUG
             // Manually trigger onItemClick with the stored data
             // Use cluster's LatLng and attempt to cast originalEvent
             onItemClick(singleMarker.originalItemData, e.layer.getLatLng(), (e as any).originalEvent as L.LeafletMouseEvent);
@@ -215,7 +215,7 @@ const MarkerCluster = ({
 
       // Attach unified click handler using the original item data
       marker.on('click', (e) => {
-        console.log('[MarkerCluster] Marker clicked:', markerDef.originalItem, 'at', e.latlng); // DEBUG: Log marker click
+        // console.log('[MarkerCluster] Marker clicked:', markerDef.originalItem, 'at', e.latlng); // DEBUG: Log marker click
         onItemClick(markerDef.originalItem, e.latlng, e); // Pass item, position, and event
       });
 

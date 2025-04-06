@@ -83,7 +83,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
       await new Promise(resolve => setTimeout(resolve, 1000));
       
       // Erfolgreiche Registrierung
-      console.log('Registrierung erfolgreich mit:', formData);
+      // console.log('Registrierung erfolgreich mit:', formData);
       // onSuccess(); // Prevent closing modal after registration
     } catch (error) {
       // Fehlerbehandlung

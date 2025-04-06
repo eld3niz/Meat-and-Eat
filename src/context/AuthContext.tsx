@@ -46,7 +46,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         .update({ location_access: accessGranted, updated_at: new Date().toISOString() })
         .eq('id', userId);
       if (profileError) throw profileError;
-      console.log(`[AuthContext] User profile access updated to ${accessGranted}. Location ${accessGranted ? 'updated' : 'not updated'}.`);
+      // console.log(`[AuthContext] User profile access updated to ${accessGranted}. Location ${accessGranted ? 'updated' : 'not updated'}.`);
     } catch (error: any) {
       console.error('[AuthContext] Error updating user location/profile:', error.message);
     }
@@ -64,11 +64,11 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       return;
     }
 
-    console.log('[AuthContext] Fetching coordinates for user:', userId);
-    console.log('[AuthContext] Fetching coordinates for user:', userId);
+    // console.log('[AuthContext] Fetching coordinates for user:', userId);
+    // console.log('[AuthContext] Fetching coordinates for user:', userId);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        console.log('[AuthContext] Coordinates fetched successfully.');
+        // console.log('[AuthContext] Coordinates fetched successfully.');
         const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
         // Ensure status is granted before setting coords (might have changed rapidly)
         setLocationPermissionStatus(prevStatus => {
@@ -105,7 +105,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // The actual coordinate fetching is handled by the permission change listener or initial check.
   const requestLocationPermission = useCallback(async () => {
     if (user) {
-      console.log("[AuthContext] requestLocationPermission called by UI.");
+      // console.log("[AuthContext] requestLocationPermission called by UI.");
       // Re-fetch coordinates which implicitly triggers prompt if needed
       await fetchCoordinates(user.id);
     } else {
@@ -131,7 +131,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // --- Listener for Auth State Changes ---
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (_event, newSession) => {
-        console.log('[AuthContext] Auth state changed:', _event);
+        // console.log('[AuthContext] Auth state changed:', _event);
         setSession(newSession);
         setUser(newSession?.user ?? null);
         setError(null);
@@ -169,7 +169,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
     const handlePermissionChange = () => {
       if (!permissionStatus) return;
-      console.log('[AuthContext] Geolocation permission changed to:', permissionStatus.state);
+      // console.log('[AuthContext] Geolocation permission changed to:', permissionStatus.state);
       const newState = permissionStatus.state;
 
       if (newState === 'granted') {
