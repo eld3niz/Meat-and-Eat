@@ -23,6 +23,38 @@ interface MarkerDefinition {
 
 // Use types from @types/leaflet.markercluster
 
+// Helper function to create styled divIcon for single markers (mimicking clusters)
+const createSingleMarkerClusterIcon = (markerDef: MarkerDefinition, currentUserId: string | null): L.DivIconOptions => {
+  const isCurrentUser = markerDef.type === 'user' && markerDef.userId === currentUserId;
+  // const isOtherUser = markerDef.type === 'user' && !isCurrentUser; // Not needed for color logic below
+  // const isCity = markerDef.type === 'city'; // Not needed for color logic below
+
+  const sizeClass = 'w-8 h-8 text-xs'; // Match cluster size
+  const sizeValue = 32; // w-8 -> 32px
+
+  let bgColorClass = '';
+  // Determine background color based on user status or default blue
+  if (isCurrentUser) {
+      bgColorClass = 'bg-red-500 border-red-600'; // Red for current user
+  } else {
+      bgColorClass = 'bg-blue-500 border-blue-600'; // Blue for cities and other users
+  }
+
+  // For single markers, we don't display a count, just the styled circle.
+  // An empty span is used; the div provides the visual styling.
+  const iconHtml = `<span>1</span>`; // Display '1' for single markers
+
+  const html = `<div class="flex items-center justify-center ${sizeClass} ${bgColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md">${iconHtml}</div>`;
+
+  return {
+    html: html,
+    className: 'marker-cluster-custom', // Use the same base class as clusters
+    iconSize: L.point(sizeValue, sizeValue),
+    iconAnchor: L.point(sizeValue / 2, sizeValue / 2)
+  };
+};
+
+
 interface MarkerClusterProps {
   markersData: MarkerDefinition[];
   onItemClick: (item: City | MapUser, position?: L.LatLng, event?: L.LeafletMouseEvent) => void;
@@ -138,18 +170,23 @@ const MarkerCluster = ({
       let marker: L.Marker;
       let icon: L.Icon | L.DivIcon;
 
-      // Determine icon based on type and current user status
-      if (markerDef.type === 'city') {
-        icon = createSvgMarkerIcon(markerDef.population ?? 0); // Use population if available
-      } else { // markerDef.type === 'user'
-        icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
-      }
+      // --- Create icon mimicking cluster style for single markers ---
+      // Use the helper function to generate a divIcon styled like a cluster
+      const iconOptions = createSingleMarkerClusterIcon(markerDef, currentUserId);
+      icon = L.divIcon(iconOptions);
+
+      // --- Original Icon Logic (Replaced by the above) ---
+      // if (markerDef.type === 'city') {
+      //   icon = createSvgMarkerIcon(markerDef.population ?? 0);
+      // } else { // markerDef.type === 'user'
+      //   icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
+      // }
 
       // Create marker at the provided tile center coordinates
       marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
 
       // Attach unified click handler using the original item data
-      marker.on('click', (e) => onItemClick(markerDef.originalItem, e)); // Pass event
+      marker.on('click', (e) => onItemClick(markerDef.originalItem, e.latlng, e)); // Pass item, position, and event
 
       // Attach userId for cluster icon logic (important!)
       (marker as any).userId = markerDef.userId;
