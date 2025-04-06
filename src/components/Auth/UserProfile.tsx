@@ -40,8 +40,11 @@ const UserProfile = () => {
 
   const [updateMessage, setUpdateMessage] = useState({ type: '', text: '' });
   // State for avatar
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null); // Stores the currently SAVED avatar URL
+  const [uploadingAvatar, setUploadingAvatar] = useState(false); // For upload/remove status during save/remove
+  // New state for edit mode preview & file selection
+  const [editAvatarFile, setEditAvatarFile] = useState<File | null>(null);
+  const [editAvatarPreviewUrl, setEditAvatarPreviewUrl] = useState<string | null>(null);
   // State for password change
   const [showPasswordChange, setShowPasswordChange] = useState(false);
   const [newPassword, setNewPassword] = useState('');
@@ -58,7 +61,7 @@ const UserProfile = () => {
   const fetchProfile = async () => {
     try {
       setLoading(true);
-      
+
       if (!user?.id) return;
 
       const { data, error } = await supabase
@@ -83,7 +86,9 @@ const UserProfile = () => {
         setEditIsLocal(data.is_local);
         setEditBudget(data.budget);
         setEditBio(data.bio || '');
-        setAvatarUrl(data.avatar_url); // Set avatar URL state
+        // Set avatar state
+        setAvatarUrl(data.avatar_url);
+        setEditAvatarPreviewUrl(data.avatar_url); // Initialize preview with the currently saved URL
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -114,39 +119,92 @@ const UserProfile = () => {
   const removeCuisine = (cuisineToRemove: string) => {
     setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
   };
-  
 
+
+  // Handle Save Changes (including potential avatar upload)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+    setUploadingAvatar(true); // Indicate loading for potential avatar ops
+    setUpdateMessage({ type: '', text: '' });
+
+    if (!user?.id) {
+      setUploadingAvatar(false);
+      return;
+    }
+
     try {
-      setUpdateMessage({ type: '', text: '' });
-      
-      if (!user?.id) return;
+      let newAvatarUrl = avatarUrl; // Start with the current URL
+      let uploadedFilePath: string | null = null; // Track path for potential cleanup
 
-      // Update languages, cuisines, and new fields
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          languages: selectedLanguages,
-          cuisines: selectedCuisines,
-          is_local: editIsLocal,
-          budget: editBudget,
-          bio: editBio,
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id);
+      // 1. Handle Avatar Upload (if a new file was selected during edit)
+      if (editAvatarFile) {
+        const file = editAvatarFile;
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`; // Random name
+        const filePath = `${user.id}/${fileName}`;
+        uploadedFilePath = filePath; // Store for potential cleanup
 
-      if (error) {
-        throw error;
+        // Perform the upload
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(filePath, file); // Use plain upload, RLS handles permissions
+
+        if (uploadError) {
+          throw new Error(`Avatar upload failed: ${uploadError.message}`);
+        }
+
+        // Get public URL after successful upload
+        const { data: urlData } = supabase.storage.from('avatars').getPublicUrl(filePath);
+        if (!urlData?.publicUrl) {
+          // Attempt cleanup if URL retrieval fails
+          if (uploadedFilePath) await supabase.storage.from('avatars').remove([uploadedFilePath]);
+          throw new Error('Failed to get public URL for uploaded avatar.');
+        }
+        newAvatarUrl = urlData.publicUrl; // This is the URL to save in the profile
       }
 
-      await fetchProfile();
-      setEditMode(false);
+      // 2. Prepare Profile Data to Update
+      // Include avatar_url only if a new file was successfully uploaded
+      const profileUpdates: Partial<ProfileData> & { updated_at: string } = {
+        languages: selectedLanguages,
+        cuisines: selectedCuisines,
+        is_local: editIsLocal,
+        budget: editBudget,
+        bio: editBio,
+        updated_at: new Date().toISOString(),
+        ...(editAvatarFile && { avatar_url: newAvatarUrl }), // Conditionally add avatar_url
+      };
+
+      // 3. Update Profile Table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update(profileUpdates)
+        .eq('id', user.id);
+
+      if (profileError) {
+        // If profile update fails after a *new* avatar was uploaded, try removing the orphaned file
+        if (editAvatarFile && uploadedFilePath) {
+           console.warn('Profile update failed after avatar upload. Attempting to remove orphaned avatar:', uploadedFilePath);
+           await supabase.storage.from('avatars').remove([uploadedFilePath]);
+        }
+        throw profileError; // Throw the original profile update error
+      }
+
+      // 4. Update Local State (Crucial for immediate UI update)
+      setAvatarUrl(newAvatarUrl); // Update the main display URL state
+      // Update profile state - merge existing profile with updates and the potentially new avatar URL
+      setProfile(prev => prev ? { ...prev, ...profileUpdates, avatar_url: newAvatarUrl } : null);
+      setEditAvatarFile(null); // Clear the selected file state
+      setEditAvatarPreviewUrl(newAvatarUrl); // Ensure preview matches the new saved URL
+
+      setEditMode(false); // Exit edit mode
       setUpdateMessage({ type: 'success', text: 'Profile updated successfully!' });
+
     } catch (error: any) {
       console.error('Error updating profile:', error);
       setUpdateMessage({ type: 'error', text: error.message || 'Failed to update profile' });
+    } finally {
+      setUploadingAvatar(false); // Finish loading indicator
     }
   };
 
@@ -154,7 +212,6 @@ const UserProfile = () => {
   const handleDeleteProfile = async () => {
     if (!user || !profile) return;
 
-    // Use window.confirm for a simple confirmation dialog
     const confirmation = window.confirm(
       'Are you sure you want to delete your profile? This action cannot be undone and will remove all your data.'
     );
@@ -162,47 +219,46 @@ const UserProfile = () => {
     if (confirmation) {
       try {
         setLoading(true);
-        // 1. Delete profile data from 'profiles' table
-        // Ensure RLS policy "Users can delete own profile" exists in Supabase
+        // 1. Delete profile data
         const { error: profileDeleteError } = await supabase
           .from('profiles')
           .delete()
           .eq('id', user.id);
-
         if (profileDeleteError) throw profileDeleteError;
 
-        // 2. Optionally delete related data (e.g., user_locations) if needed
-        // Example:
-        // const { error: locationDeleteError } = await supabase
-        //   .from('user_locations')
-        //   .delete()
-        //   .eq('user_id', user.id);
-        // if (locationDeleteError) console.error('Error deleting locations:', locationDeleteError);
+        // 2. Optionally delete avatar from storage (best effort)
+        if (avatarUrl) {
+           try {
+             // Attempt to extract path - THIS IS FRAGILE, depends on URL structure
+             const urlParts = avatarUrl.split('/avatars/');
+             if (urlParts.length > 1) {
+               const filePath = urlParts[1];
+               console.log('Attempting to remove avatar from storage:', filePath);
+               await supabase.storage.from('avatars').remove([filePath]);
+             }
+           } catch (storageError) {
+             console.error("Failed to remove avatar from storage during profile deletion:", storageError);
+             // Don't block profile deletion if storage removal fails
+           }
+        }
 
-        // 3. Delete the user from Supabase Auth
-        // IMPORTANT: This requires elevated privileges and should ideally be handled
-        // by a secure Supabase Edge Function ('rpc' call) to avoid exposing service keys
-        // on the client-side. For this example, we'll log a warning and proceed with sign-out.
-        // In a production app, implement a Supabase Function for this step.
+        // 3. Delete Auth User (Requires server-side handling or elevated privileges)
         console.warn(`Profile data for user ${user.id} deleted. Auth user deletion should be handled server-side.`);
-        // Example of calling a hypothetical function:
         // const { error: authDeleteError } = await supabase.rpc('delete_user_account');
         // if (authDeleteError) throw authDeleteError;
 
-
-        // 4. Sign out the user locally
+        // 4. Sign out locally
         await signOut();
 
-        // 5. Redirect to home page or login page
+        // 5. Redirect
         setUpdateMessage({ type: 'success', text: 'Profile deleted successfully.' });
-        window.location.assign('/'); // Redirect using standard browser API
+        window.location.assign('/');
 
       } catch (error: any) {
         console.error('Error deleting profile:', error);
         setUpdateMessage({ type: 'error', text: error.message || 'Failed to delete profile' });
-        setLoading(false); // Ensure loading state is reset on error
+        setLoading(false);
       }
-      // No finally block needed here as navigation happens on success
     }
   };
 
@@ -217,7 +273,7 @@ const UserProfile = () => {
       setPasswordLoading(false);
       return;
     }
-    if (newPassword.length < 6) { // Basic check, align with Supabase default
+    if (newPassword.length < 6) {
       setPasswordUpdateMessage({ type: 'error', text: 'Password must be at least 6 characters long.' });
       setPasswordLoading(false);
       return;
@@ -230,7 +286,7 @@ const UserProfile = () => {
       setPasswordUpdateMessage({ type: 'success', text: 'Password updated successfully!' });
       setNewPassword('');
       setConfirmPassword('');
-      setShowPasswordChange(false); // Hide form on success
+      setShowPasswordChange(false);
     } catch (error: any) {
       console.error('Error updating password:', error);
       setPasswordUpdateMessage({ type: 'error', text: error.message || 'Failed to update password.' });
@@ -239,73 +295,100 @@ const UserProfile = () => {
     }
   };
 
-  // Handle avatar upload
-  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      setUploadingAvatar(true);
-      setUpdateMessage({ type: '', text: '' }); // Clear previous messages
+  // Handle avatar file SELECTION and preview generation
+  const handleAvatarSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setUpdateMessage({ type: '', text: '' });
+    setEditAvatarFile(null); // Reset file state initially
+    // Don't reset preview here, let it show the old one until new one loads
 
-      if (!event.target.files || event.target.files.length === 0) {
-        throw new Error('You must select an image to upload.');
-      }
-      if (!user?.id) {
-        throw new Error('User not logged in.');
-      }
-
+    if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Math.random()}.${fileExt}`; // Use random name to prevent caching issues
-      const filePath = `${user.id}/${fileName}`; // Store under user's ID folder
 
-      // Upload file to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('avatars') // Use the bucket name you created
-        .upload(filePath, file); // Remove upsert: true for testing pure INSERT policy
-
-      if (uploadError) {
-        throw uploadError;
+      // Validation
+      const allowedTypes = ['image/png', 'image/jpeg', 'image/gif'];
+      if (!allowedTypes.includes(file.type)) {
+        setUpdateMessage({ type: 'error', text: 'Invalid file type (PNG, JPG, GIF only).' });
+        event.target.value = '';
+        return;
+      }
+      const maxSize = 5 * 1024 * 1024; // 5MB
+      if (file.size > maxSize) {
+        setUpdateMessage({ type: 'error', text: 'File too large (Max 5MB).' });
+        event.target.value = '';
+        return;
       }
 
-      // Get the public URL (adjust if your bucket is private and requires signed URLs)
-      const { data: urlData } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(filePath);
+      // Set file state
+      setEditAvatarFile(file);
 
-      if (!urlData?.publicUrl) {
-        // Attempt to clean up if URL retrieval fails but upload succeeded
-        await supabase.storage.from('avatars').remove([filePath]);
-        throw new Error('Failed to get public URL for the uploaded avatar.');
-      }
-      const newAvatarUrl = urlData.publicUrl;
+      // Generate preview URL
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditAvatarPreviewUrl(reader.result as string); // Update preview
+      };
+      reader.readAsDataURL(file);
 
-      // Update the profile table with the new avatar_url
+    } else {
+        // If selection was cancelled, reset preview to current saved URL
+        setEditAvatarPreviewUrl(avatarUrl);
+    }
+    // Reset input value so the same file can be selected again
+    event.target.value = '';
+  };
+
+   // Handle removing the avatar
+   const handleRemoveAvatar = async () => {
+    // Can only remove if there's a currently saved avatar URL or a preview URL
+    if (!user?.id || !editAvatarPreviewUrl) return;
+
+    const confirmation = window.confirm("Are you sure you want to remove your profile picture?");
+    if (!confirmation) return;
+
+    setUploadingAvatar(true); // Use same loading state
+    setUpdateMessage({ type: '', text: '' });
+
+    try {
+      // 1. Update profile table to set avatar_url to null
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ avatar_url: newAvatarUrl, updated_at: new Date().toISOString() })
+        .update({ avatar_url: null, updated_at: new Date().toISOString() })
         .eq('id', user.id);
 
-      if (updateError) {
-        // Attempt to clean up storage if profile update fails
-        await supabase.storage.from('avatars').remove([filePath]);
-        throw updateError;
+      if (updateError) throw updateError;
+
+      // 2. Attempt to remove file from storage (best effort, path extraction is fragile)
+      // Only attempt removal if there was a previously saved avatarUrl
+      if (avatarUrl) {
+        try {
+          const urlParts = avatarUrl.split('/avatars/'); // Assumes '/avatars/' is in the path
+          if (urlParts.length > 1) {
+            const filePath = urlParts[1];
+            console.log('Attempting to remove avatar file from storage:', filePath);
+            await supabase.storage.from('avatars').remove([filePath]);
+          } else {
+            console.warn("Could not extract file path from avatar URL for removal:", avatarUrl);
+          }
+        } catch (storageError) {
+          console.error("Error removing avatar file from storage (proceeding anyway):", storageError);
+          // Don't block the UI update if storage removal fails
+        }
       }
 
-      // Update local state
-      setAvatarUrl(newAvatarUrl);
-      setProfile(prev => prev ? { ...prev, avatar_url: newAvatarUrl } : null); // Update profile state too
-      setUpdateMessage({ type: 'success', text: 'Avatar updated successfully!' });
+      // 3. Update local state immediately for UI feedback
+      setAvatarUrl(null); // Clear the saved URL state
+      setEditAvatarPreviewUrl(null); // Clear the preview
+      setEditAvatarFile(null); // Clear any selected file
+      setProfile(prev => prev ? { ...prev, avatar_url: null } : null); // Update profile state
+      setUpdateMessage({ type: 'success', text: 'Avatar removed.' });
 
     } catch (error: any) {
-      console.error('Error uploading avatar:', error);
-      setUpdateMessage({ type: 'error', text: error.message || 'Failed to upload avatar.' });
+      console.error('Error removing avatar:', error);
+      setUpdateMessage({ type: 'error', text: error.message || 'Failed to remove avatar.' });
     } finally {
       setUploadingAvatar(false);
-      // Reset the file input value so the same file can be selected again if needed
-      if (event.target) {
-        event.target.value = '';
-      }
     }
   };
+
 
   if (loading) {
     return (
@@ -319,9 +402,9 @@ const UserProfile = () => {
   return (
     <div className="bg-white rounded-lg p-6 max-w-lg mx-auto">
       <h2 className="text-2xl font-bold text-blue-700 mb-6">My Profile</h2>
-      
+
       {updateMessage.text && (
-        <div 
+        <div
           className={`p-3 mb-4 rounded ${
             updateMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
           }`}
@@ -336,78 +419,81 @@ const UserProfile = () => {
           {/* Avatar Display (View Mode) */}
           <div className="flex justify-center mb-4">
             <AvatarUpload
-              avatarUrl={avatarUrl}
-              uploading={false} // Not uploading in view mode
-              onUpload={() => setEditMode(true)} // Trigger edit mode on click/label click
+              avatarUrl={avatarUrl} // Display the saved URL
+              uploading={false}
+              onUpload={() => { // Clicking avatar in view mode enters edit mode
+                  setEditMode(true);
+                  // Ensure preview starts with current saved URL when entering edit mode
+                  setEditAvatarPreviewUrl(avatarUrl);
+                  setEditAvatarFile(null); // Clear any stale file selection
+                  setUpdateMessage({ type: '', text: '' }); // Clear messages
+              }}
               size={120}
             />
           </div>
 
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Email</p>
-            <p className="text-lg">{user?.email}</p>
-          </div>
-          
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Name</p>
-            <p className="text-lg">{profile?.name || 'Not specified'}</p>
-          </div>
-          
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Age</p>
-            <p className="text-lg">{profile?.age || 'Not specified'}</p>
-          </div>
-          
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Languages I Speak</p>
-            <p className="text-lg">
-              {profile?.languages && profile.languages.length > 0 
-                ? profile.languages.join(', ') 
-                : 'Not specified'}
+          {/* Profile Fields Display */}
+           <div className="border-b pb-3">
+             <p className="text-sm font-medium text-gray-500">Email</p>
+             <p className="text-lg">{user?.email}</p>
+           </div>
+           <div className="border-b pb-3">
+             <p className="text-sm font-medium text-gray-500">Name</p>
+             <p className="text-lg">{profile?.name || 'Not specified'}</p>
+           </div>
+           <div className="border-b pb-3">
+             <p className="text-sm font-medium text-gray-500">Age</p>
+             <p className="text-lg">{profile?.age || 'Not specified'}</p>
+           </div>
+           <div className="border-b pb-3">
+             <p className="text-sm font-medium text-gray-500">Languages I Speak</p>
+             <p className="text-lg">
+               {profile?.languages && profile.languages.length > 0
+                 ? profile.languages.join(', ')
+                 : 'Not specified'}
+             </p>
+           </div>
+           <div className="border-b pb-3">
+             <p className="text-sm font-medium text-gray-500">Cuisines I Like</p>
+             <p className="text-lg">
+               {profile?.cuisines && profile.cuisines.length > 0
+                 ? profile.cuisines.join(', ')
+                 : 'Not specified'}
             </p>
           </div>
-          
           <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Cuisines I Like</p>
+            <p className="text-sm font-medium text-gray-500">Status</p>
+            <p className="text-lg">{profile?.is_local ? (profile.is_local === 'local' ? 'Local' : 'Traveler') : 'Not specified'}</p>
+          </div>
+          <div className="border-b pb-3">
+            <p className="text-sm font-medium text-gray-500">Budget</p>
+            <p className="text-lg">{profile?.budget ? `Level ${profile.budget}` : 'Not specified'}</p>
+          </div>
+          <div className="border-b pb-3">
+            <p className="text-sm font-medium text-gray-500">Bio</p>
+            <p className="text-lg whitespace-pre-wrap">{profile?.bio || 'Not specified'}</p>
+          </div>
+          <div className="border-b pb-3">
+            <p className="text-sm font-medium text-gray-500">Member Since</p>
             <p className="text-lg">
-              {profile?.cuisines && profile.cuisines.length > 0 
-                ? profile.cuisines.join(', ') 
-                : 'Not specified'}
-           </p>
-         </div>
+              {profile?.created_at
+                ? new Date(profile.created_at).toLocaleDateString()
+                : 'Not available'}
+            </p>
+          </div>
+          {/* End Profile Fields Display */}
 
-         {/* Display New Fields */}
-         <div className="border-b pb-3">
-           <p className="text-sm font-medium text-gray-500">Status</p>
-           <p className="text-lg">{profile?.is_local ? (profile.is_local === 'local' ? 'Local' : 'Traveler') : 'Not specified'}</p>
-         </div>
-
-         <div className="border-b pb-3">
-           <p className="text-sm font-medium text-gray-500">Budget</p>
-           <p className="text-lg">{profile?.budget ? `Level ${profile.budget}` : 'Not specified'}</p> {/* Assuming budget 1, 2, 3 */}
-         </div>
-
-         <div className="border-b pb-3">
-           <p className="text-sm font-medium text-gray-500">Bio</p>
-           <p className="text-lg whitespace-pre-wrap">{profile?.bio || 'Not specified'}</p> {/* Use pre-wrap for line breaks */}
-         </div>
-         {/* End Display New Fields */}
-
-         <div className="border-b pb-3">
-           <p className="text-sm font-medium text-gray-500">Member Since</p>
-           <p className="text-lg">
-             {profile?.created_at
-               ? new Date(profile.created_at).toLocaleDateString()
-               : 'Not available'}
-           </p>
-         </div>
-
-         <button
-            onClick={() => setEditMode(true)}
-            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
-          >
-            Edit Profile
-          </button>
+          <button
+             onClick={() => { // Explicitly set state when entering edit mode
+                 setEditMode(true);
+                 setEditAvatarPreviewUrl(avatarUrl);
+                 setEditAvatarFile(null);
+                 setUpdateMessage({ type: '', text: '' });
+             }}
+             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
+           >
+             Edit Profile
+           </button>
 
           {/* Delete Profile Button/Text */}
           <div className="text-right mt-4">
@@ -425,7 +511,7 @@ const UserProfile = () => {
               <button
                 onClick={() => {
                   setShowPasswordChange(true);
-                  setPasswordUpdateMessage({ type: '', text: '' }); // Clear previous messages
+                  setPasswordUpdateMessage({ type: '', text: '' });
                 }}
                 className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200"
               >
@@ -443,62 +529,20 @@ const UserProfile = () => {
                     {passwordUpdateMessage.text}
                   </div>
                 )}
+                {/* Password Inputs (Condensed for brevity) */}
                 <div>
-                  <label
-                    htmlFor="newPassword"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    New Password
-                  </label>
-                  <input
-                    id="newPassword"
-                    name="newPassword"
-                    type="password"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Enter new password (min. 6 characters)"
-                  />
+                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
+                  <input id="newPassword" name="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter new password (min. 6 characters)" />
                 </div>
                 <div>
-                  <label
-                    htmlFor="confirmPassword"
-                    className="block text-sm font-medium text-gray-700 mb-1"
-                  >
-                    Confirm New Password
-                  </label>
-                  <input
-                    id="confirmPassword"
-                    name="confirmPassword"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Confirm new password"
-                  />
+                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
+                  <input id="confirmPassword" name="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Confirm new password" />
                 </div>
                 <div className="flex space-x-3">
-                  <button
-                    type="submit"
-                    disabled={passwordLoading}
-                    className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 disabled:opacity-50"
-                  >
+                  <button type="submit" disabled={passwordLoading} className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 disabled:opacity-50">
                     {passwordLoading ? 'Saving...' : 'Save New Password'}
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowPasswordChange(false);
-                      setNewPassword('');
-                      setConfirmPassword('');
-                      setPasswordUpdateMessage({ type: '', text: '' });
-                    }}
-                    className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
-                  >
+                  <button type="button" onClick={() => { setShowPasswordChange(false); setNewPassword(''); setConfirmPassword(''); setPasswordUpdateMessage({ type: '', text: '' }); }} className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200">
                     Cancel
                   </button>
                 </div>
@@ -511,256 +555,160 @@ const UserProfile = () => {
       ) : (
         // --- EDIT MODE ---
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar Upload (Edit Mode) */}
-          <div className="flex justify-center mb-6">
+          {/* Avatar Upload/Preview (Edit Mode) */}
+          <div className="flex flex-col items-center mb-6 space-y-2">
             <AvatarUpload
-              avatarUrl={avatarUrl}
-              uploading={uploadingAvatar}
-              onUpload={handleAvatarUpload} // Connect the upload handler
+              avatarUrl={editAvatarPreviewUrl} // Show the preview URL during edit
+              uploading={uploadingAvatar} // Indicate status during save/remove operations
+              onUpload={handleAvatarSelect} // Connect the SELECT handler
               size={120}
             />
+            {/* Show Remove button only if there's a preview URL */}
+            {editAvatarPreviewUrl && (
+              <button
+                type="button"
+                onClick={handleRemoveAvatar} // Connect the remove handler
+                disabled={uploadingAvatar} // Disable while saving/removing
+                className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Remove Avatar
+              </button>
+            )}
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              type="email"
-              value={user?.email || ''}
-              disabled
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100"
-            />
-            <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
-          </div>
-          
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-              Name
-            </label>
-            <input
-              id="name"
-              name="name"
-              type="text"
-              value={originalName} // Display original name
-              disabled // Make non-editable
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" // Style as disabled
-            />
+          {/* Profile Edit Fields (Condensed for brevity) */}
+           <div>
+             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+             <input type="email" value={user?.email || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100" />
+             <p className="mt-1 text-xs text-gray-500">Email cannot be changed</p>
+           </div>
+           <div>
+             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+             <input id="name" name="name" type="text" value={originalName} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" />
              <p className="mt-1 text-xs text-gray-500">Name cannot be changed</p>
-          </div>
-
-          <div>
-            <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">
-              Age
-            </label>
-            <input
-              id="age"
-              name="age"
-              type="number"
-              value={originalAge} // Display original age
-              disabled // Make non-editable
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" // Style as disabled
-            />
+           </div>
+           <div>
+             <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+             <input id="age" name="age" type="number" value={originalAge} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" />
              <p className="mt-1 text-xs text-gray-500">Age cannot be changed</p>
-          </div>
-
-          {/* Languages Multi-Select */}
-          <div className="mb-4">
-            <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
-              Languages I Speak
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]"> {/* Added min-height */}
-              {selectedLanguages.map((lang) => (
-                <div key={lang} className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-sm inline-flex items-center"> {/* Changed style */}
-                  {lang}
-                  <button
-                    type="button"
-                    className="ml-2 focus:outline-none text-blue-500 hover:text-blue-700" // Style button
-                    onClick={() => removeLanguage(lang)}
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="flex">
-              <select
-                id="language"
-                className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" // Use flex-grow
-                value={currentLanguage}
-                onChange={(e) => setCurrentLanguage(e.target.value)}
-              >
-                <option value="">Select Language...</option> {/* Changed placeholder */}
-                {languageOptions.map((lang) => (
-                  <option key={lang} value={lang} disabled={selectedLanguages.includes(lang)}>
-                    {lang}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" // Added disabled style
-                onClick={addLanguage}
-                disabled={!currentLanguage || selectedLanguages.includes(currentLanguage)}
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Cuisines Multi-Select */}
-          <div className="mb-6">
-            <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">
-              Cuisines I Like
-            </label>
-            <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]"> {/* Added min-height */}
-              {selectedCuisines.map((cuisine) => (
-                <div key={cuisine} className="bg-green-100 text-green-700 rounded-full px-3 py-1 text-sm inline-flex items-center"> {/* Changed style */}
-                  {cuisine}
-                  <button
-                    type="button"
-                    className="ml-2 focus:outline-none text-green-500 hover:text-green-700" // Style button
-                    onClick={() => removeCuisine(cuisine)}
-                  >
-                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-            <div className="flex">
-              <select
-                id="cuisine"
-                className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" // Use flex-grow
-                value={currentCuisine}
-                onChange={(e) => setCurrentCuisine(e.target.value)}
-              >
-                <option value="">Select Cuisine...</option> {/* Changed placeholder */}
-                {cuisineOptions.map((cuisine) => (
-                  <option key={cuisine} value={cuisine} disabled={selectedCuisines.includes(cuisine)}>
-                    {cuisine}
-                  </option>
-                ))}
-              </select>
-              <button
-                type="button"
-                className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" // Added disabled style
-                onClick={addCuisine}
-                disabled={!currentCuisine || selectedCuisines.includes(currentCuisine)}
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* New Editable Fields */}
-          {/* is_local Radio Buttons */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Are you a Local or a Traveler?</label>
-            <div className="flex items-center space-x-4">
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="is_local"
-                  value="local"
-                  checked={editIsLocal === 'local'}
-                  onChange={(e) => setEditIsLocal(e.target.value)}
-                  className="form-radio h-4 w-4 text-blue-600"
-                />
-                <span className="ml-2 text-gray-700">Local</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="is_local"
-                  value="traveler"
-                  checked={editIsLocal === 'traveler'}
-                  onChange={(e) => setEditIsLocal(e.target.value)}
-                  className="form-radio h-4 w-4 text-blue-600"
-                />
-                <span className="ml-2 text-gray-700">Traveler</span>
-              </label>
-              <label className="inline-flex items-center">
-                <input
-                  type="radio"
-                  name="is_local"
-                  value="" // Represents 'Not specified' or null
-                  checked={editIsLocal === null || editIsLocal === ''}
-                  onChange={() => setEditIsLocal(null)}
-                  className="form-radio h-4 w-4 text-gray-400"
-                />
-                <span className="ml-2 text-gray-500 italic">Clear</span>
-              </label>
-            </div>
-          </div>
-
-          {/* Budget Select */}
-          <div className="mb-4">
-            <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-1">
-              Budget Level (Optional)
-            </label>
-            <select
-              id="budget"
-              name="budget"
-              value={editBudget ?? ''} // Handle null value for select
-              onChange={(e) => setEditBudget(e.target.value ? parseInt(e.target.value) : null)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            >
-              <option value="">Select Budget...</option>
-              <option value="1">Budget-friendly ($)</option>
-              <option value="2">Mid-range ($$)</option>
-              <option value="3">Premium ($$$)</option>
-            </select>
-            <p className="mt-1 text-xs text-gray-500">Indicate your typical spending preference for meetups.</p>
-          </div>
-
-          {/* Bio Textarea */}
-          <div className="mb-6">
-            <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">
-              Bio (Optional, max 255 characters)
-            </label>
-            <textarea
-              id="bio"
-              name="bio"
-              rows={4}
-              maxLength={255}
-              value={editBio}
-              onChange={(e) => setEditBio(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-              placeholder="Tell others a bit about yourself..."
-            />
-          </div>
-          {/* End New Editable Fields */}
+           </div>
+           {/* Languages Multi-Select */}
+           <div className="mb-4">
+             <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">Languages I Speak</label>
+             <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]">
+               {selectedLanguages.map((lang) => (
+                 <div key={lang} className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-sm inline-flex items-center">
+                   {lang}
+                   <button type="button" onClick={() => removeLanguage(lang)} className="ml-2 focus:outline-none text-blue-500 hover:text-blue-700">
+                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                   </button>
+                 </div>
+               ))}
+             </div>
+             <div className="flex">
+               <select id="language" className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={currentLanguage} onChange={(e) => setCurrentLanguage(e.target.value)}>
+                 <option value="">Select Language...</option>
+                 {languageOptions.map((lang) => (
+                   <option key={lang} value={lang} disabled={selectedLanguages.includes(lang)}>
+                     {lang}
+                   </option>
+                 ))}
+               </select>
+               <button type="button" className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" onClick={addLanguage} disabled={!currentLanguage || selectedLanguages.includes(currentLanguage)}>
+                 Add
+               </button>
+             </div>
+           </div>
+           {/* Cuisines Multi-Select */}
+           <div className="mb-6">
+             <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">Cuisines I Like</label>
+             <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]">
+               {selectedCuisines.map((cuisine) => (
+                 <div key={cuisine} className="bg-green-100 text-green-700 rounded-full px-3 py-1 text-sm inline-flex items-center">
+                   {cuisine}
+                   <button type="button" onClick={() => removeCuisine(cuisine)} className="ml-2 focus:outline-none text-green-500 hover:text-green-700">
+                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                   </button>
+                 </div>
+               ))}
+             </div>
+             <div className="flex">
+               <select id="cuisine" className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={currentCuisine} onChange={(e) => setCurrentCuisine(e.target.value)}>
+                 <option value="">Select Cuisine...</option>
+                 {cuisineOptions.map((cuisine) => (
+                   <option key={cuisine} value={cuisine} disabled={selectedCuisines.includes(cuisine)}>
+                     {cuisine}
+                   </option>
+                 ))}
+               </select>
+               <button type="button" className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" onClick={addCuisine} disabled={!currentCuisine || selectedCuisines.includes(currentCuisine)}>
+                 Add
+               </button>
+             </div>
+           </div>
+           {/* is_local Radio Buttons */}
+           <div className="mb-4">
+             <label className="block text-sm font-medium text-gray-700 mb-2">Are you a Local or a Traveler?</label>
+             <div className="flex items-center space-x-4">
+               <label className="inline-flex items-center">
+                 <input type="radio" name="is_local" value="local" checked={editIsLocal === 'local'} onChange={(e) => setEditIsLocal(e.target.value)} className="form-radio h-4 w-4 text-blue-600" />
+                 <span className="ml-2 text-gray-700">Local</span>
+               </label>
+               <label className="inline-flex items-center">
+                 <input type="radio" name="is_local" value="traveler" checked={editIsLocal === 'traveler'} onChange={(e) => setEditIsLocal(e.target.value)} className="form-radio h-4 w-4 text-blue-600" />
+                 <span className="ml-2 text-gray-700">Traveler</span>
+               </label>
+               <label className="inline-flex items-center">
+                 <input type="radio" name="is_local" value="" checked={editIsLocal === null || editIsLocal === ''} onChange={() => setEditIsLocal(null)} className="form-radio h-4 w-4 text-gray-400" />
+                 <span className="ml-2 text-gray-500 italic">Clear</span>
+               </label>
+             </div>
+           </div>
+           {/* Budget Select */}
+           <div className="mb-4">
+             <label htmlFor="budget" className="block text-sm font-medium text-gray-700 mb-1">Budget Level (Optional)</label>
+             <select id="budget" name="budget" value={editBudget ?? ''} onChange={(e) => setEditBudget(e.target.value ? parseInt(e.target.value) : null)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
+               <option value="">Select Budget...</option>
+               <option value="1">Budget-friendly ($)</option>
+               <option value="2">Mid-range ($$)</option>
+               <option value="3">Premium ($$$)</option>
+             </select>
+             <p className="mt-1 text-xs text-gray-500">Indicate your typical spending preference for meetups.</p>
+           </div>
+           {/* Bio Textarea */}
+           <div className="mb-6">
+             <label htmlFor="bio" className="block text-sm font-medium text-gray-700 mb-1">Bio (Optional, max 255 characters)</label>
+             <textarea id="bio" name="bio" rows={4} maxLength={255} value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Tell others a bit about yourself..." />
+           </div>
+          {/* End Profile Edit Fields */}
 
           <div className="flex space-x-3">
             <button
               type="submit"
-              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
+              disabled={uploadingAvatar || passwordLoading} // Disable save if avatar or password ops are in progress
+              className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200 disabled:opacity-50"
             >
-              Save Changes
+              {uploadingAvatar ? 'Saving...' : 'Save Changes'}
             </button>
             <button
               type="button"
-              onClick={() => {
+              onClick={() => { // Cancel Logic
                 setEditMode(false);
-                // Reset multi-select state to current profile values when cancelling
+                // Reset editable fields to original profile values
                 if (profile) {
-                  // Reset original fields
                   setSelectedLanguages(profile.languages || []);
                   setSelectedCuisines(profile.cuisines || []);
-                  // Reset new fields
                   setEditIsLocal(profile.is_local);
                   setEditBudget(profile.budget);
                   setEditBio(profile.bio || '');
-                  // Reset dropdown helpers
-                  setCurrentLanguage('');
-                  setCurrentCuisine('');
                 }
+                // Reset avatar edit state specifically
+                setEditAvatarFile(null);
+                setEditAvatarPreviewUrl(avatarUrl); // Reset preview to the actual current avatarUrl state
+                // Reset dropdown helpers
+                setCurrentLanguage('');
+                setCurrentCuisine('');
                 setUpdateMessage({ type: '', text: '' }); // Clear any previous messages
-                // No need to reset avatarUrl here, it reflects the current saved state
               }}
               className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
             >
