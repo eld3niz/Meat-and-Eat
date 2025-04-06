@@ -378,9 +378,7 @@ const WorldMap = () => {
 
       closeAllPopups();
 
-      const content = ReactDOMServer.renderToString(
-        <UserInfoPopup user={item} onClose={closeAllPopups} />
-      );
+      // Content will be set later or dynamically if needed
 
       // Add fixed offset of 15px above the marker
       const popup = L.popup({ 
@@ -390,7 +388,7 @@ const WorldMap = () => {
         offset: [0, -15] // Add 15px vertical offset
       })
         .setLatLng(position) // Use the position from marker
-        .setContent(content)
+        .setContent('') // Set initial content to empty
         .openOn(map);
 
       popup.getElement()?.querySelector('#user-popup-close-btn')?.addEventListener('click', closeAllPopups);
