@@ -6,6 +6,7 @@ const LocationPermissionModal: React.FC = () => {
   const { requestLocationPermission, locationPermissionStatus } = useAuth();
 
   const handleGrantClick = () => {
+    // console.log('[LocationPermissionModal] handleGrantClick called.'); // <-- Remove log
     requestLocationPermission();
   };
 

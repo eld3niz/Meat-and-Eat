@@ -68,32 +68,47 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     // console.log('[AuthContext] Fetching coordinates for user:', userId);
     navigator.geolocation.getCurrentPosition(
       async (position) => {
-        // console.log('[AuthContext] Coordinates fetched successfully.');
-        const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
-        // Ensure status is granted before setting coords (might have changed rapidly)
-        setLocationPermissionStatus(prevStatus => {
-            if (prevStatus !== 'denied') { // Avoid overriding a recent denial
-                 setUserCoordinates(coords);
-                 return 'granted';
-            }
-            return prevStatus; // Keep denied if it changed
-        });
-        // Update DB only if coords are valid numbers
-        const latitude = coords[0];
-        const longitude = coords[1];
+        // console.log('[AuthContext] Coordinates received, validating...');
+        const latitude = position.coords.latitude;
+        const longitude = position.coords.longitude;
 
         if (typeof latitude === 'number' && isFinite(latitude) && typeof longitude === 'number' && isFinite(longitude)) {
-          // Coordinates are valid, update the database with actual location
+          // Coordinates are valid
+          const validCoords: [number, number] = [latitude, longitude];
+
+          // Attempt to set state to granted and store coordinates
+          // This might be overridden if permission was denied concurrently, but that's okay.
+          setLocationPermissionStatus(prevStatus => {
+              if (prevStatus !== 'denied') {
+                  setUserCoordinates(validCoords); // Set valid coordinates *only* if valid and not denied
+                  return 'granted';
+              }
+              // If denied, don't set coordinates even if technically valid
+              setUserCoordinates(null);
+              return prevStatus; // Keep denied status
+          });
+
+          // Update DB assuming success (accessGranted = true) since we received valid coords.
+          // This prioritizes storing the valid location if obtained, even if UI state briefly lagged on denial.
+          // Subsequent permission checks should align DB state later if needed.
           await updateUserLocationAndProfile(userId, latitude, longitude, true);
+
         } else {
           // Coordinates are invalid (null, undefined, NaN, etc.)
           console.error(`[AuthContext] Invalid coordinates received: lat=${latitude}, lon=${longitude}. Setting location access to false.`);
-          // Treat as an error case - update profile but indicate no valid location
-          await updateUserLocationAndProfile(userId, 0, 0, false);
-          // Also clear local coordinates state if they were invalid
+
+          // Set state to reflect the issue
           setUserCoordinates(null);
-          // Ensure permission status reflects the issue if it was previously granted
-           setLocationPermissionStatus(prevStatus => prevStatus === 'granted' ? 'unavailable' : prevStatus);
+          // If we previously had permission ('granted') but received invalid coordinates,
+          // revert to 'pending' to allow retrying or re-prompting, rather than 'unavailable'.
+          // Keep 'denied' or 'pending' if they were the previous state.
+          setLocationPermissionStatus(prevStatus => {
+              // console.log(`[AuthContext] Invalid coords received after success callback. Previous status: ${prevStatus}. Setting status to pending.`); // Remove log
+              return prevStatus === 'denied' ? 'denied' : 'pending'; // Revert to pending unless denied
+          });
+
+          // Update DB to reflect no valid location access
+          await updateUserLocationAndProfile(userId, 0, 0, false);
         }
         setIsFetchingLocation(false); // <-- Stop fetching (success)
       },
@@ -116,14 +131,39 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   // This primarily serves to trigger the browser prompt if status is 'prompt'/'pending'
   // The actual coordinate fetching is handled by the permission change listener or initial check.
   const requestLocationPermission = useCallback(async () => {
-    if (user) {
-      // console.log("[AuthContext] requestLocationPermission called by UI.");
-      // Re-fetch coordinates which implicitly triggers prompt if needed
-      await fetchCoordinates(user.id);
+    // console.log("[AuthContext] requestLocationPermission entered. Current status:", locationPermissionStatus); // <-- Remove log
+
+    // Only attempt to trigger the prompt if the status is currently 'pending'
+    // If 'granted', the useEffect should have already fetched or user can trigger refresh below.
+    // If 'denied', the user must change browser settings.
+    // If 'unavailable', there's nothing we can do.
+    if (locationPermissionStatus === 'pending') {
+      // Call getCurrentPosition primarily to trigger the browser prompt.
+      // The actual handling of success/error/state update is managed by the
+      // Permissions API listener in the useEffect hook for consistency.
+      // Provide dummy handlers as they are required by the API.
+      if (navigator.geolocation) {
+         // console.log("[AuthContext] Status is 'pending', attempting to trigger prompt via button..."); // <-- Remove log
+         console.log("[AuthContext] Triggering browser location prompt via button...");
+         navigator.geolocation.getCurrentPosition(
+           () => { /* console.log("[AuthContext] Prompt success callback (handled by listener)"); */ },
+           () => { /* console.log("[AuthContext] Prompt error callback (handled by listener)"); */ },
+           { timeout: 5000, maximumAge: Infinity } // Short timeout, don't need high accuracy just for prompt
+         );
+      } else {
+         console.warn("[AuthContext] Geolocation not supported, cannot trigger prompt.");
+      }
+    } else if (locationPermissionStatus === 'denied') {
+       console.warn("[AuthContext] Location permission is denied. Please check browser settings (as advised in modal).");
+       // Optionally, add UI feedback here if needed
+    } else if (user && locationPermissionStatus === 'granted') {
+       // Allow manual refresh if already granted
+       console.log("[AuthContext] Status is 'granted', re-fetching coordinates via button request.");
+       await fetchCoordinates(user.id);
     } else {
-      console.warn("[AuthContext] Attempted to request location permission without a logged-in user.");
+       // console.log("[AuthContext] Location status is not 'pending' or 'granted', no action taken by button.", locationPermissionStatus);
     }
-  }, [user, fetchCoordinates]);
+  }, [user, locationPermissionStatus, fetchCoordinates]); // Added locationPermissionStatus dependency
 
   // --- Effect for Initial Session Load ---
   useEffect(() => {
@@ -190,9 +230,19 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } else if (newState === 'denied') {
         setLocationPermissionStatus('denied');
         setUserCoordinates(null); // Clear coordinates when denied
-      } else { // 'prompt'
+      } else { // 'prompt' / 'pending'
         setLocationPermissionStatus('pending'); // Treat prompt as pending
         setUserCoordinates(null); // Clear coordinates while pending
+        // Attempt to trigger the prompt immediately if the initial state is 'prompt'
+        // This might help if the button click isn't working reliably
+        if (newState === 'prompt' && navigator.geolocation) {
+             console.log("[AuthContext] Initial permission state is 'prompt', triggering browser prompt...");
+             navigator.geolocation.getCurrentPosition(
+               () => { /* console.log("[AuthContext] Prompt success callback (handled by listener)"); */ },
+               () => { /* console.log("[AuthContext] Prompt error callback (handled by listener)"); */ },
+               { timeout: 5000, maximumAge: Infinity }
+             );
+        }
       }
     };
 
