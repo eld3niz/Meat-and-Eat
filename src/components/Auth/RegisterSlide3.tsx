@@ -7,12 +7,14 @@ import Button from '../UI/Button'; // Import Button component
 // const cuisineOptions = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
 
 interface RegisterSlide3Props {
-  updateFormData: (data: any) => void;
-  nextSlide: () => void; // Changed from prevSlide/handleSubmit
-  // isLoading is no longer needed here
+  updateFormData: (data: { languages?: string[]; cuisines?: string[]; city?: string }) => void; // More specific type
+  nextSlide: () => void;
+  prevSlide: () => void; // Add prevSlide
+  currentSlide: number;
+  totalSlides: number;
 }
 
-const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide }) => {
+const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [language, setLanguage] = useState('');
@@ -50,7 +52,7 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
   return (
     <div>
       {/* Update step number */}
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Interessen (1/5)</h2> {/* Update step number */}
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Interessen & Ort</h2>
 
       <div className="mb-4">
         <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">
@@ -140,10 +142,25 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
         </div>
       </div>
 
-      <div className="flex justify-end"> {/* Only show Next button */}
+      {/* Slide Indicator and Navigation */}
+      <div className="flex items-center justify-between pt-4">
+         {/* Back Button */}
+         <Button
+            onClick={prevSlide}
+            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center"
+          >
+            Zurück
+          </Button>
+
+        {/* Slide Indicator */}
+        <span className="text-sm text-gray-500">
+          Slide {currentSlide + 1} / {totalSlides}
+        </span>
+
+        {/* Next Button */}
         <Button
-          className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500" // Standard next button style
-          onClick={handleProceed} // Use the updated handler
+           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 text-center"
+           onClick={handleProceed}
         >
           Weiter
         </Button>

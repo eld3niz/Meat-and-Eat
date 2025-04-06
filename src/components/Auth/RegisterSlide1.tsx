@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import Button from '../UI/Button'; // Import Button component
 
 interface RegisterSlide1Props {
-  updateFormData: (data: { email?: string; password?: string }) => void; // More specific type
+  updateFormData: (data: { email?: string; password?: string }) => void;
   nextSlide: () => void;
-  prevSlide?: () => void; // Add optional prevSlide prop
+  prevSlide: () => void; // Now required as it's not the first slide
+  currentSlide: number;
+  totalSlides: number;
 }
 
-const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSlide, prevSlide }) => { // Destructure prevSlide
+const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -41,7 +43,7 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSli
   return (
     <div>
       {/* Update step number */}
-      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen (3/5)</h2>
+      <h2 className="text-xl font-bold mb-4 text-gray-800">Konto erstellen</h2>
       <div className="mb-4">
         <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
           E-Mail
@@ -73,19 +75,24 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSli
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
         <p className="mt-1 text-xs text-gray-500">Passwort muss mindestens 8 Zeichen lang sein.</p>
       </div>
-      {/* Navigation Buttons */}
-      <div className="flex justify-between pt-4">
-        {prevSlide && ( // Conditionally render Back button
-          <Button
-            onClick={prevSlide}
-            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400" // Secondary style
+      {/* Slide Indicator and Navigation */}
+      <div className="flex items-center justify-between pt-4">
+         {/* Back Button */}
+         <Button
+            onClick={prevSlide} // Always available for intermediate slides
+            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center" // Added w-20
           >
             Zurück
           </Button>
-        )}
-        {/* Ensure the Next button doesn't take full width if Back is present */}
+
+        {/* Slide Indicator */}
+        <span className="text-sm text-gray-500">
+          Slide {currentSlide + 1} / {totalSlides}
+        </span>
+
+        {/* Next Button */}
         <Button
-           className={`bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 ${!prevSlide ? 'w-full' : ''}`} // Full width only if no Back button
+           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 text-center" // Added w-20
            onClick={handleNext}
         >
           Weiter

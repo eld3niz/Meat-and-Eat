@@ -5,12 +5,16 @@ interface RegisterSlideAvatarProps {
   updateFormData: (data: { avatarFile?: File | null }) => void; // Pass the File object
   nextSlide: () => void;
   prevSlide: () => void;
+  currentSlide: number;
+  totalSlides: number;
 }
 
 const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
   updateFormData,
   nextSlide,
   prevSlide,
+  currentSlide,
+  totalSlides,
 }) => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
@@ -81,18 +85,27 @@ const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
         Choose a picture that represents you! Max size: 5MB.
       </p>
 
-      <div className="flex justify-between mt-8">
+      {/* Slide Indicator and Navigation */}
+      <div className="flex items-center justify-between mt-8">
+        {/* Back Button */}
         <button
           type="button"
           onClick={prevSlide}
-          className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-150"
+          className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-150 w-20 text-center" // Added w-20 for alignment
         >
           Back
         </button>
+
+        {/* Slide Indicator */}
+        <span className="text-sm text-gray-500">
+          Slide {currentSlide + 1} / {totalSlides}
+        </span>
+
+        {/* Next Button */}
         <button
           type="button"
           onClick={handleNext} // Use custom handler for potential validation
-          className="px-6 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 transition duration-150"
+          className="px-6 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 transition duration-150 w-20 text-center" // Added w-20 for alignment
         >
           Next
         </button>

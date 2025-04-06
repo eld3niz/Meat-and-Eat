@@ -131,26 +131,31 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
   };
 
   const renderSlide = () => {
-    // New slide order: 3, New1, New2, Avatar, 1, 2
-    // Indices:         0,    1,    2,      3, 4, 5
+    // New requested order: [New2, Avatar, 1, 2, 3, New1]
+    // Indices:             [   0,      1, 2, 3, 4,    5]
+    const totalSlides = 6; // Keep total slides count consistent
+
     switch (currentSlide) {
-      case 0: // Original Slide 3: Languages/Cuisines/City
-        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} />;
-      case 1: // New Slide 1: Local Status & Budget
-        return <RegisterSlideNew1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 2: // New Slide 2: Bio
-        return <RegisterSlideNew2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 3: // New Avatar Slide
-        return <RegisterSlideAvatar updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 4: // Original Slide 1: Email/Password
-        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} />;
-      case 5: // Original Slide 2: Name/Age + Submit
+      case 0: // New Slide 2: Bio
+        return <RegisterSlideNew2 updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 1: // New Avatar Slide
+        return <RegisterSlideAvatar updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 2: // Original Slide 1: Email/Password
+        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 3: // Original Slide 2: Name/Age
+        // Note: handleSubmit is moved to the *actual* last slide (New1)
+        return <RegisterSlide2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 4: // Original Slide 3: Languages/Cuisines/City
+        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 5: // New Slide 1: Local Status & Budget + Submit
         return (
-          <RegisterSlide2
+          <RegisterSlideNew1
             updateFormData={updateFormData}
             prevSlide={prevSlide}
-            handleSubmit={handleSubmit}
+            handleSubmit={handleSubmit} // Submit button is here now
             isLoading={isLoading}
+            currentSlide={currentSlide}
+            totalSlides={totalSlides}
           />
         );
       default:
