@@ -213,11 +213,9 @@ const MarkerCluster = ({
       // Create marker at the provided tile center coordinates
       marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
 
-      // Attach unified click handler using the original item data
-      marker.on('click', (e) => {
-        // console.log('[MarkerCluster] Marker clicked:', markerDef.originalItem, 'at', e.latlng); // DEBUG: Log marker click
-        onItemClick(markerDef.originalItem, e.latlng, e); // Pass item, position, and event
-      });
+      // Bind a simple popup with the item's name on click
+      // This replaces the previous onItemClick handler for these markers
+      marker.bindPopup(markerDef.name);
 
       // Attach userId for cluster icon logic (important!)
       // Attach data needed by iconCreateFunction for single-item clusters
@@ -230,7 +228,7 @@ const MarkerCluster = ({
       }
 
       // Bind tooltip using the name from markerDef - REMOVED
-      marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+      // marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' }); // Tooltip removed
 
       // Use the unique ID from markerDef for tracking
       markersRef.current[markerDef.id] = marker;

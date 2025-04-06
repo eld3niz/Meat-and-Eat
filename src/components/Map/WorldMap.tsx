@@ -369,8 +369,15 @@ const WorldMap = () => {
       // Reuse existing city marker click logic
       handleMarkerClick(item, event);
     } else { // It's a MapUser
+      // --- START: Zoom Level Check ---
+      // If zoom is 14 or higher, let the simple bindPopup in TileAggregateLayer handle the click
+      if (mapZoom >= 14) {
+        return; // Do nothing here, allow bindPopup to work
+      }
+      // --- END: Zoom Level Check ---
+
       // Use the marker's actual position if provided, otherwise fall back to event or item coordinates
-      const position = markerPosition || 
+      const position = markerPosition ||
                       (event ? event.latlng : L.latLng(item.latitude, item.longitude));
       
       const map = mapRef.current;
@@ -381,9 +388,9 @@ const WorldMap = () => {
       // Content will be set later or dynamically if needed
 
       // Add fixed offset of 15px above the marker
-      const popup = L.popup({ 
-        closeButton: false, 
-        minWidth: 100, 
+      const popup = L.popup({
+        closeButton: false,
+        minWidth: 100,
         className: 'custom-leaflet-popup',
         offset: [0, -15] // Add 15px vertical offset
       })
@@ -396,7 +403,7 @@ const WorldMap = () => {
       userInfoPopupRef.current = popup;
       setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef });
     }
-  }, [handleMarkerClick, closeAllPopups]);
+  }, [handleMarkerClick, closeAllPopups, mapZoom]); // Added mapZoom dependency
 
   // --- Handler for clicking an aggregate marker representing a tile ---
   const handleAggregateTileClick = useCallback((items: (City | MapUser)[], markerPosition: L.LatLng) => {
@@ -741,6 +748,11 @@ const WorldMap = () => {
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">
+          {/* Zoom Level Display */}
+          <div className="absolute top-2 left-2 z-[1000] bg-white bg-opacity-75 p-1 px-2 rounded text-sm font-semibold shadow">
+            Zoom: {mapZoom}
+          </div>
+
           {/* Map Container */}
           <MapContainer
             center={mapCenter} zoom={mapZoom} style={{ height: '100%', width: '100%' }}

@@ -137,22 +137,21 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
         }
 
         // Assign the click handler
-        clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick
 
         // Check if marker exists and update, otherwise create new
         if (currentMarkers[tileId]) {
           marker = currentMarkers[tileId];
           marker.setLatLng(finalPosition); // <-- Use finalPosition
           marker.setIcon(icon);
-          marker.off('click').on('click', clickHandler);
+          marker.off('click'); // Remove previous click handler if any
         } else {
           marker = L.marker(finalPosition, { icon: icon }); // <-- Use finalPosition
-          marker.on('click', clickHandler);
           layer.addLayer(marker);
         }
         // Add/Update tooltip - REMOVED
         // Add tooltip using the name from markerDef
-        marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
+        // Bind the popup directly
+        marker.bindPopup(markerDef.name);
 
       } else {
         // --- Aggregate Tile ---
