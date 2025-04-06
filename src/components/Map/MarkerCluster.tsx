@@ -46,36 +46,48 @@ const MarkerCluster = ({
     iconCreateFunction: (cluster: L.MarkerCluster) => {
       const childCount = cluster.getChildCount();
       const childMarkers = cluster.getAllChildMarkers();
+      const sizeClass = 'w-8 h-8 text-xs'; // Uniform size
+      const sizeValue = 32; // w-8 -> 32px
+      let html = '';
+      let clusterColorClass = '';
 
-      // --- Check if any marker in the cluster belongs to the current user ---
-      let clusterContainsUser = false;
-      if (currentUserId) {
-        const childMarkers = cluster.getAllChildMarkers();
-        for (const marker of childMarkers) {
-          // Check the userId property we attached during marker creation
-          if ((marker as any).userId === currentUserId) {
-            clusterContainsUser = true;
-            break; // Found the user marker, no need to check further
+      if (childCount === 1) {
+        // --- Style for single-item clusters ---
+        const singleMarker = childMarkers[0];
+        const isCurrentUser = currentUserId && (singleMarker as any).userId === currentUserId;
+
+        if (isCurrentUser) {
+            clusterColorClass = 'bg-red-500 border-red-600'; // Red for current user
+        } else {
+            clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for others
+        }
+        // Use '1' as content, mimicking createSingleMarkerClusterIcon
+        html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>1</span></div>`;
+
+      } else {
+        // --- Style for multi-item clusters (existing logic) ---
+        let clusterContainsUser = false;
+        if (currentUserId) {
+          for (const marker of childMarkers) {
+            if ((marker as any).userId === currentUserId) {
+              clusterContainsUser = true;
+              break;
+            }
           }
         }
+
+        if (clusterContainsUser) {
+            clusterColorClass = 'bg-red-500 border-red-600'; // Red for user's cluster
+        } else {
+            clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for other clusters
+        }
+
+        // Calculate the count to display (exclude user's own marker if present)
+        const displayCount = clusterContainsUser ? childCount - 1 : childCount;
+
+        // Use displayCount in the HTML span
+        html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${displayCount}</span></div>`;
       }
-
-      // Removed check for allUsersSameSpot as per new requirement
-      // --- Apply uniform size and conditional color ---
-      const sizeClass = 'w-8 h-8 text-xs'; // Uniform size for all clusters
-      let clusterColorClass = '';
-      if (clusterContainsUser) {
-          clusterColorClass = 'bg-red-500 border-red-600'; // Red for user's cluster
-      } else {
-          clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for all other clusters
-      }
-
-      // Calculate the count to display (exclude user's own marker from count if present)
-      const displayCount = clusterContainsUser && childCount > 0 ? childCount - 1 : childCount;
-
-      const sizeValue = parseInt(sizeClass.split(' ')[0].substring(2)) * 4; // w-8 -> 32px calculation remains correct
-      // Use displayCount in the HTML span
-      const html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>${displayCount}</span></div>`;
 
       // Removed debug logging
 
