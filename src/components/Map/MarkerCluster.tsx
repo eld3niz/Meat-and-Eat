@@ -119,26 +119,67 @@ const MarkerCluster = ({
   // Add userCoordinates to dependency array
   }), [userCoordinates, currentUserId]); // Add currentUserId dependency
 
-  // Initialize the MarkerClusterGroup
+  // Initialize the MarkerClusterGroup and add cluster click handler
   useEffect(() => {
     if (!map) return;
+
+    // Define the cluster click handler
+    const handleClusterClick = (e: L.LeafletEvent & { layer: L.MarkerCluster }) => {
+      const cluster = e.layer;
+      const currentZoom = map.getZoom();
+      const maxZoom = map.getMaxZoom();
+
+      console.log(`[MarkerCluster] Cluster clicked. Zoom: ${currentZoom}, MaxZoom: ${maxZoom}, ChildCount: ${cluster.getChildCount()}`); // DEBUG
+
+      // Check if it's max zoom and a single marker cluster
+      if (currentZoom === maxZoom && cluster.getChildCount() === 1) {
+        const childMarkers = cluster.getAllChildMarkers();
+        if (childMarkers.length > 0) {
+          const singleMarker = childMarkers[0] as any; // Cast to any to access custom property
+          if (singleMarker.originalItemData) {
+            console.log('[MarkerCluster] Max zoom single marker cluster clicked, triggering onItemClick manually.'); // DEBUG
+            // Manually trigger onItemClick with the stored data
+            // Use cluster's LatLng and attempt to cast originalEvent
+            onItemClick(singleMarker.originalItemData, e.layer.getLatLng(), (e as any).originalEvent as L.LeafletMouseEvent);
+
+            // Prevent default cluster actions (like zooming which is impossible at max zoom)
+            // and stop the event from potentially propagating further.
+            L.DomEvent.stop((e as any).originalEvent);
+          } else {
+             console.warn('[MarkerCluster] Could not find originalItemData on single marker in cluster click.');
+          }
+        }
+      }
+      // Note: No 'else' needed here. If it's not max zoom or not a single marker,
+      // the default library behavior (zoomToBoundsOnClick or spiderfy) will occur,
+      // or the individual marker click (handled elsewhere) will fire on lower zooms.
+    };
+
+
     if (!markerClusterGroupRef.current) {
       markerClusterGroupRef.current = new L.MarkerClusterGroup(markerClusterOptions);
       map.addLayer(markerClusterGroupRef.current);
-      const clusterGroup = markerClusterGroupRef.current;
-      // clusterGroup.on('clusterclick', onClusterClick); // Removed custom handler attachment
     }
+
+    // Add the cluster click listener
+    const clusterGroup = markerClusterGroupRef.current;
+    clusterGroup.on('clusterclick', handleClusterClick);
+
+    // Cleanup function
     return () => {
       if (map && markerClusterGroupRef.current) {
-        // markerClusterGroupRef.current.off('clusterclick', onClusterClick); // Removed custom handler detachment
-        // Use clearLayers() for efficiency before removing the group
+        // Remove the listener
+        markerClusterGroupRef.current.off('clusterclick', handleClusterClick);
+
+        // Clear layers and remove the group
         markerClusterGroupRef.current.clearLayers();
         map.removeLayer(markerClusterGroupRef.current);
         markerClusterGroupRef.current = null;
         markersRef.current = {};
       }
     };
-  }, [map, markerClusterOptions]); // Removed onClusterClick dependency
+    // Add onItemClick to dependencies as it's used in the handler
+  }, [map, markerClusterOptions, onItemClick]);
 
   // Update markers based on the pre-processed markersData
   // Clear and re-add markers whenever markersData changes
@@ -173,14 +214,19 @@ const MarkerCluster = ({
       marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
 
       // Attach unified click handler using the original item data
-      marker.on('click', (e) => onItemClick(markerDef.originalItem, e.latlng, e)); // Pass item, position, and event
+      marker.on('click', (e) => {
+        console.log('[MarkerCluster] Marker clicked:', markerDef.originalItem, 'at', e.latlng); // DEBUG: Log marker click
+        onItemClick(markerDef.originalItem, e.latlng, e); // Pass item, position, and event
+      });
 
       // Attach userId for cluster icon logic (important!)
       // Attach data needed by iconCreateFunction for single-item clusters
-      (marker as any).userId = markerDef.userId;
-      (marker as any).markerType = markerDef.type;
+      // Attach necessary data directly to the marker instance
+      (marker as any).originalItemData = markerDef.originalItem; // Store the original data item
+      (marker as any).userId = markerDef.userId; // Keep userId if needed elsewhere
+      (marker as any).markerType = markerDef.type; // Keep type if needed elsewhere
       if (markerDef.type === 'city') {
-        (marker as any).population = markerDef.population ?? 0;
+        (marker as any).population = markerDef.population ?? 0; // Keep population if needed elsewhere
       }
 
       // Bind tooltip using the name from markerDef - REMOVED
