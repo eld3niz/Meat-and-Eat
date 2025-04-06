@@ -6,8 +6,9 @@ import { MapUser } from '../../hooks/useMapData';
 import { TileData } from '../../hooks/useMapTilingData';
 // Import necessary utils
 import { getTileCenterLatLng, calculateHaversineDistance, calculateBorderPoint } from '../../utils/mapUtils';
-import createSvgMarkerIcon from './CityMarkerIcon';
-import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon';
+// import createSvgMarkerIcon from './CityMarkerIcon'; // No longer needed here
+// import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // No longer needed here
+import { createSingleMarkerClusterIcon, MarkerDefinition } from '../../utils/mapIconUtils'; // Import shared function and type
 
 interface TileAggregateLayerProps {
   tileAggregationData: Map<string, TileData>;
@@ -113,18 +114,26 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
       } else if (items.length === 1) {
         // --- Single Item Tile ---
         const item = items[0];
-        let tooltipText = item.name;
+        // let tooltipText = item.name; // Tooltips are removed anyway
 
-        if ('population' in item) { // It's a City
-          icon = createSvgMarkerIcon(item.population);
-          clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick
-        } else { // It's a MapUser
-          icon = item.user_id === currentUserId ? currentUserIconRed : otherUserIconBlue;
-          clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick
-          if (item.user_id === currentUserId) {
-            tooltipText = "Your Location"; // Override tooltip for current user
-          }
-        }
+        // Create a MarkerDefinition object to pass to the shared icon function
+        const markerDef: MarkerDefinition = {
+          id: 'population' in item ? `city-${item.id}` : `user-${item.user_id}`, // Create a unique ID
+          latitude: item.latitude,
+          longitude: item.longitude,
+          type: 'population' in item ? 'city' : 'user',
+          name: item.name,
+          userId: 'population' in item ? null : item.user_id,
+          population: 'population' in item ? item.population : undefined,
+          originalItem: item,
+        };
+
+        // Use the shared function to create the cluster-like icon
+        const iconOptions = createSingleMarkerClusterIcon(markerDef, currentUserId);
+        icon = L.divIcon(iconOptions);
+
+        // Assign the click handler
+        clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick
 
         // Check if marker exists and update, otherwise create new
         if (currentMarkers[tileId]) {

@@ -5,54 +5,11 @@ import 'leaflet.markercluster';
 import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData'; // Import MapUser
 import { formatPopulation } from '../../utils/mapUtils';
-import createSvgMarkerIcon from './CityMarkerIcon';
-import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // Import blue and red user icons
-
-// Define MarkerDefinition locally (mirroring WorldMap.tsx)
-// TODO: Consider moving this to a shared types file (e.g., src/types/index.ts)
-interface MarkerDefinition {
-  id: string;
-  latitude: number;
-  longitude: number;
-  type: 'city' | 'user';
-  name: string;
-  userId?: string | null;
-  population?: number;
-  originalItem: City | MapUser;
-}
-
-// Use types from @types/leaflet.markercluster
-
-// Helper function to create styled divIcon for single markers (mimicking clusters)
-const createSingleMarkerClusterIcon = (markerDef: MarkerDefinition, currentUserId: string | null): L.DivIconOptions => {
-  const isCurrentUser = markerDef.type === 'user' && markerDef.userId === currentUserId;
-  // const isOtherUser = markerDef.type === 'user' && !isCurrentUser; // Not needed for color logic below
-  // const isCity = markerDef.type === 'city'; // Not needed for color logic below
-
-  const sizeClass = 'w-8 h-8 text-xs'; // Match cluster size
-  const sizeValue = 32; // w-8 -> 32px
-
-  let bgColorClass = '';
-  // Determine background color based on user status or default blue
-  if (isCurrentUser) {
-      bgColorClass = 'bg-red-500 border-red-600'; // Red for current user
-  } else {
-      bgColorClass = 'bg-blue-500 border-blue-600'; // Blue for cities and other users
-  }
-
-  // For single markers, we don't display a count, just the styled circle.
-  // An empty span is used; the div provides the visual styling.
-  const iconHtml = `<span>1</span>`; // Display '1' for single markers
-
-  const html = `<div class="flex items-center justify-center ${sizeClass} ${bgColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md">${iconHtml}</div>`;
-
-  return {
-    html: html,
-    className: 'marker-cluster-custom', // Use the same base class as clusters
-    iconSize: L.point(sizeValue, sizeValue),
-    iconAnchor: L.point(sizeValue / 2, sizeValue / 2)
-  };
-};
+// import createSvgMarkerIcon from './CityMarkerIcon'; // No longer needed here
+// import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // No longer needed here
+import { createSingleMarkerClusterIcon, MarkerDefinition } from '../../utils/mapIconUtils'; // Import shared function and type
+// MarkerDefinition is now imported from mapIconUtils
+// createSingleMarkerClusterIcon is now imported from mapIconUtils
 
 
 interface MarkerClusterProps {
