@@ -408,13 +408,27 @@ const WorldMap = () => {
 
     closeAllPopups();
 
+    // Render TileListPopup content
+    const popupContent = ReactDOMServer.renderToString(
+      <TileListPopup 
+        items={items} 
+        onClose={() => {
+          aggregatePopupRef.current?.remove();
+          aggregatePopupRef.current = null;
+          setOpenPopupData(null);
+        }} 
+      />
+    );
+
     // Create the popup at the marker's position with offset
     const popup = L.popup({ 
       closeButton: true,
-      offset: [0, -15] // Add 15px vertical offset
+      offset: [0, -15], // Add 15px vertical offset
+      className: 'custom-leaflet-popup', // Add custom class for consistent styling
+      minWidth: 400 // Make popup wider by setting minimum width
     })
       .setLatLng(markerPosition) // Use actual marker position
-      .setContent('') // Set content to an empty string as before
+      .setContent(popupContent)
       .openOn(map);
 
     aggregatePopupRef.current = popup;
