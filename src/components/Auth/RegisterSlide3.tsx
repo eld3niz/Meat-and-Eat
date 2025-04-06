@@ -9,12 +9,12 @@ import Button from '../UI/Button'; // Import Button component
 interface RegisterSlide3Props {
   updateFormData: (data: { languages?: string[]; cuisines?: string[]; city?: string }) => void;
   nextSlide: () => void;
-  // prevSlide removed for the first slide
+  prevSlide: () => void; // Added prevSlide for intermediate step
   currentSlide: number;
   totalSlides: number;
 }
 
-const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, currentSlide, totalSlides }) => {
+const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
   const [language, setLanguage] = useState('');
@@ -144,8 +144,13 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
 
       {/* Slide Indicator and Navigation */}
       <div className="flex items-center justify-between pt-4">
-         {/* Placeholder for Back button alignment */}
-         <div className="w-20"></div>
+         {/* Back Button */}
+         <Button
+            onClick={prevSlide}
+            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center"
+          >
+            Zurück
+          </Button>
 
         {/* Slide Indicator */}
         <span className="text-sm text-gray-500">

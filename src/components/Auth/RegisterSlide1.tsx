@@ -4,12 +4,13 @@ import Button from '../UI/Button'; // Import Button component
 interface RegisterSlide1Props {
   updateFormData: (data: { email?: string; password?: string }) => void;
   nextSlide: () => void;
-  prevSlide: () => void; // Now required as it's not the first slide
+  prevSlide?: () => void; // Optional, as this can be the first slide
   currentSlide: number;
   totalSlides: number;
 }
 
-const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
+// Remove prevSlide from destructuring as it's optional and not used when it's the first slide
+const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSlide, currentSlide, totalSlides }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
@@ -77,13 +78,9 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ updateFormData, nextSli
       </div>
       {/* Slide Indicator and Navigation */}
       <div className="flex items-center justify-between pt-4">
-         {/* Back Button */}
-         <Button
-            onClick={prevSlide} // Always available for intermediate slides
-            className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center" // Added w-20
-          >
-            Zurück
-          </Button>
+         {/* Back Button Placeholder - Keep layout consistent */}
+         {/* Render an empty div or similar to maintain spacing if needed, or adjust flex layout */}
+         <div className="w-20"></div> {/* Empty div to maintain spacing */}
 
         {/* Slide Indicator */}
         <span className="text-sm text-gray-500">

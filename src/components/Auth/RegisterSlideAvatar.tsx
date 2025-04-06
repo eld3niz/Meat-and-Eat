@@ -3,16 +3,20 @@ import AvatarUpload from './AvatarUpload'; // Reuse the component
 
 interface RegisterSlideAvatarProps {
   updateFormData: (data: { avatarFile?: File | null }) => void; // Pass the File object
-  nextSlide: () => void;
+  // nextSlide removed as this is the last slide
   prevSlide: () => void;
+  handleSubmit: () => Promise<void>; // Added for final submission
+  isLoading: boolean; // Added for loading state on submit
   currentSlide: number;
   totalSlides: number;
 }
 
 const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
   updateFormData,
-  nextSlide,
+  // nextSlide removed
   prevSlide,
+  handleSubmit, // Added
+  isLoading, // Added
   currentSlide,
   totalSlides,
 }) => {
@@ -57,13 +61,15 @@ const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
      event.target.value = '';
   }, [updateFormData]);
 
-  const handleNext = () => {
-    // You could add validation here if an avatar is mandatory
+  // Renamed to handleComplete for clarity as it's the final step
+  const handleComplete = () => {
+    // Optional: Add validation if an avatar is mandatory
     // if (!avatarFile) {
     //   setError('Please select a profile picture.');
     //   return;
     // }
-    nextSlide();
+    // No need to updateFormData here as it's done in handleAvatarSelect
+    handleSubmit(); // Call the submit handler passed from the parent
   };
 
   return (
@@ -91,9 +97,9 @@ const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
         <button
           type="button"
           onClick={prevSlide}
-          className="px-4 py-2 rounded-md text-gray-700 bg-gray-200 hover:bg-gray-300 transition duration-150 w-20 text-center" // Added w-20 for alignment
+          className="bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 px-4 py-2 rounded-md w-20 text-center" // Consistent back button style
         >
-          Back
+          Zurück
         </button>
 
         {/* Slide Indicator */}
@@ -101,13 +107,24 @@ const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
           Slide {currentSlide + 1} / {totalSlides}
         </span>
 
-        {/* Next Button */}
+        {/* Complete Button */}
         <button
           type="button"
-          onClick={handleNext} // Use custom handler for potential validation
-          className="px-6 py-2 rounded-md text-white bg-blue-600 hover:bg-blue-700 transition duration-150 w-20 text-center" // Added w-20 for alignment
+          onClick={handleComplete} // Call handleComplete
+          disabled={isLoading}
+          className="bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 flex items-center justify-center px-4 py-2 rounded-md min-w-[120px] text-center" // Style from original complete button
         >
-          Next
+          {isLoading ? (
+            <>
+              <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Wird verarbeitet...
+            </>
+          ) : (
+            'Registrierung abschließen'
+          )}
         </button>
       </div>
     </div>

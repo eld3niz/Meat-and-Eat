@@ -131,24 +131,24 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
   };
 
   const renderSlide = () => {
-    // New requested order: [3, New1, New2, Avatar, 1, 2]
-    // Indices:             [0,    1,    2,      3, 4, 5]
+    // New requested order: [5, 6, 1, 2, 3, 4] -> [Slide1, Slide2, Slide3, New1, New2, Avatar]
+    // Indices:             [0, 1, 2, 3, 4, 5]
     const totalSlides = 6;
 
     switch (currentSlide) {
-      case 0: // Original Slide 3: Languages/Cuisines/City (First Slide)
-        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
-      case 1: // New Slide 1: Local Status & Budget (Middle Slide)
+      case 0: // Slide 1: Email/Password (First Slide) - Only Next
+        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 1: // Slide 2: Name/Age (Middle Slide) - Prev & Next
+        return <RegisterSlide2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 2: // Slide 3: Languages/Cuisines/City (Middle Slide) - Prev & Next
+        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+      case 3: // Slide 4: Local Status & Budget (Middle Slide) - Prev & Next
         return <RegisterSlideNew1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
-      case 2: // New Slide 2: Bio (Middle Slide)
+      case 4: // Slide 5: Bio (Middle Slide) - Prev & Next
         return <RegisterSlideNew2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
-      case 3: // New Avatar Slide (Middle Slide)
-        return <RegisterSlideAvatar updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
-      case 4: // Original Slide 1: Email/Password (Middle Slide)
-        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
-      case 5: // Original Slide 2: Name/Age (Last Slide + Submit)
+      case 5: // Slide 6: Avatar (Last Slide + Submit) - Prev & Submit
         return (
-          <RegisterSlide2
+          <RegisterSlideAvatar
             updateFormData={updateFormData}
             prevSlide={prevSlide} // Only prev and submit
             handleSubmit={handleSubmit}

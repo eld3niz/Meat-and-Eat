@@ -3,14 +3,13 @@ import Button from '../UI/Button'; // Import Button component
 interface RegisterSlide2Props {
   updateFormData: (data: { name?: string; age?: number | null }) => void;
   prevSlide: () => void;
-  handleSubmit: () => Promise<void>; // Added handleSubmit back
-  isLoading: boolean; // Added isLoading back
-  // Removed nextSlide
+  nextSlide: () => void; // Added nextSlide for intermediate step
+  // Removed handleSubmit and isLoading
   currentSlide: number;
   totalSlides: number;
 }
 
-const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSlide, handleSubmit, isLoading, currentSlide, totalSlides }) => {
+const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSlide, nextSlide, currentSlide, totalSlides }) => {
   const [name, setName] = useState('');
   const [birthDate, setBirthDate] = useState({
     day: '',
@@ -54,8 +53,8 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
     return Object.keys(newErrors).length === 0;
   };
 
-  // Handle form completion and submission
-  const handleComplete = () => {
+  // Handle moving to the next slide
+  const handleNext = () => {
     if (validateForm()) {
       // Calculate age from birthDate
       const birthDateObj = new Date(
@@ -63,10 +62,15 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
         Number(birthDate.month) - 1,
         Number(birthDate.day)
       );
-      // Note: Simple age calculation
-      const age = new Date().getFullYear() - birthDateObj.getFullYear();
+      // Note: Simple age calculation, consider edge cases for more accuracy if needed
+      let age = new Date().getFullYear() - birthDateObj.getFullYear();
+      const monthDiff = new Date().getMonth() - birthDateObj.getMonth();
+      if (monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDateObj.getDate())) {
+        age--; // Adjust age if birthday hasn't occurred this year
+      }
+
       updateFormData({ name, age: age >= 16 ? age : null });
-      handleSubmit(); // Call handleSubmit
+      nextSlide(); // Call nextSlide
     }
   };
 
@@ -158,23 +162,12 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
           Slide {currentSlide + 1} / {totalSlides}
         </span>
 
-        {/* Complete Button */}
+        {/* Next Button */}
         <Button
-          className="bg-green-600 text-white hover:bg-green-700 focus:ring-green-500 flex items-center justify-center px-4 py-2 rounded-md min-w-[120px] text-center"
-          onClick={handleComplete} // Call handleComplete
-          disabled={isLoading}
+           className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500 px-6 py-2 rounded-md w-20 text-center" // Standard next button style
+           onClick={handleNext} // Call handleNext
         >
-          {isLoading ? (
-            <>
-              <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Wird verarbeitet...
-            </>
-          ) : (
-            'Registrierung abschließen'
-          )}
+          Weiter
         </Button>
       </div>
     </div>
