@@ -417,139 +417,108 @@ const UserProfile = () => {
       )}
 
       {!editMode ? (
-        // --- VIEW MODE ---
-        <div className="space-y-6">
-          {/* Avatar Display (View Mode) - Opens modal */}
-          <div className="flex justify-center mb-4">
-             <AvatarUpload
-               avatarUrl={avatarUrl}
-               uploading={false}
-               isReadOnly={true}
-               onClick={() => { if (avatarUrl) setIsImageModalOpen(true); }} // Open modal on click if URL exists
-               size={120}
-             />
-           </div>
+        // --- NEW VIEW MODE (Popup Style) ---
+        <div className="space-y-4 p-1"> {/* Reduced padding for popup */}
+          {/* Top Section */}
+          <div className="flex items-start space-x-4">
+            {/* Left Column: Avatar & Rating */}
+            <div className="flex-shrink-0 flex flex-col items-center">
+              <AvatarUpload
+                avatarUrl={avatarUrl}
+                uploading={false}
+                isReadOnly={true}
+                onClick={() => { if (avatarUrl) setIsImageModalOpen(true); }}
+                size={80} // Smaller avatar for popup
+              />
+              {/* Placeholder Rating */}
+              <p className="text-xs text-gray-500 mt-1">★★★★☆ (4.5/5)</p>
+            </div>
 
-          {/* Profile Fields Display */}
-           <div className="border-b pb-3">
-             <p className="text-sm font-medium text-gray-500">Email</p>
-             <p className="text-lg">{user?.email}</p>
-           </div>
-           <div className="border-b pb-3">
-             <p className="text-sm font-medium text-gray-500">Name</p>
-             <p className="text-lg">{profile?.name || 'Not specified'}</p>
-           </div>
-           <div className="border-b pb-3">
-             <p className="text-sm font-medium text-gray-500">Age</p>
-             <p className="text-lg">{profile?.age || 'Not specified'}</p>
-           </div>
-           <div className="border-b pb-3">
-             <p className="text-sm font-medium text-gray-500">Languages I Speak</p>
-             <p className="text-lg">
-               {profile?.languages && profile.languages.length > 0
-                 ? profile.languages.join(', ')
-                 : 'Not specified'}
-             </p>
-           </div>
-           <div className="border-b pb-3">
-             <p className="text-sm font-medium text-gray-500">Cuisines I Like</p>
-             <p className="text-lg">
-               {profile?.cuisines && profile.cuisines.length > 0
-                 ? profile.cuisines.join(', ')
-                 : 'Not specified'}
+            {/* Right Column: Info */}
+            <div className="flex-grow space-y-1">
+              <h3 className="text-xl font-semibold flex items-center">
+                {profile?.name || 'User Name'}
+                <span className="ml-2">🇩🇪</span> {/* Placeholder Flag */}
+              </h3>
+              <p className="text-sm text-gray-600">{profile?.age ? `${profile.age} yrs` : 'Age not specified'}</p>
+              <p className="text-sm text-gray-600">
+                Status: {profile?.is_local === 'local' ? 'Local 🏠' : profile?.is_local === 'traveler' ? 'Traveler ✈️' : 'Not specified'}
+              </p>
+              <p className="text-sm text-gray-600">
+                Budget: {profile?.budget === 1 ? '💰' : profile?.budget === 2 ? '💰💰' : profile?.budget === 3 ? '💰💰💰' : 'Not specified'}
+              </p>
+            </div>
+          </div>
+
+          {/* Separator 1 */}
+          <hr className="border-gray-200" />
+
+          {/* Bio Section */}
+          <div>
+            <h4 className="text-sm font-medium text-gray-700 mb-1">Bio:</h4>
+            <p className="text-sm text-gray-600 whitespace-pre-wrap break-words">
+              {profile?.bio || 'No bio provided.'}
             </p>
           </div>
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Status</p>
-            <p className="text-lg">{profile?.is_local ? (profile.is_local === 'local' ? 'Local' : 'Traveler') : 'Not specified'}</p>
-          </div>
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Budget</p>
-            <p className="text-lg">{profile?.budget ? `Level ${profile.budget}` : 'Not specified'}</p>
-          </div>
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Bio</p>
-            <p className="text-lg whitespace-pre-wrap">{profile?.bio || 'Not specified'}</p>
-          </div>
-          <div className="border-b pb-3">
-            <p className="text-sm font-medium text-gray-500">Member Since</p>
-            <p className="text-lg">
-              {profile?.created_at
-                ? new Date(profile.created_at).toLocaleDateString()
-                : 'Not available'}
-            </p>
-          </div>
-          {/* End Profile Fields Display */}
 
-          <button
-             onClick={() => { // Explicitly set state when entering edit mode
-                 setEditMode(true);
-                 setEditAvatarPreviewUrl(avatarUrl);
-                 setEditAvatarFile(null);
-                 setUpdateMessage({ type: '', text: '' });
-             }}
-             className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition duration-200"
-           >
-             Edit Profile
-           </button>
+          {/* Separator 2 */}
+          <hr className="border-gray-200" />
 
-          {/* Delete Profile Button/Text */}
-          <div className="text-right mt-4">
+          {/* Details Section */}
+          <div className="space-y-1">
+             <p className="text-sm text-gray-600">
+                🗣️ <span className="font-medium">Speaks:</span>{' '}
+                {profile?.languages && profile.languages.length > 0
+                  ? profile.languages.join(', ')
+                  : 'Not specified'}
+              </p>
+              <p className="text-sm text-gray-600">
+                🍜 <span className="font-medium">Likes:</span>{' '}
+                {profile?.cuisines && profile.cuisines.length > 0
+                  ? profile.cuisines.join(', ')
+                  : 'Not specified'}
+              </p>
+          </div>
+
+          {/* Separator 3 */}
+          <hr className="border-gray-200" />
+
+          {/* Buttons Section */}
+          <div className="flex space-x-3 pt-2">
             <button
-              onClick={handleDeleteProfile}
-              className="text-sm text-red-600 hover:text-red-800 hover:underline focus:outline-none"
+              type="button"
+              className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg shadow hover:bg-blue-600 transition duration-200 text-sm font-medium flex items-center justify-center space-x-1"
             >
-              Delete My Profile
+              <span>💬</span>
+              <span>Chat</span>
+            </button>
+            <button
+              type="button"
+              className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg shadow hover:bg-green-600 transition duration-200 text-sm font-medium flex items-center justify-center space-x-1"
+            >
+               <span>🤝</span>
+               <span>Meet Me</span>
             </button>
           </div>
 
-          {/* --- Password Change Section --- */}
-          <div className="mt-6 pt-6 border-t">
-            {!showPasswordChange ? (
-              <button
-                onClick={() => {
-                  setShowPasswordChange(true);
-                  setPasswordUpdateMessage({ type: '', text: '' });
-                }}
-                className="w-full bg-gray-500 text-white py-2 px-4 rounded-md hover:bg-gray-600 transition duration-200"
-              >
-                Change Password
-              </button>
-            ) : (
-              <form onSubmit={handlePasswordChange} className="space-y-4">
-                <h3 className="text-lg font-semibold text-gray-700">Change Password</h3>
-                {passwordUpdateMessage.text && (
-                  <div
-                    className={`p-3 rounded ${
-                      passwordUpdateMessage.type === 'success' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {passwordUpdateMessage.text}
-                  </div>
-                )}
-                {/* Password Inputs (Condensed for brevity) */}
-                <div>
-                  <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                  <input id="newPassword" name="newPassword" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Enter new password (min. 6 characters)" />
-                </div>
-                <div>
-                  <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                  <input id="confirmPassword" name="confirmPassword" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required minLength={6} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Confirm new password" />
-                </div>
-                <div className="flex space-x-3">
-                  <button type="submit" disabled={passwordLoading} className="flex-1 bg-green-600 text-white py-2 px-4 rounded-md hover:bg-green-700 transition duration-200 disabled:opacity-50">
-                    {passwordLoading ? 'Saving...' : 'Save New Password'}
-                  </button>
-                  <button type="button" onClick={() => { setShowPasswordChange(false); setNewPassword(''); setConfirmPassword(''); setPasswordUpdateMessage({ type: '', text: '' }); }} className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200">
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-          {/* --- End Password Change Section --- */}
-
+          {/* Keep Edit/Delete/Password Change outside the main popup content flow? */}
+          {/* For now, let's keep the Edit button separate, maybe below the popup content */}
+          <div className="mt-6 text-center">
+             <button
+               onClick={() => { // Enter edit mode
+                   setEditMode(true);
+                   setEditAvatarPreviewUrl(avatarUrl);
+                   setEditAvatarFile(null);
+                   setUpdateMessage({ type: '', text: '' });
+               }}
+               className="text-blue-600 hover:text-blue-800 text-sm hover:underline"
+             >
+               Edit My Profile
+             </button>
+           </div>
+           {/* TODO: Re-integrate Delete Profile & Change Password buttons appropriately if needed in this view */}
         </div>
+
       ) : (
         // --- EDIT MODE ---
         <form onSubmit={handleSubmit} className="space-y-6">
