@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react'; // Import React
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../utils/supabaseClient';
 import { languageOptions, cuisineOptions } from '../../data/options';
-import AvatarUpload from './AvatarUpload'; // Import the new component
+import AvatarUpload from './AvatarUpload';
+import ImageModal from '../UI/ImageModal'; // Import the ImageModal
 // Removed: import { useNavigate } from 'react-router-dom';
 
 interface ProfileData {
@@ -51,6 +52,8 @@ const UserProfile = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [passwordUpdateMessage, setPasswordUpdateMessage] = useState({ type: '', text: '' });
   const [passwordLoading, setPasswordLoading] = useState(false);
+  // State for image modal
+  const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -416,21 +419,16 @@ const UserProfile = () => {
       {!editMode ? (
         // --- VIEW MODE ---
         <div className="space-y-6">
-          {/* Avatar Display (View Mode) */}
+          {/* Avatar Display (View Mode) - Opens modal */}
           <div className="flex justify-center mb-4">
-            <AvatarUpload
-              avatarUrl={avatarUrl} // Display the saved URL
-              uploading={false}
-              onUpload={() => { // Clicking avatar in view mode enters edit mode
-                  setEditMode(true);
-                  // Ensure preview starts with current saved URL when entering edit mode
-                  setEditAvatarPreviewUrl(avatarUrl);
-                  setEditAvatarFile(null); // Clear any stale file selection
-                  setUpdateMessage({ type: '', text: '' }); // Clear messages
-              }}
-              size={120}
-            />
-          </div>
+             <AvatarUpload
+               avatarUrl={avatarUrl}
+               uploading={false}
+               isReadOnly={true}
+               onClick={() => { if (avatarUrl) setIsImageModalOpen(true); }} // Open modal on click if URL exists
+               size={120}
+             />
+           </div>
 
           {/* Profile Fields Display */}
            <div className="border-b pb-3">
@@ -717,6 +715,13 @@ const UserProfile = () => {
           </div>
         </form>
       )}
+
+      {/* Image Modal */}
+      <ImageModal
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        imageUrl={avatarUrl} // Pass the current avatar URL
+      />
     </div>
   );
 };
