@@ -1,18 +1,26 @@
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
-import MultiStepRegisterForm from './MultiStepRegisterForm'; // Import the new component
+import MultiStepRegisterForm from './MultiStepRegisterForm';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'login' | 'register';
 }
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-  const [activeTab, setActiveTab] = useState<'login' | 'register'>('login');
+const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTab = 'login' }) => {
+  const [activeTab, setActiveTab] = useState<'login' | 'register'>(initialTab);
   const modalRef = useRef<HTMLDivElement>(null);
-  
-  // Schließe das Modal beim Klicken außerhalb
+
+  // Set the active tab when initialTab changes
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
+
+  // Close modal when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (modalRef.current && !modalRef.current.contains(event.target as Node)) {
@@ -20,7 +28,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       }
     };
 
-    // Schließe das Modal mit ESC-Taste
+    // Close modal with ESC key
     const handleEscKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         onClose();
@@ -30,7 +38,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     if (isOpen) {
       document.addEventListener('mousedown', handleClickOutside);
       document.addEventListener('keydown', handleEscKey);
-      // Verhindere das Scrollen des Hintergrunds wenn Modal geöffnet ist
+      // Prevent background scrolling when modal is open
       document.body.style.overflow = 'hidden';
     }
 
@@ -44,7 +52,6 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   if (!isOpen) return null;
 
   return (
-    // Changed 'fixed' to 'absolute', removed 'p-4', removed background color/opacity
     <div className="absolute inset-0 z-[9999] flex items-center justify-center">
       <div
         ref={modalRef}
@@ -88,7 +95,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           {activeTab === 'login' ? (
             <LoginForm onSuccess={onClose} />
           ) : (
-            <MultiStepRegisterForm /> // Use the new multi-step form
+            <MultiStepRegisterForm />
           )}
         </div>
 

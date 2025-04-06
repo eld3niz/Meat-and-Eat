@@ -180,7 +180,7 @@ const Header = () => {
               ) : (
                 <button 
                   className="group bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-2 px-6 rounded-full transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg flex items-center space-x-2"
-                  onClick={openAuthModal}
+                  onClick={() => openAuthModal()}
                 >
                   <span className="tracking-wide text-base font-sans group-hover:tracking-wider transition-all duration-300">
                     Start Eating!

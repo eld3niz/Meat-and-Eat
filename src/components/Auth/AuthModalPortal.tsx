@@ -1,40 +1,20 @@
-import { useEffect } from 'react';
-// Removed ReactDOM import
-import AuthModal from './AuthModal';
+import React from 'react';
+import { createPortal } from 'react-dom';
 import { useModal } from '../../contexts/ModalContext';
+import AuthModal from './AuthModal';
 
-const AuthModalPortal: React.FC = () => { // Renaming might be good later, but keep for now
-  const { isAuthModalOpen, closeAuthModal } = useModal();
-  
-  // Removed portal target logic
-  
-  // Verhindern des Hintergrund-Scrollens, wenn das Modal geöffnet ist
-  // This effect might still be useful, but let's see if it causes issues first.
-  // Keep it for now.
-  useEffect(() => {
-    if (isAuthModalOpen) {
-      // We might want to prevent scroll only on the content div now,
-      // but let's keep targeting body for simplicity first.
-      document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = 'auto';
-    }
-    
-    return () => {
-      document.body.style.overflow = 'auto';
-    };
-  }, [isAuthModalOpen]);
+const AuthModalPortal: React.FC = () => {
+  const { isAuthModalOpen, closeAuthModal, initialAuthTab } = useModal();
 
-  // Render AuthModal directly if open
-  if (!isAuthModalOpen) {
-    return null;
-  }
+  if (!isAuthModalOpen) return null;
 
-  return (
-    <AuthModal
-      isOpen={isAuthModalOpen} // Prop might be redundant now, but keep for consistency
-      onClose={closeAuthModal}
-    />
+  return createPortal(
+    <AuthModal 
+      isOpen={isAuthModalOpen} 
+      onClose={closeAuthModal} 
+      initialTab={initialAuthTab}
+    />,
+    document.body
   );
 };
 
