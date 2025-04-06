@@ -6,9 +6,10 @@ import { MapUser } from '../../hooks/useMapData';
 import { TileData } from '../../hooks/useMapTilingData';
 // Import necessary utils
 import { getTileCenterLatLng, calculateHaversineDistance, calculateBorderPoint } from '../../utils/mapUtils';
-// import createSvgMarkerIcon from './CityMarkerIcon'; // No longer needed here
-// import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // No longer needed here
-import { createSingleMarkerClusterIcon, MarkerDefinition } from '../../utils/mapIconUtils'; // Import shared function and type
+import createSvgMarkerIcon from './CityMarkerIcon'; // Restore original import
+import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // Restore original import
+// import { createSingleMarkerClusterIcon, MarkerDefinition } from '../../utils/mapIconUtils'; // Comment out unused import
+import { MarkerDefinition } from '../../utils/mapIconUtils'; // Keep MarkerDefinition import
 
 interface TileAggregateLayerProps {
   tileAggregationData: Map<string, TileData>;
@@ -128,9 +129,12 @@ const TileAggregateLayer: React.FC<TileAggregateLayerProps> = ({
           originalItem: item,
         };
 
-        // Use the shared function to create the cluster-like icon
-        const iconOptions = createSingleMarkerClusterIcon(markerDef, currentUserId);
-        icon = L.divIcon(iconOptions);
+        // --- Use Original Icon Logic ---
+        if (markerDef.type === 'city') {
+          icon = createSvgMarkerIcon(markerDef.population ?? 0);
+        } else { // markerDef.type === 'user'
+          icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
+        }
 
         // Assign the click handler
         clickHandler = () => onItemClick(item, finalPosition); // Pass finalPosition to onItemClick

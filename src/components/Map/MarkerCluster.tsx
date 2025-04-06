@@ -5,11 +5,11 @@ import 'leaflet.markercluster';
 import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData'; // Import MapUser
 import { formatPopulation } from '../../utils/mapUtils';
-// import createSvgMarkerIcon from './CityMarkerIcon'; // No longer needed here
-// import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // No longer needed here
-import { createSingleMarkerClusterIcon, MarkerDefinition } from '../../utils/mapIconUtils'; // Import shared function and type
+import createSvgMarkerIcon from './CityMarkerIcon'; // Restore original import
+import { otherUserIconBlue, currentUserIconRed } from './OtherUserIcon'; // Restore original import
+import { MarkerDefinition } from '../../utils/mapIconUtils'; // Keep MarkerDefinition import
 // MarkerDefinition is now imported from mapIconUtils
-// createSingleMarkerClusterIcon is now imported from mapIconUtils
+// import { createSingleMarkerClusterIcon } from '../../utils/mapIconUtils'; // Comment out unused import
 
 
 interface MarkerClusterProps {
@@ -38,7 +38,7 @@ const MarkerCluster = ({
   const markerClusterOptions = useMemo(() => ({
     chunkedLoading: true,
     spiderfyOnMaxZoom: false, // <-- Disable spiderfication
-    disableClusteringAtZoom: 14,
+    disableClusteringAtZoom: 19, // Disable clustering *at* max zoom (assuming 19 for OSM)
     maxClusterRadius: 80,
     zoomToBoundsOnClick: true, // Restore default zoom behavior
     removeOutsideVisibleBounds: true,
@@ -52,18 +52,20 @@ const MarkerCluster = ({
       let clusterColorClass = '';
 
       if (childCount === 1) {
-        // --- Style for single-item clusters ---
-        const singleMarker = childMarkers[0];
-        const isCurrentUser = currentUserId && (singleMarker as any).userId === currentUserId;
+        // --- Use original icon for single-item clusters ---
+        const singleMarker = childMarkers[0] as any; // Cast to any to access custom properties
+        const markerType = singleMarker.markerType;
+        const markerUserId = singleMarker.userId;
+        const markerPopulation = singleMarker.population;
 
-        if (isCurrentUser) {
-            clusterColorClass = 'bg-red-500 border-red-600'; // Red for current user
-        } else {
-            clusterColorClass = 'bg-blue-500 border-blue-600'; // Blue for others
+        if (markerType === 'city') {
+          // Return the city SVG icon
+          return createSvgMarkerIcon(markerPopulation ?? 0);
+        } else { // markerType === 'user'
+          // Return the appropriate user icon
+          return markerUserId === currentUserId ? currentUserIconRed : otherUserIconBlue;
         }
-        // Use '1' as content, mimicking createSingleMarkerClusterIcon
-        html = `<div class="flex items-center justify-center ${sizeClass} ${clusterColorClass} text-white font-semibold rounded-full border-2 border-white shadow-md"><span>1</span></div>`;
-
+        // Note: We are returning the icon directly here, not creating HTML for a divIcon
       } else {
         // --- Style for multi-item clusters (existing logic) ---
         let clusterContainsUser = false;
@@ -91,8 +93,9 @@ const MarkerCluster = ({
 
       // Removed debug logging
 
+      // This divIcon creation is now only for multi-item clusters (childCount > 1)
       return L.divIcon({
-        html: html,
+        html: html, // html is only set in the else block now
         className: 'marker-cluster-custom', // Ensure this class doesn't override the background
         iconSize: L.point(sizeValue, sizeValue),
         iconAnchor: L.point(sizeValue / 2, sizeValue / 2)
@@ -139,17 +142,17 @@ const MarkerCluster = ({
       let marker: L.Marker;
       let icon: L.Icon | L.DivIcon;
 
-      // --- Create icon mimicking cluster style for single markers ---
+      // --- Create icon mimicking cluster style for single markers (Commented out) ---
       // Use the helper function to generate a divIcon styled like a cluster
-      const iconOptions = createSingleMarkerClusterIcon(markerDef, currentUserId);
-      icon = L.divIcon(iconOptions);
+      // const iconOptions = createSingleMarkerClusterIcon(markerDef, currentUserId);
+      // icon = L.divIcon(iconOptions);
 
-      // --- Original Icon Logic (Replaced by the above) ---
-      // if (markerDef.type === 'city') {
-      //   icon = createSvgMarkerIcon(markerDef.population ?? 0);
-      // } else { // markerDef.type === 'user'
-      //   icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
-      // }
+      // --- Original Icon Logic (Restored) ---
+      if (markerDef.type === 'city') {
+        icon = createSvgMarkerIcon(markerDef.population ?? 0);
+      } else { // markerDef.type === 'user'
+        icon = markerDef.userId === currentUserId ? currentUserIconRed : otherUserIconBlue;
+      }
 
       // Create marker at the provided tile center coordinates
       marker = L.marker([markerDef.latitude, markerDef.longitude], { icon });
@@ -158,7 +161,12 @@ const MarkerCluster = ({
       marker.on('click', (e) => onItemClick(markerDef.originalItem, e.latlng, e)); // Pass item, position, and event
 
       // Attach userId for cluster icon logic (important!)
+      // Attach data needed by iconCreateFunction for single-item clusters
       (marker as any).userId = markerDef.userId;
+      (marker as any).markerType = markerDef.type;
+      if (markerDef.type === 'city') {
+        (marker as any).population = markerDef.population ?? 0;
+      }
 
       // Bind tooltip using the name from markerDef - REMOVED
       // marker.bindTooltip(markerDef.name, { permanent: false, direction: 'top', className: 'custom-tooltip' });
