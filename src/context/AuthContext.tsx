@@ -78,10 +78,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
             }
             return prevStatus; // Keep denied if it changed
         });
-        // Update DB only if coords were successfully set
-        // Check the state variable directly after potential update - Use coords directly
-        if (coords) {
-             await updateUserLocationAndProfile(userId, coords[0], coords[1], true);
+        // Update DB only if coords are valid numbers
+        const latitude = coords[0];
+        const longitude = coords[1];
+
+        if (typeof latitude === 'number' && isFinite(latitude) && typeof longitude === 'number' && isFinite(longitude)) {
+          // Coordinates are valid, update the database with actual location
+          await updateUserLocationAndProfile(userId, latitude, longitude, true);
+        } else {
+          // Coordinates are invalid (null, undefined, NaN, etc.)
+          console.error(`[AuthContext] Invalid coordinates received: lat=${latitude}, lon=${longitude}. Setting location access to false.`);
+          // Treat as an error case - update profile but indicate no valid location
+          await updateUserLocationAndProfile(userId, 0, 0, false);
+          // Also clear local coordinates state if they were invalid
+          setUserCoordinates(null);
+          // Ensure permission status reflects the issue if it was previously granted
+           setLocationPermissionStatus(prevStatus => prevStatus === 'granted' ? 'unavailable' : prevStatus);
         }
         setIsFetchingLocation(false); // <-- Stop fetching (success)
       },

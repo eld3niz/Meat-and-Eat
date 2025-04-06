@@ -72,7 +72,6 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         const fileExt = file.name.split('.').pop();
         const fileName = `${Math.random()}.${fileExt}`;
         filePath = `${authData.user.id}/${fileName}`; // Assign value here
-        const filePath = `${authData.user.id}/${fileName}`;
 
         const { error: uploadError } = await supabase.storage
           .from('avatars')
