@@ -71,76 +71,73 @@ const UserInfoPopup: React.FC<UserInfoPopupProps> = ({ user, onClose }) => {
 
   return (
     // Mimic UserProfile structure and styling, make wider (lg)
-    // Adjusted max-width (lg) and padding for popup context
-    <div className="user-info-popup-container p-4 max-w-lg bg-white rounded-lg shadow-lg popup-open-anim relative text-sm">
+    // Adjusted max-width (2xl) and padding for popup context
+    <div className="user-info-popup-container p-5 max-w-2xl bg-white rounded-lg shadow-xl popup-open-anim relative text-sm"> {/* Wider: lg -> 2xl, more padding */}
 
-      {/* Top Section: Avatar/Rating + Basic Info */}
-      <div className="flex items-start space-x-3 mb-3">
-        {/* Left Column: Avatar Placeholder & Rating Placeholder */}
-        <div className="flex-shrink-0 flex flex-col items-center w-16"> {/* Fixed width */}
-          {/* Actual Avatar or Placeholder */}
-          <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 mb-1 overflow-hidden">
+      {/* Section 1: Avatar, Name, Age, Gender, Status */}
+      <div className="flex items-center space-x-4 mb-2 pb-2 border-b border-gray-200"> {/* Reduced mb/pb */}
+        {/* Avatar */}
+        <div className="flex-shrink-0">
+          <div className="w-20 h-20 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 overflow-hidden"> {/* Larger Avatar */}
             {loadingExtra ? (
               <div className="animate-pulse w-full h-full bg-gray-400"></div>
             ) : extraData?.avatar_url ? (
               <img src={extraData.avatar_url} alt={user.name || 'Avatar'} className="w-full h-full object-cover" />
             ) : (
-              // Default Placeholder Icon
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 20 20" fill="currentColor"> {/* Larger placeholder icon */}
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
             )}
           </div>
-          <p className="text-xs text-gray-500 text-center">Rating N/A</p>
         </div>
-
-        {/* Right Column: Info */}
-        <div className="flex-grow pt-1">
-          <h3 className="text-base font-semibold text-gray-800 truncate">{user.name || 'N/A'}</h3>
-          <p className="text-xs text-gray-600">
-            Age: {user.age ?? 'N/A'} | Gender: {loadingExtra ? '...' : extraData?.gender || 'N/A'}
+        {/* Info - Stacked */}
+        <div className="flex-grow">
+          <h3 className="text-lg font-semibold text-gray-900 truncate">{user.name || 'N/A'}</h3> {/* Larger name, removed mb-1 */}
+          <p className="text-sm text-gray-600"> {/* Stacked */}
+            Age: {user.age ?? 'N/A'}
           </p>
-          <p className="text-xs text-gray-600 mt-1">
-            {status}
+          <p className="text-sm text-gray-600"> {/* Stacked */}
+             Gender: {loadingExtra ? '...' : extraData?.gender || 'N/A'}
+          </p>
+          <p className="text-sm text-gray-600"> {/* Stacked */}
+             {status}
           </p>
         </div>
       </div>
 
-      {/* Bio Section */}
-      <div className="mt-3 pt-2 border-t border-gray-200">
-        <p className="text-xs font-medium text-gray-600 mb-1">About Me</p>
-        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
-          {user.bio || 'Not Given'}
-        </p>
-      </div>
-
-      {/* Details Section */}
-      <div className="mt-3 pt-2 border-t border-gray-200 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+      {/* Section 2: Bio and Rating */}
+      <div className="mb-2 pb-2 border-b border-gray-200"> {/* Reduced mb/pb */}
+        <div className="mb-1"> {/* Further reduced margin between Bio and Rating */}
+          <h4 className="text-sm font-semibold text-gray-800">About Me</h4> {/* Removed margin below heading */}
+          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
+            {user.bio || 'Not Given'}
+          </p>
+        </div>
         <div>
-          <span className="font-medium text-gray-600">Languages:</span>
-          <span className="text-gray-700 ml-1">
+           <h4 className="text-sm font-semibold text-gray-800">Rating</h4> {/* Removed mb-1 */}
+           <p className="text-sm text-gray-500">N/A</p> {/* Rating placeholder */}
+        </div>
+      </div>
+
+      {/* Section 3: Languages, Cuisines, Budget (Stacked) */}
+      <div className="space-y-1 text-sm mb-2"> {/* Reduced space-y and mb */}
+        <div>
+          <span className="font-semibold text-gray-800">Languages: </span>
+          <span className="text-gray-700">
             {loadingExtra ? '...' : (extraData?.languages && extraData.languages.length > 0) ? extraData.languages.join(', ') : 'Not Given'}
           </span>
         </div>
         <div>
-          <span className="font-medium text-gray-600">Cuisines:</span>
-          <span className="text-gray-700 ml-1">
+          <span className="font-semibold text-gray-800">Cuisines: </span>
+          <span className="text-gray-700">
              {loadingExtra ? '...' : (extraData?.cuisines && extraData.cuisines.length > 0) ? extraData.cuisines.join(', ') : 'Not Given'}
           </span>
         </div>
         <div>
-          <span className="font-medium text-gray-600">Budget:</span>
-          <span className="text-gray-700 ml-1">{user.budget ? `$${user.budget}/day` : 'Not Given'}</span>
+          <span className="font-semibold text-gray-800">Budget: </span>
+          <span className="text-gray-700">{user.budget ? `$${user.budget}/day` : 'Not Given'}</span>
         </div>
-        <div>
-          <span className="font-medium text-gray-600">Home:</span>
-          <span className="text-gray-700 ml-1">Not Given</span>
-        </div>
-        <div>
-          <span className="font-medium text-gray-600">Member Since:</span>
-          <span className="text-gray-700 ml-1">N/A</span>
-        </div>
-         {fetchError && <div className="col-span-2 text-red-500 text-xs mt-1">{fetchError}</div>}
+        {fetchError && <div className="text-red-500 text-xs pt-1">{fetchError}</div>}
       </div>
 
       {/* Buttons Section */}
