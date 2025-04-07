@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react'; // Import React
 import { useModal } from '../../contexts/ModalContext';
 import { useAuth } from '../../context/AuthContext';
 import UserProfile from '../Auth/UserProfile';
@@ -10,9 +10,15 @@ const Header = () => {
   const { user, signOut } = useAuth();
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showProfilePage, setShowProfilePage] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [userName, setUserName] = useState<string | null>(null); // Store fetched name or null
+  const [displayText, setDisplayText] = useState<string>(''); // Text to display/animate
+  const [profileFetchStatus, setProfileFetchStatus] = useState<'idle' | 'loading' | 'delaying' | 'animating' | 'display' | 'fallback-delaying' | 'fallback-animating'>('idle');
   const menuRef = useRef<HTMLDivElement>(null);
   const profilePageRef = useRef<HTMLDivElement>(null);
+  const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationDelayTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const animationEndTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const userNameRef = useRef(userName); // Initialize ref at top level
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -26,42 +32,110 @@ const Header = () => {
     return () => window.removeEventListener('popstate', handleNavigation);
   }, []);
 
-  // Fetch user profile data to get the name
+  // --- Animation and Fetch Logic ---
+
+  const clearAllTimers = useCallback(() => {
+    if (fallbackTimerRef.current) clearTimeout(fallbackTimerRef.current);
+    if (animationDelayTimerRef.current) clearTimeout(animationDelayTimerRef.current);
+    if (animationEndTimerRef.current) clearTimeout(animationEndTimerRef.current);
+    fallbackTimerRef.current = null;
+    animationDelayTimerRef.current = null;
+    animationEndTimerRef.current = null;
+  }, []);
+
+  // Effect to handle profile fetching and animation state transitions
   useEffect(() => {
-    const fetchUserProfile = async () => {
-      if (user?.id) {
+    // Update the ref's current value inside the effect
+    userNameRef.current = userName;
+
+    if (user?.id) {
+      setProfileFetchStatus('loading');
+      setUserName(null); // Reset userName on user change/login
+      setDisplayText(''); // Clear display text
+      clearAllTimers(); // Clear any previous timers
+
+      // Start 5-second fallback timer
+      fallbackTimerRef.current = setTimeout(() => {
+        console.log('Fallback timer expired');
+        setUserName(null); // Ensure userName is null for fallback
+        setProfileFetchStatus('fallback-delaying');
+        // Start 2-second animation delay for fallback
+        animationDelayTimerRef.current = setTimeout(() => {
+          setDisplayText("Profile");
+          setProfileFetchStatus('fallback-animating');
+          // Start animation end timer
+          animationEndTimerRef.current = setTimeout(() => {
+            setProfileFetchStatus('display');
+          }, 900); // Animation duration
+        }, 2000); // 2-second delay
+      }, 5000); // 5-second fallback
+
+      // Fetch profile
+      const fetchUserProfile = async () => {
+        let fetchedName: string | null = null;
+        let fetchError = false;
+
         try {
-          // Remove .single() to avoid error if row doesn't exist yet
           const { data, error } = await supabase
             .from('profiles')
             .select('name')
             .eq('id', user.id);
-            // .single(); // Removed
-          
-          // Check for actual fetch errors (not just missing row)
-          if (error) {
-            console.error('Error fetching user profile:', error);
-            setUserName(user.email?.split('@')[0] || ''); // Fallback on error
-            return;
-          }
 
-          // Check if data array is not empty and has the name
-          if (data && data.length > 0 && data[0]?.name) {
-            setUserName(data[0].name);
+          if (error) {
+             console.error('Error fetching user profile:', error);
+             fetchError = true;
+          } else if (data && data.length > 0 && data[0]?.name) {
+             fetchedName = data[0].name;
           } else {
-            // Profile might not exist yet, or name is null/empty
-            console.warn('Profile not found or name missing for user:', user.id, 'Falling back to email.');
-            setUserName(user.email?.split('@')[0] || ''); // Fallback
+             console.warn('Profile not found or name missing for user:', user.id);
           }
         } catch (err) {
-          console.error('Unexpected error during profile fetch:', err);
-          setUserName(user.email?.split('@')[0] || ''); // Fallback on unexpected error
+           console.error('Unexpected error during profile fetch:', err);
+           fetchError = true;
         }
-      }
+
+        // If fetch completes *before* fallback timer:
+        if (fallbackTimerRef.current) {
+           clearTimeout(fallbackTimerRef.current);
+           fallbackTimerRef.current = null;
+
+           setUserName(fetchedName); // Store fetched name (or null if error/not found)
+           const nextStatus = fetchedName ? 'delaying' : 'fallback-delaying';
+           setProfileFetchStatus(nextStatus);
+
+           // Start 2-second animation delay
+           animationDelayTimerRef.current = setTimeout(() => {
+             // Use the value from the state at the time the timeout fires
+             setDisplayText(fetchedName || "Profile");
+             setProfileFetchStatus(fetchedName ? 'animating' : 'fallback-animating');
+
+             // Start animation end timer
+             animationEndTimerRef.current = setTimeout(() => {
+               setProfileFetchStatus('display');
+             }, 900); // Animation duration
+           }, 2000); // 2-second delay
+        }
+        // If fallback timer already expired, do nothing here
+      };
+
+      fetchUserProfile();
+
+    } else {
+      // User logged out
+      clearAllTimers();
+      setProfileFetchStatus('idle');
+      setUserName(null);
+      setDisplayText('');
+    }
+
+    // Cleanup function
+    return () => {
+      clearAllTimers();
     };
-    
-    fetchUserProfile();
-  }, [user]);
+    // Removed userName from dependency array to avoid re-triggering fetch on intermediate updates
+  }, [user, clearAllTimers]);
+
+  // --- End Animation Logic ---
 
   useEffect(() => {
     // Close the profile menu when clicking outside
@@ -105,6 +179,7 @@ const Header = () => {
   };
 
   const handleLogout = async () => {
+    // State resets are now handled by the useEffect hook when `user` becomes null
     await signOut();
     setShowProfileMenu(false);
     setShowProfilePage(false);
@@ -150,14 +225,39 @@ const Header = () => {
               
               {user ? (
                 <div className="relative" ref={menuRef}>
-                  <button 
+                  {/* Profile Button with Animation */}
+                  <button
                     onClick={() => setShowProfileMenu(!showProfileMenu)}
-                    className="flex items-center space-x-2 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full transition-all duration-200"
+                    // Ensure button has fixed height and min-width to contain animation smoothly
+                    className="relative flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full transition-colors duration-200 min-w-[120px] h-[40px] overflow-hidden"
                   >
-                    <span className="font-medium truncate max-w-[100px]">
-                      {userName}
-                    </span>
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    {/* Mover Div - This div translates */}
+                    <div className={`absolute inset-0 flex items-center transition-transform duration-900 ease-in-out ${
+                      // State: Loading/Delaying -> Center the plane (approximate)
+                      (profileFetchStatus === 'loading' || profileFetchStatus === 'delaying' || profileFetchStatus === 'fallback-delaying') ? 'translate-x-[calc(50%-10px)]' :
+                      // State: Animating/Display -> Center the text (plane moves left with it)
+                      (profileFetchStatus === 'animating' || profileFetchStatus === 'fallback-animating' || profileFetchStatus === 'display') ? 'translate-x-0' :
+                      'translate-x-[calc(50%-10px)]' // Default to centered plane
+                    }`}>
+                      {/* Plane Icon */}
+                      <span className={`transition-opacity duration-500 ${
+                        // Visible during loading/delaying, fades out during animation
+                        (profileFetchStatus === 'loading' || profileFetchStatus === 'delaying' || profileFetchStatus === 'fallback-delaying') ? 'opacity-100' : 'opacity-0'
+                      }`}>
+                        ✈️
+                      </span>
+
+                      {/* Display Text */}
+                      <span className={`ml-2 font-medium truncate max-w-[100px] whitespace-nowrap transition-opacity duration-500 delay-[400ms] ${ /* Delay fade-in */
+                        // Fades in during animation/display
+                        (profileFetchStatus === 'animating' || profileFetchStatus === 'fallback-animating' || profileFetchStatus === 'display') ? 'opacity-100' : 'opacity-0'
+                      }`}>
+                        {displayText}
+                      </span>
+                    </div>
+
+                    {/* Dropdown Arrow - Positioned absolutely relative to the button */}
+                    <svg xmlns="http://www.w3.org/2000/svg" className="absolute right-2 top-1/2 transform -translate-y-1/2 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                       <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                   </button>
