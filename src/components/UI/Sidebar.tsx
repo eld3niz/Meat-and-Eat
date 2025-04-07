@@ -207,7 +207,7 @@ const Sidebar = ({
   };
 
 
-  const localOptions = ["Local", "Traveller"]; // <-- Updated local status options
+  const localOptions = ["Local", "Traveller", "Other"]; // <-- Added "Other" back
   const budgetOptions = [
       { level: 1, label: '💰' },
       { level: 2, label: '💰💰' },
