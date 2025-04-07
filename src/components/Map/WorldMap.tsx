@@ -839,7 +839,6 @@ const WorldMap = () => {
     </>
   );
   // Log user data just before returning the component's JSX
-  console.log('[WorldMap.tsx] Final check before return. Filtered Users:', filteredUsers);
 };
 
 export default WorldMap;

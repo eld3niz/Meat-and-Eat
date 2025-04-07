@@ -59,7 +59,6 @@ const Header = () => {
 
       // Start 5-second fallback timer
       fallbackTimerRef.current = setTimeout(() => {
-        console.log('Fallback timer expired');
         setUserName(null); // Ensure userName is null for fallback
         setProfileFetchStatus('fallback-delaying');
         // Start 2-second animation delay for fallback

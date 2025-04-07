@@ -84,7 +84,6 @@ const AppContent = () => {
   const showLocationModal = currentPage === 'map' && !!user && (locationPermissionStatus === 'denied' || locationPermissionStatus === 'unavailable');
 
   // Render main application content
-  console.log('[App.tsx AppContent] Rendering main content including Footer...'); // Log before returning JSX
   return (
     <div className="app flex flex-col min-h-screen">
       <Header />

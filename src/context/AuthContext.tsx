@@ -144,7 +144,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       // Provide dummy handlers as they are required by the API.
       if (navigator.geolocation) {
          // console.log("[AuthContext] Status is 'pending', attempting to trigger prompt via button..."); // <-- Remove log
-         console.log("[AuthContext] Triggering browser location prompt via button...");
          navigator.geolocation.getCurrentPosition(
            () => { /* console.log("[AuthContext] Prompt success callback (handled by listener)"); */ },
            () => { /* console.log("[AuthContext] Prompt error callback (handled by listener)"); */ },
@@ -158,7 +157,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
        // Optionally, add UI feedback here if needed
     } else if (user && locationPermissionStatus === 'granted') {
        // Allow manual refresh if already granted
-       console.log("[AuthContext] Status is 'granted', re-fetching coordinates via button request.");
        await fetchCoordinates(user.id);
     } else {
        // console.log("[AuthContext] Location status is not 'pending' or 'granted', no action taken by button.", locationPermissionStatus);
@@ -236,7 +234,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         // Attempt to trigger the prompt immediately if the initial state is 'prompt'
         // This might help if the button click isn't working reliably
         if (newState === 'prompt' && navigator.geolocation) {
-             console.log("[AuthContext] Initial permission state is 'prompt', triggering browser prompt...");
              navigator.geolocation.getCurrentPosition(
                () => { /* console.log("[AuthContext] Prompt success callback (handled by listener)"); */ },
                () => { /* console.log("[AuthContext] Prompt error callback (handled by listener)"); */ },
