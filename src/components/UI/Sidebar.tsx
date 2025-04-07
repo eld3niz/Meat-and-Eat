@@ -207,7 +207,7 @@ const Sidebar = ({
   };
 
 
-  const localOptions = ["Local", "Traveller", "Other"]; // <-- Added "Other" back
+  const localOptions = ["Local", "Traveller"]; // <-- Removed "Other" as derivedStatus doesn't support it
   const budgetOptions = [
       { level: 1, label: '💰' },
       { level: 2, label: '💰💰' },
