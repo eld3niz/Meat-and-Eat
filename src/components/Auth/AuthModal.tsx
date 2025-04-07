@@ -51,11 +51,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTab = 'lo
 
   // Define the success handler for registration
   const handleRegisterSuccess = useCallback(() => {
-    onClose(); // Close the modal
-    // Navigate to map page
+    // Navigate to map page FIRST
     window.history.pushState({}, '', '/');
     const navigationEvent = new PopStateEvent('popstate');
     window.dispatchEvent(navigationEvent);
+    // THEN close the modal
+    onClose();
   }, [onClose]);
 
   if (!isOpen) return null;
