@@ -249,7 +249,7 @@ const Sidebar = ({
               {/* SearchBar removed as requested */}
 
               {/* Distance Filter */}
-              <div className="mt-6 mb-6"> {/* Adjusted margin */}
+              <div className="mt-4 mb-4"> {/* Reduced margin */}
                 <div className="flex justify-between items-center mb-2">
                   <h3 className={`font-medium text-sm ${isDistanceFilterEnabled ? 'text-gray-700' : 'text-gray-400'}`}>
                     Entfernungsfilter:
@@ -288,7 +288,7 @@ const Sidebar = ({
               </div> {/* End of main distance filter container div */}
 
               {/* Statistics Section (Moved outside filter container) */}
-              <div className="px-2 mb-6 space-y-2"> {/* Container for stats with padding and spacing */}
+              <div className="px-2 mb-4 space-y-2"> {/* Reduced margin */}
                 {/* City Statistics Removed */}
                 {/* User Statistics */}
                 {users && currentDistanceFilter !== null && (
@@ -303,12 +303,12 @@ const Sidebar = ({
               </div> {/* End of statistics container div */}
 
               {/* --- User Filters --- */}
-              <div className="mt-6 mb-6 border-t border-gray-400 pt-4">
-                 <h3 className="font-medium text-sm text-gray-700 mb-4">Filter Users By:</h3> {/* Increased bottom margin */}
+              <div className="mt-4 mb-4 border-t border-gray-400 pt-3"> {/* Reduced margin/padding */}
+                 <h3 className="font-medium text-sm text-gray-700 mb-3">Filter Users By:</h3> {/* Reduced bottom margin */}
 
                  {/* Local Status Filter */}
-                 <div className="mb-6">
-                     <label className="block text-xs font-medium text-gray-600 mb-3">Travel Status</label> {/* Changed Label */}
+                 <div className="mb-4"> {/* Reduced margin */}
+                     <label className="block text-xs font-medium text-gray-600 mb-2">Travel Status</label> {/* Reduced margin */}
                      <div className="flex flex-wrap gap-2">
                          {localOptions.map(status => (
                              <button
@@ -328,8 +328,8 @@ const Sidebar = ({
                  </div>
 
                  {/* Budget Filter */}
-                 <div className="mb-6"> {/* Increased bottom margin for the group */}
-                     <label className="block text-xs font-medium text-gray-600 mb-3">Budget</label> {/* Increased bottom margin */}
+                 <div className="mb-4"> {/* Reduced margin */}
+                     <label className="block text-xs font-medium text-gray-600 mb-2">Budget</label> {/* Reduced margin */}
                      {/* Replaced checkboxes with toggle buttons */}
                      <div className="flex space-x-3">
                          {budgetOptions.map(option => {
@@ -362,8 +362,8 @@ const Sidebar = ({
                  </div>
 
                 {/* Gender Filter */}
-                <div className="mb-6">
-                    <label className="block text-xs font-medium text-gray-600 mb-3">Gender</label>
+                <div className="mb-4"> {/* Reduced margin */}
+                    <label className="block text-xs font-medium text-gray-600 mb-2">Gender</label> {/* Reduced margin */}
                     <div className="flex flex-wrap gap-2">
                         {genderOptions.map(gender => (
                             <button
@@ -383,8 +383,8 @@ const Sidebar = ({
                 </div>
 
                 {/* Age Filter */}
-                <div className="mb-6">
-                  <label className="block text-xs font-medium text-gray-600 mb-3">Age Range</label>
+                <div className="mb-4"> {/* Reduced margin */}
+                  <label className="block text-xs font-medium text-gray-600 mb-2">Age Range</label> {/* Reduced margin */}
                   <div className="flex items-center space-x-2">
                     <input
                       type="number"
