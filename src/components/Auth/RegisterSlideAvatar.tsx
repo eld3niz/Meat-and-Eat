@@ -1,28 +1,48 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react'; // Import useEffect
 import AvatarUpload from './AvatarUpload'; // Reuse the component
 
 interface RegisterSlideAvatarProps {
-  updateFormData: (data: { avatarFile?: File | null }) => void; // Pass the File object
-  // nextSlide removed as this is the last slide
+  formData: { avatarFile: File | null }; // Add formData prop
+  updateFormData: (data: { avatarFile?: File | null }) => void;
   prevSlide: () => void;
-  handleSubmit: () => Promise<void>; // Added for final submission
-  isLoading: boolean; // Added for loading state on submit
+  handleSubmit: () => Promise<void>;
+  isLoading: boolean;
   currentSlide: number;
   totalSlides: number;
 }
 
 const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
+  // Add formData to destructuring
+  formData,
   updateFormData,
-  // nextSlide removed
   prevSlide,
-  handleSubmit, // Added
-  isLoading, // Added
+  handleSubmit,
+  isLoading,
   currentSlide,
   totalSlides,
 }) => {
-  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  // Remove local avatarFile state
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Effect to generate preview URL from formData.avatarFile
+  useEffect(() => {
+    if (formData.avatarFile) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setAvatarPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(formData.avatarFile);
+    } else {
+      setAvatarPreviewUrl(null); // Clear preview if file is removed/null
+    }
+    // Cleanup function to revoke object URL if needed, though FileReader is generally fine
+    return () => {
+        // If using URL.createObjectURL, revoke it here:
+        // if (avatarPreviewUrl) {
+        //   URL.revokeObjectURL(avatarPreviewUrl);
+        // }
+    };
+  }, [formData.avatarFile]); // Dependency array includes the file from props
 
   const handleAvatarSelect = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     setError(null); // Clear previous errors
@@ -41,8 +61,8 @@ const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
         return;
       }
 
-      setAvatarFile(file);
-      updateFormData({ avatarFile: file }); // Update form data with the File object
+      // Remove setAvatarFile(file);
+      updateFormData({ avatarFile: file }); // Update parent state immediately
 
       // Create a preview URL
       const reader = new FileReader();
@@ -52,9 +72,9 @@ const RegisterSlideAvatar: React.FC<RegisterSlideAvatarProps> = ({
       reader.readAsDataURL(file);
     } else {
       // Handle case where selection is cancelled
-      setAvatarFile(null);
-      setAvatarPreviewUrl(null);
-      updateFormData({ avatarFile: null });
+      // Remove setAvatarFile(null);
+      // setAvatarPreviewUrl(null); // This will be handled by the useEffect hook
+      updateFormData({ avatarFile: null }); // Update parent state
       setError(null);
     }
      // Reset input value to allow selecting the same file again if needed

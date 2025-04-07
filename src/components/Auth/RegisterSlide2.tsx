@@ -1,21 +1,18 @@
 import React, { useState } from 'react';
 import Button from '../UI/Button'; // Import Button component
 interface RegisterSlide2Props {
-  updateFormData: (data: { name?: string; age?: number | null }) => void;
+  // Update formData prop type for birth date components
+  formData: { name: string; birthDay: string; birthMonth: string; birthYear: string };
+  // Update updateFormData prop type
+  updateFormData: (data: { name?: string; birthDay?: string; birthMonth?: string; birthYear?: string }) => void;
   prevSlide: () => void;
-  nextSlide: () => void; // Added nextSlide for intermediate step
-  // Removed handleSubmit and isLoading
+  nextSlide: () => void;
   currentSlide: number;
   totalSlides: number;
 }
 
-const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSlide, nextSlide, currentSlide, totalSlides }) => {
-  const [name, setName] = useState('');
-  const [birthDate, setBirthDate] = useState({
-    day: '',
-    month: '',
-    year: '',
-  });
+const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ formData, updateFormData, prevSlide, nextSlide, currentSlide, totalSlides }) => {
+  // Remove local birthDate state
   const [errors, setErrors] = useState<{ name?: string; birthDate?: string }>({});
 
   const currentYear = new Date().getFullYear();
@@ -26,26 +23,36 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
   const validateForm = () => {
     const newErrors: { name?: string; birthDate?: string } = {};
 
-    if (!name) {
+    if (!formData.name) { // Validate using formData prop
       newErrors.name = 'Name ist erforderlich';
     }
 
-    if (!birthDate.day || !birthDate.month || !birthDate.year) {
-      newErrors.birthDate = 'Geburtsdatum ist erforderlich';
+    // Validate using formData props for birth date
+    if (!formData.birthDay || !formData.birthMonth || !formData.birthYear) {
+      newErrors.birthDate = 'Vollständiges Geburtsdatum ist erforderlich';
     } else {
-      const birthDateObj = new Date(
-        Number(birthDate.year),
-        Number(birthDate.month) - 1,
-        Number(birthDate.day)
-      );
-      const age = currentYear - Number(birthDate.year);
-      const monthDiff = new Date().getMonth() - birthDateObj.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDateObj.getDate())) {
-        //Age is not yet reached this year
-        //age--;
-      }
-      if (age < 16) {
-        newErrors.birthDate = 'Mindestalter ist 16 Jahre';
+      try {
+        const yearNum = parseInt(formData.birthYear);
+        const monthNum = parseInt(formData.birthMonth);
+        const dayNum = parseInt(formData.birthDay);
+        const birthDateObj = new Date(yearNum, monthNum - 1, dayNum);
+
+        // Check if date is valid (e.g., Feb 30) and components match
+        if (!(birthDateObj.getFullYear() === yearNum && birthDateObj.getMonth() === monthNum - 1 && birthDateObj.getDate() === dayNum)) {
+            newErrors.birthDate = 'Ungültiges Datum';
+        } else {
+            // Check age
+            let age = new Date().getFullYear() - birthDateObj.getFullYear();
+            const monthDiff = new Date().getMonth() - birthDateObj.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDateObj.getDate())) {
+                age--;
+            }
+            if (age < 16) {
+                newErrors.birthDate = 'Mindestalter ist 16 Jahre';
+            }
+        }
+      } catch (e) {
+          newErrors.birthDate = 'Ungültiges Datumformat';
       }
     }
 
@@ -55,28 +62,28 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
 
   // Handle moving to the next slide
   const handleNext = () => {
+    // Only validate, updateFormData is now called in onChange handlers
     if (validateForm()) {
-      // Calculate age from birthDate
-      const birthDateObj = new Date(
-        Number(birthDate.year),
-        Number(birthDate.month) - 1,
-        Number(birthDate.day)
-      );
-      // Note: Simple age calculation, consider edge cases for more accuracy if needed
-      let age = new Date().getFullYear() - birthDateObj.getFullYear();
-      const monthDiff = new Date().getMonth() - birthDateObj.getMonth();
-      if (monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDateObj.getDate())) {
-        age--; // Adjust age if birthday hasn't occurred this year
-      }
-
-      updateFormData({ name, age: age >= 16 ? age : null });
-      nextSlide(); // Call nextSlide
+       nextSlide();
     }
   };
 
+  // Update parent state directly when a date component changes
   const handleBirthDateChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setBirthDate({ ...birthDate, [name]: value });
+    const { name: fieldName, value } = e.target;
+    let updateKey: 'birthDay' | 'birthMonth' | 'birthYear' | null = null;
+
+    if (fieldName === 'day') {
+      updateKey = 'birthDay';
+    } else if (fieldName === 'month') {
+      updateKey = 'birthMonth';
+    } else if (fieldName === 'year') {
+      updateKey = 'birthYear';
+    }
+
+    if (updateKey) {
+      updateFormData({ [updateKey]: value });
+    }
   };
 
   return (
@@ -92,8 +99,8 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
           className={`w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 ${
             errors.name ? 'border-red-500' : 'border-gray-300'
           }`}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={formData.name} // Use formData prop for value
+          onChange={(e) => updateFormData({ name: e.target.value })} // Update parent state directly
         />
         {errors.name && <p className="mt-1 text-sm text-red-600">{errors.name}</p>}
       </div>
@@ -106,7 +113,7 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
             id="day"
             name="day"
             className="w-1/3 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            value={birthDate.day}
+            value={formData.birthDay} // Use formData prop for value
             onChange={handleBirthDateChange}
           >
             <option value="">Tag</option>
@@ -120,7 +127,7 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
             id="month"
             name="month"
             className="w-1/3 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            value={birthDate.month}
+            value={formData.birthMonth} // Use formData prop for value
             onChange={handleBirthDateChange}
           >
             <option value="">Monat</option>
@@ -134,7 +141,7 @@ const RegisterSlide2: React.FC<RegisterSlide2Props> = ({ updateFormData, prevSli
             id="year"
             name="year"
             className="w-1/3 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-            value={birthDate.year}
+            value={formData.birthYear} // Use formData prop for value
             onChange={handleBirthDateChange}
           >
             <option value="">Jahr</option>

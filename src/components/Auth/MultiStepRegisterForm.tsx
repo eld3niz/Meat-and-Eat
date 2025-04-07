@@ -21,11 +21,14 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
     email: '',
     password: '',
     name: '',
-    age: '',
+    // age: '', // Removed age, will be calculated or derived
+    birthDay: '', // Added birth date components
+    birthMonth: '', // Added birth date components
+    birthYear: '', // Added birth date components
     languages: [] as string[], // Added type for clarity
     cuisines: [] as string[], // Added type for clarity
-    locationAccess: false,
-    city: '',
+    locationAccess: false, // Note: This seems unused in current slides? Review later if needed.
+    city: '', // Note: This seems unused in current slides? Review later if needed.
     // New/Modified fields
     budget: null as number | null,
     bio: '',
@@ -90,15 +93,38 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         }
       }
 
-      // Step 3: Update the profile with user data (including avatar_url if available)
+      // Step 3: Calculate age from birth date components
+      let calculatedAge: number | null = null;
+      if (formData.birthYear && formData.birthMonth && formData.birthDay) {
+        try {
+          const yearNum = parseInt(formData.birthYear);
+          const monthNum = parseInt(formData.birthMonth);
+          const dayNum = parseInt(formData.birthDay);
+          const birthDateObj = new Date(yearNum, monthNum - 1, dayNum);
+
+          // Check if date is valid
+          if (birthDateObj.getFullYear() === yearNum && birthDateObj.getMonth() === monthNum - 1 && birthDateObj.getDate() === dayNum) {
+            let age = new Date().getFullYear() - birthDateObj.getFullYear();
+            const monthDiff = new Date().getMonth() - birthDateObj.getMonth();
+            if (monthDiff < 0 || (monthDiff === 0 && new Date().getDate() < birthDateObj.getDate())) {
+              age--; // Adjust age if birthday hasn't occurred this year
+            }
+            calculatedAge = age >= 16 ? age : null; // Ensure age is 16+
+          }
+        } catch (e) {
+          console.error("Error parsing birth date:", e);
+          // Keep calculatedAge as null if parsing fails
+        }
+      }
+
+      // Step 4: Update the profile with user data (including avatar_url if available)
       const profileDataToUpsert = {
         id: authData.user.id,
         name: formData.name,
-        age: parseInt(formData.age) || null,
+        age: calculatedAge, // Use calculated age
         languages: formData.languages,
         cuisines: formData.cuisines,
-        city: formData.city,
-        // is_local removed
+        city: formData.city, // Keep city if needed elsewhere, though not in current slides
         budget: formData.budget,
         bio: formData.bio,
         home_latitude: formData.home_latitude, // Add home location
@@ -142,20 +168,21 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
 
     switch (currentSlide) {
       case 0: // Slide 1: Email/Password (First Slide) - Only Next
-        return <RegisterSlide1 updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+        return <RegisterSlide1 formData={{ email: formData.email, password: formData.password }} updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 1: // Slide 2: Name/Age (Middle Slide) - Prev & Next
-        return <RegisterSlide2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+        return <RegisterSlide2 formData={{ name: formData.name, birthDay: formData.birthDay, birthMonth: formData.birthMonth, birthYear: formData.birthYear }} updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 2: // Slide 3: Languages/Cuisines/City (Middle Slide) - Prev & Next
-        return <RegisterSlide3 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+        return <RegisterSlide3 formData={{ languages: formData.languages, cuisines: formData.cuisines, city: formData.city }} updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 3: // Slide 4: Local Status & Budget (Middle Slide) - Prev & Next
-        return <RegisterSlideNew1 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+        return <RegisterSlideNew1 formData={{ budget: formData.budget, home_latitude: formData.home_latitude, home_longitude: formData.home_longitude }} updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 4: // Slide 5: Bio (Middle Slide) - Prev & Next
-        return <RegisterSlideNew2 updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+        return <RegisterSlideNew2 formData={{ bio: formData.bio }} updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 5: // Slide 6: Avatar (Last Slide + Submit) - Prev & Submit
         return (
           <RegisterSlideAvatar
+            formData={{ avatarFile: formData.avatarFile }} // Pass avatarFile
             updateFormData={updateFormData}
-            prevSlide={prevSlide} // Only prev and submit
+            prevSlide={prevSlide}
             handleSubmit={handleSubmit}
             isLoading={isLoading}
             currentSlide={currentSlide}

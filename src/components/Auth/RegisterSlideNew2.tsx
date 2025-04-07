@@ -2,25 +2,26 @@ import React, { useState } from 'react';
 import Button from '../UI/Button'; // Assuming a Button component exists
 
 interface RegisterSlideNew2Props {
+  formData: { bio: string }; // Accept formData from parent
   updateFormData: (data: { bio?: string }) => void;
   nextSlide: () => void;
-  prevSlide: () => void; // Added prevSlide back
+  prevSlide: () => void;
   currentSlide: number;
   totalSlides: number;
 }
 
 const MAX_BIO_LENGTH = 255;
 
-const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
-  const [bio, setBio] = useState('');
-  const [charCount, setCharCount] = useState(0);
+const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ formData, updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
+  // Remove local bio state, keep charCount
+  const [charCount, setCharCount] = useState(formData.bio.length); // Initialize charCount from prop
 
   const handleBioChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value;
     if (text.length <= MAX_BIO_LENGTH) {
-      setBio(text);
-      setCharCount(text.length);
-      updateFormData({ bio: text });
+      // Remove setBio call
+      setCharCount(text.length); // Update charCount
+      updateFormData({ bio: text }); // Update parent state
     }
   };
 
@@ -40,7 +41,7 @@ const RegisterSlideNew2: React.FC<RegisterSlideNew2Props> = ({ updateFormData, n
           id="bio"
           name="bio"
           rows={4}
-          value={bio}
+          value={formData.bio} // Use formData prop for value
           onChange={handleBioChange}
           className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm p-2"
           placeholder="Tell us about your interests, what you're looking for, etc."

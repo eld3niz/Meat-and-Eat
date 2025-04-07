@@ -3,21 +3,20 @@ import Button from '../UI/Button';
 import LocationSearchMap from '../Map/LocationSearchMap'; // Import the map component
 
 interface RegisterSlideNew1Props {
-  // Update prop type for location data
+  // Add formData prop
+  formData: { budget: number | null; home_latitude: number | null; home_longitude: number | null };
   updateFormData: (data: { home_latitude?: number | null; home_longitude?: number | null; budget?: number | null }) => void;
   prevSlide: () => void;
-  nextSlide: () => void; // Added nextSlide
-  // Removed handleSubmit and isLoading
+  nextSlide: () => void;
   currentSlide: number;
   totalSlides: number;
 }
 
 // Removed localOptions
 
-const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, prevSlide, nextSlide, currentSlide, totalSlides }) => {
-  // Removed selectedLocalStatus state
-  const [selectedBudget, setSelectedBudget] = useState<number | null>(null);
-  // Removed handleLocalChange
+// Add formData to destructuring
+const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ formData, updateFormData, prevSlide, nextSlide, currentSlide, totalSlides }) => {
+  // Remove local selectedBudget state
 
   // Handler for when a location is selected on the map
   const handleLocationSelect = (lat: number, lng: number) => {
@@ -25,9 +24,10 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, p
   };
 
   const handleBudgetClick = (budgetLevel: number) => {
-    const newBudget = selectedBudget === budgetLevel ? null : budgetLevel;
-    setSelectedBudget(newBudget);
-    updateFormData({ budget: newBudget });
+    // Use formData.budget for comparison
+    const newBudget = formData.budget === budgetLevel ? null : budgetLevel;
+    // Remove setSelectedBudget call
+    updateFormData({ budget: newBudget }); // Update parent state
   };
 
   return (
@@ -47,8 +47,11 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, p
           Search for your city or address, or click on the map. This helps determine if you're a 'Local' or 'Traveller' based on your current distance when using the app. You can skip this for now.
         </p>
         <LocationSearchMap
+          // Pass initial coordinates from formData to the map
+          initialLat={formData.home_latitude}
+          initialLng={formData.home_longitude}
           onLocationSelect={handleLocationSelect}
-          mapHeight="250px" // Adjust height as needed for the form
+          mapHeight="250px"
         />
       </div>
 
@@ -64,11 +67,13 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, p
               type="button"
               onClick={() => handleBudgetClick(level)}
               className={`p-3 rounded-full text-2xl transition-transform duration-150 ease-in-out ${
-                selectedBudget === level
+                // Use formData.budget for styling
+                formData.budget === level
                   ? 'bg-yellow-300 scale-110 shadow-lg'
                   : 'bg-gray-200 hover:bg-gray-300 scale-100'
               }`}
-              aria-pressed={selectedBudget === level}
+              // Use formData.budget for aria-pressed
+              aria-pressed={formData.budget === level}
               aria-label={`Budget level ${level}`}
             >
               {'💰'.repeat(level)}

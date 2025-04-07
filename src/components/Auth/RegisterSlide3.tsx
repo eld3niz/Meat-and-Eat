@@ -7,46 +7,51 @@ import Button from '../UI/Button'; // Import Button component
 // const cuisineOptions = ['Italienisch', 'Japanisch', 'Mexikanisch', 'Indisch'];
 
 interface RegisterSlide3Props {
+  formData: { languages: string[]; cuisines: string[]; city: string }; // Accept formData from parent
   updateFormData: (data: { languages?: string[]; cuisines?: string[]; city?: string }) => void;
   nextSlide: () => void;
-  prevSlide: () => void; // Added prevSlide for intermediate step
+  prevSlide: () => void;
   currentSlide: number;
   totalSlides: number;
 }
 
-const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]);
-  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]);
+const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ formData, updateFormData, nextSlide, prevSlide, currentSlide, totalSlides }) => {
+  // Remove local state for selectedLanguages and selectedCuisines
+  // Keep local state for the dropdown selection itself
   const [language, setLanguage] = useState('');
   const [cuisine, setCuisine] = useState('');
 
   const addLanguage = () => {
-    if (language && !selectedLanguages.includes(language)) {
-      setSelectedLanguages([...selectedLanguages, language]);
-      setLanguage('');
+    if (language && !formData.languages.includes(language)) {
+      const newLanguages = [...formData.languages, language];
+      updateFormData({ languages: newLanguages }); // Update parent state immediately
+      setLanguage(''); // Reset dropdown
     }
   };
 
   const removeLanguage = (languageToRemove: string) => {
-    setSelectedLanguages(selectedLanguages.filter((lang) => lang !== languageToRemove));
+    const newLanguages = formData.languages.filter((lang) => lang !== languageToRemove);
+    updateFormData({ languages: newLanguages }); // Update parent state immediately
   };
 
   const addCuisine = () => {
-    if (cuisine && !selectedCuisines.includes(cuisine)) {
-      setSelectedCuisines([...selectedCuisines, cuisine]);
-      setCuisine('');
+    if (cuisine && !formData.cuisines.includes(cuisine)) {
+      const newCuisines = [...formData.cuisines, cuisine];
+      updateFormData({ cuisines: newCuisines }); // Update parent state immediately
+      setCuisine(''); // Reset dropdown
     }
   };
 
   const removeCuisine = (cuisineToRemove: string) => {
-    setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
+    const newCuisines = formData.cuisines.filter((c) => c !== cuisineToRemove);
+    updateFormData({ cuisines: newCuisines }); // Update parent state immediately
   };
 
   // Renamed handleNext to handleProceed for clarity, though not strictly necessary
   const handleProceed = () => {
-    // Update form data before moving to the next slide
-    updateFormData({ languages: selectedLanguages, cuisines: selectedCuisines });
-    nextSlide(); // Call nextSlide prop
+    // Only navigate, updateFormData is now called directly in add/remove handlers
+    // We might add validation here later if needed
+    nextSlide();
   };
 
   return (
@@ -59,7 +64,8 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
           Sprachen
         </label>
         <div className="flex flex-wrap gap-2 mb-2">
-          {selectedLanguages.map((lang) => (
+          {/* Use formData prop to display selected items */}
+          {formData.languages.map((lang) => (
             <div key={lang} className="bg-gray-200 text-gray-700 rounded-full px-3 py-1 inline-flex items-center">
               {lang}
               <button
@@ -103,7 +109,8 @@ const RegisterSlide3: React.FC<RegisterSlide3Props> = ({ updateFormData, nextSli
           Bevorzugte Küchen
         </label>
         <div className="flex flex-wrap gap-2 mb-2">
-          {selectedCuisines.map((cuisine) => (
+          {/* Use formData prop to display selected items */}
+          {formData.cuisines.map((cuisine) => (
             <div key={cuisine} className="bg-gray-200 text-gray-700 rounded-full px-3 py-1 inline-flex items-center">
               {cuisine}
               <button
