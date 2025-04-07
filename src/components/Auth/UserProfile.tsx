@@ -8,6 +8,7 @@ import LocationSearchMap from '../Map/LocationSearchMap'; // Import the map comp
 import { useUserStatus, UserStatus } from '../../hooks/useUserStatus'; // Import the status hook
 
 interface ProfileData {
+  gender: string | null; // Add gender field
   id: string;
   name: string;
   age: number | null;
@@ -55,6 +56,7 @@ const UserProfile = () => {
   // Keep original name/age for display in edit mode (non-editable)
   const [originalName, setOriginalName] = useState('');
   const [originalAge, setOriginalAge] = useState('');
+  const [originalGender, setOriginalGender] = useState(''); // Add state for gender
   // State for editable fields
   const [editBudget, setEditBudget] = useState<number | null>(null);
   const [editBio, setEditBio] = useState<string>('');
@@ -91,7 +93,7 @@ const UserProfile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, age, languages, cuisines, created_at, budget, bio, avatar_url, home_latitude, home_longitude, home_location_last_updated') // Select new fields
+        .select('id, name, age, languages, cuisines, created_at, budget, bio, avatar_url, home_latitude, home_longitude, home_location_last_updated, gender') // Select gender
         .eq('id', user.id)
         .single();
 
@@ -103,6 +105,7 @@ const UserProfile = () => {
         setProfile(data);
         setOriginalName(data.name || '');
         setOriginalAge(data.age?.toString() || '');
+        setOriginalGender(data.gender || ''); // Set gender state
         setSelectedLanguages(data.languages || []);
         setSelectedCuisines(data.cuisines || []);
         // setEditIsLocal removed
@@ -500,7 +503,11 @@ const UserProfile = () => {
                 {profile?.name || 'User Name'}
                 <span className="ml-2">🇩🇪</span> {/* Placeholder */}
               </h3>
-              <p className="text-sm text-gray-600">{profile?.age ? `${profile.age} yrs` : 'Age not specified'}</p>
+              <p className="text-sm text-gray-600">
+                {profile?.age ? `${profile.age} yrs` : 'Age not specified'}
+                <span className="mx-2 text-gray-300">|</span> {/* Separator */}
+                Geschlecht: {profile?.gender ? (profile.gender === 'male' ? 'Männlich' : profile.gender === 'female' ? 'Weiblich' : 'Divers') : 'N/A'}
+              </p>
               {/* Display dynamic status */}
               <p className="text-sm text-gray-600">
                 Status: {renderUserStatus(userStatus)}
@@ -508,6 +515,7 @@ const UserProfile = () => {
               </p>
               <p className="text-sm text-gray-600">
                 Budget: {profile?.budget === 1 ? '💰' : profile?.budget === 2 ? '💰💰' : profile?.budget === 3 ? '💰💰💰' : 'Not specified'}
+                {/* Gender display moved to age line */}
               </p>
             </div>
           </div>
@@ -607,14 +615,19 @@ const UserProfile = () => {
           </div>
 
           {/* Name & Age (Non-Editable) */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          {/* Non-editable Name, Age, and Gender */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
               <p className="text-gray-800">{originalName}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-              <p className="text-gray-800">{originalAge || 'Not set'}</p>
+              <p className="text-gray-800">{originalAge ? `${originalAge} Jahre` : 'Not set'}</p>
+            </div>
+             <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Geschlecht</label>
+              <p className="text-gray-800">{originalGender ? (originalGender === 'male' ? 'Männlich' : originalGender === 'female' ? 'Weiblich' : 'Divers') : 'N/A'}</p>
             </div>
           </div>
 
