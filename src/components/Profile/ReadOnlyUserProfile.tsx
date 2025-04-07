@@ -34,6 +34,14 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
   const [error, setError] = useState<string | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
+  // Helper function for budget emojis
+  const getBudgetEmoji = (budgetLevel: number | null): string => {
+    if (budgetLevel === 1) return '💰';
+    if (budgetLevel === 2) return '💰💰';
+    if (budgetLevel === 3) return '💰💰💰';
+    return 'Not specified';
+  };
+
   useEffect(() => {
     const fetchProfile = async () => {
       setLoading(true);
@@ -79,14 +87,16 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
   };
 
   return (
-    // Modal Overlay
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60 p-4 backdrop-blur-sm" onClick={onClose}>
+    // Modal Overlay - Positioned left, no backdrop blur/darkening
+    <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-50 p-0" onClick={onClose}>
       {/* Modal Content - stop propagation to prevent closing when clicking inside */}
-      <div className="bg-white rounded-lg p-6 max-w-lg w-full relative shadow-xl animate-fade-in-scale" onClick={(e) => e.stopPropagation()}>
+      {/* Modal Content - Slightly off-white, reduced padding, max height */}
+      <div className="bg-gray-50 rounded-lg p-4 max-w-md w-full relative shadow-xl animate-fade-in-scale max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
         {/* Close Button */}
+        {/* Close Button - Adjusted styling for visibility */}
         <button
           onClick={onClose}
-          className="absolute top-2 right-2 text-gray-500 hover:text-gray-800 text-2xl font-bold z-10"
+          className="absolute top-2 right-2 text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 rounded-full p-1 text-xl leading-none z-10"
           aria-label="Close profile"
         >
           &times;
@@ -94,76 +104,97 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
 
         {loading && (
           <div className="text-center py-10">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-700 mx-auto"></div>
-            <p className="mt-3 text-gray-600">Loading profile...</p>
+            {/* Reduced spinner size */}
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+            <p className="mt-2 text-sm text-gray-500">Loading profile...</p>
           </div>
         )}
 
         {error && (
-          <div className="text-center py-10">
-            <p className="text-red-600">Error: {error}</p>
-            <button onClick={onClose} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
+          // Reduced padding/margin
+          <div className="text-center py-6">
+            <p className="text-red-600 text-sm">Error: {error}</p>
+            <button onClick={onClose} className="mt-3 px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600">
               Close
             </button>
           </div>
         )}
 
         {!loading && !error && profile && (
-          <>
-            <h2 className="text-2xl font-bold text-blue-700 mb-6 text-center">{profile.name || 'User Profile'}</h2>
-            <div className="space-y-4">
+          <div className="flex flex-col h-full"> {/* Flex container for content + buttons */}
+            {/* Profile Content Area - Takes available space */}
+            <div className="flex-grow space-y-3"> {/* Reduced space-y */}
+              {/* Reduced heading size/margin */}
+              <h2 className="text-xl font-bold text-blue-700 mb-3 text-center">{profile.name || 'User Profile'}</h2>
               {/* Top Section: Avatar & Basic Info */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6 border-b pb-4">
+              {/* Reduced spacing/padding */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 border-b pb-3">
                 <div className="flex-shrink-0 flex flex-col items-center">
                   <AvatarUpload
                     avatarUrl={profile.avatar_url}
                     uploading={false}
                     isReadOnly={true}
                     onClick={() => { if (profile.avatar_url) setIsImageModalOpen(true); }}
-                    size={100} // Slightly larger avatar
+                    size={80} // Reduced avatar size
                   />
                   {/* Placeholder for rating or status if needed */}
                   {/* <p className="text-xs text-gray-500 mt-1">★★★★☆ (4.5/5)</p> */}
                 </div>
 
+                {/* Reduced text sizes */}
                 <div className="flex-grow text-center sm:text-left">
-                  <p className="text-xl font-semibold text-gray-800">{profile.name || 'N/A'}</p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-lg font-semibold text-gray-800">{profile.name || 'N/A'}</p>
+                  <p className="text-xs text-gray-600"> {/* Reduced text size */}
                     {profile.age ? `${profile.age} years old` : 'Age not specified'}
                     {profile.gender && ` • ${profile.gender}`}
                   </p>
-                  <p className="text-sm text-gray-500 mt-1">
-                    Member since: {profile.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}
-                  </p>
-                   {/* Budget Info */}
-                   <p className="text-sm text-gray-600 mt-2">
-                    Budget: {profile.budget ? `~€${profile.budget} per meal` : 'Not specified'}
+                  {/* Member Since Removed */}
+                   {/* Budget Info - Use Emoji */}
+                   <p className="text-sm text-gray-600 mt-1"> {/* Reduced margin/text size */}
+                    Budget: {getBudgetEmoji(profile.budget)}
                   </p>
                 </div>
               </div>
 
-              {/* Bio Section */}
+              {/* Bio Section - Reduced spacing/text size */}
               {profile.bio && (
-                <div className="py-2">
-                  <h3 className="text-md font-semibold text-gray-700 mb-1">About Me</h3>
-                  <p className="text-sm text-gray-600 whitespace-pre-wrap">{profile.bio}</p>
+                <div className="py-1">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-1">About Me</h3>
+                  <p className="text-xs text-gray-600 whitespace-pre-wrap">{profile.bio}</p>
                 </div>
               )}
 
-              {/* Languages Section */}
-              <div className="py-2">
-                <h3 className="text-md font-semibold text-gray-700 mb-1">Languages Spoken</h3>
-                <p className="text-sm text-gray-600">{formatList(profile.languages)}</p>
+              {/* Languages Section - Reduced spacing/text size */}
+              <div className="py-1">
+                <h3 className="text-sm font-semibold text-gray-700 mb-1">Languages Spoken</h3>
+                <p className="text-xs text-gray-600">{formatList(profile.languages)}</p>
               </div>
 
-              {/* Cuisines Section */}
-              <div className="py-2">
-                <h3 className="text-md font-semibold text-gray-700 mb-1">Favorite Cuisines</h3>
-                <p className="text-sm text-gray-600">{formatList(profile.cuisines)}</p>
+              {/* Cuisines Section - Reduced spacing/text size */}
+              <div className="py-1">
+                <h3 className="text-sm font-semibold text-gray-700 mb-1">Favorite Cuisines</h3>
+                <p className="text-xs text-gray-600">{formatList(profile.cuisines)}</p>
               </div>
+            </div> {/* End Profile Content Area */}
 
+            {/* Action Buttons Area - Pushed to bottom */}
+            <div className="mt-4 pt-3 border-t border-gray-200 flex justify-center space-x-3 flex-shrink-0">
+              <button
+                type="button"
+                className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500"
+                // onClick={() => { /* TODO: Implement Meet Me action */ }}
+              >
+                Meet Me
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500"
+                // onClick={() => { /* TODO: Implement Chat action */ }}
+              >
+                Chat
+              </button>
             </div>
-          </>
+          </div> // End Flex container
         )}
 
         {/* Image Modal for Avatar */}
