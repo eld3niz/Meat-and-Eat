@@ -8,21 +8,34 @@ import { mockUsers } from '../data/mockUsers'; // Import mock users
 
 // Update the structure for user data to include name
 // Export MapUser type so it can be imported elsewhere
-export interface MapUser {
-  user_id: string;
-  latitude: number;
-  longitude: number;
-  name: string; // Added name
-  // Add new optional fields from user profile
-  is_local?: string | null;
-  budget?: number | null;
-  bio?: string | null;
-  age?: number | null; // Added age
-  // Add fields from profiles table
+// Define a type for the profile data fetched separately
+interface UserProfileData {
+  id: string;
   avatar_url?: string | null;
   gender?: string | null;
   languages?: string[] | null;
   cuisines?: string[] | null;
+  home_latitude?: number | null; // Added home location
+  home_longitude?: number | null; // Added home location
+  age?: number | null; // Keep age here
+}
+
+export interface MapUser {
+  user_id: string;
+  latitude: number;
+  longitude: number;
+  name: string;
+  // is_local?: string | null; // Removed, will use derivedStatus
+  budget?: number | null;
+  bio?: string | null;
+  age?: number | null; // Age from RPC/Profile
+  avatar_url?: string | null; // From Profile
+  gender?: string | null; // From Profile
+  languages?: string[] | null; // From Profile
+  cuisines?: string[] | null; // From Profile
+  home_latitude?: number | null; // From Profile
+  home_longitude?: number | null; // From Profile
+  derivedStatus?: 'Local' | 'Traveller' | null; // Calculated status
 }
 
 interface Filters {
@@ -33,10 +46,14 @@ interface Filters {
   };
   search: string | null;
   distance: number | null; // Distance filter in km
-  // New user filters
-  is_local: string[] | null; // Array of selected local statuses (e.g., ["Local", "Expat"])
-  budget: number[] | null; // Array of selected budget levels (e.g., [1, 3])
-  gender: string[] | null; // <-- Add gender filter
+  // User filters
+  localStatus: string[] | null; // Renamed from is_local, uses derivedStatus
+  budget: number[] | null;
+  gender: string[] | null;
+  age: { // <-- Add age filter
+    min: number;
+    max: number;
+  };
 }
 
 // Update MapData interface
@@ -56,10 +73,11 @@ interface MapData {
   filterByPopulation: (min: number, max: number) => void;
   filterBySearch: (term: string | null) => void;
   filterByDistance: (distance: number | null) => void; // Keep this for map radius circle
-  // Add new filter functions
-  filterByLocalStatus: (statuses: string[] | null) => void;
+  // User filter functions
+  filterByLocalStatus: (statuses: string[] | null) => void; // Renamed prop
   filterByBudget: (budgets: number[] | null) => void;
-  filterByGender: (genders: string[] | null) => void; // <-- Add gender filter function
+  filterByGender: (genders: string[] | null) => void;
+  filterByAge: (min: number, max: number) => void; // <-- Add age filter function
   selectCity: (cityId: number | null) => void;
   getTopCities: (count: number) => City[];
   resetFilters: () => void;
@@ -81,10 +99,11 @@ export const useMapData = (): MapData => {
     population: { min: 0, max: Number.MAX_SAFE_INTEGER },
     search: null,
     distance: null, // Distance filter state
-    // Initialize new filters
-    is_local: null,
+    // Initialize user filters
+    localStatus: null, // Renamed from is_local
     budget: null,
-    gender: null, // <-- Initialize gender filter
+    gender: null,
+    age: { min: 18, max: 99 }, // <-- Initialize age filter (default range)
   });
 
   // State for all fetched other user locations (including name)
@@ -123,7 +142,7 @@ export const useMapData = (): MapData => {
     return result;
   }, [filters, userCoordinates]); // Add userCoordinates dependency
 
-  // Memo for users filtered by Search Term, Distance, Local Status, and Budget
+  // Memo for users filtered by Search Term, Distance, Local Status, Budget, Gender, and Age
   const filteredUsers = useMemo(() => {
     let result = allOtherUsers;
 
@@ -152,9 +171,9 @@ export const useMapData = (): MapData => {
         result = result.filter(u => isUserWithinRadius(userLat, userLng, u, filters.distance!));
     }
 
-    // Apply Local Status Filter
-    if (filters.is_local && filters.is_local.length > 0) {
-        result = result.filter(u => u.is_local && filters.is_local!.includes(u.is_local));
+    // Apply Local Status Filter (using derivedStatus)
+    if (filters.localStatus && filters.localStatus.length > 0) {
+        result = result.filter(u => u.derivedStatus && filters.localStatus!.includes(u.derivedStatus));
     }
 
     // Apply Budget Filter
@@ -169,6 +188,14 @@ export const useMapData = (): MapData => {
         const selectedGendersLower = filters.gender.map(g => g.toLowerCase());
         result = result.filter(u => u.gender && selectedGendersLower.includes(u.gender.toLowerCase()));
     }
+// Apply Age Filter
+if (filters.age) {
+  result = result.filter(u =>
+    u.age !== null && u.age !== undefined && // Ensure age exists
+    u.age >= filters.age.min &&
+    u.age <= filters.age.max
+  );
+}
 
 
     return result;
@@ -181,7 +208,10 @@ export const useMapData = (): MapData => {
       setLoadingOtherUsers(true);
       setErrorOtherUsers(null);
       try {
-          // 1. Call the RPC function to get base user data (location, name, etc.)
+          // 1. Call the RPC function to get base user data (location, name, budget, bio, age)
+          // Note: The RPC function `get_snapped_map_users` already returns age.
+          // It DOES NOT return home_latitude, home_longitude, gender, languages, cuisines, avatar_url.
+          // These need to be fetched from the `profiles` table separately.
           const { data: rpcData, error: rpcError } = await supabase.rpc('get_snapped_map_users');
 
           if (rpcError) {
@@ -191,11 +221,21 @@ export const useMapData = (): MapData => {
 
           let baseUsers: MapUser[] = [];
           if (rpcData) {
-              // Filter out the current user's location if logged in
-              // Use 'any' temporarily if RPC return type isn't strictly MapUser yet
+              // Filter out the current user and map to initial MapUser structure
+              const processRpcData = (userRpcData: any): MapUser => ({
+                  user_id: userRpcData.user_id,
+                  latitude: userRpcData.latitude,
+                  longitude: userRpcData.longitude,
+                  name: userRpcData.name,
+                  budget: userRpcData.budget,
+                  bio: userRpcData.bio,
+                  age: userRpcData.age, // Age comes from RPC now
+                  // Other fields will be added from profile fetch
+              });
+
               baseUsers = currentUserId
-                  ? rpcData.filter((loc: any) => loc.user_id !== currentUserId)
-                  : rpcData;
+                  ? rpcData.filter((loc: any) => loc.user_id !== currentUserId).map(processRpcData)
+                  : rpcData.map(processRpcData);
           }
 
           // Include mock users regardless of fetch success/failure for base data
@@ -211,7 +251,8 @@ export const useMapData = (): MapData => {
           if (userIdsToFetchProfiles.length > 0) {
               const { data: profilesData, error: profilesError } = await supabase
                   .from('profiles')
-                  .select('id, avatar_url, gender, languages, cuisines')
+                  // Select all needed fields including home location and age (as fallback)
+                  .select('id, avatar_url, gender, languages, cuisines, home_latitude, home_longitude, age')
                   .in('id', userIdsToFetchProfiles);
 
               if (profilesError) {
@@ -222,24 +263,66 @@ export const useMapData = (): MapData => {
 
               // 3. Merge profile data into the user list
               if (profilesData) {
-                  const profilesMap = new Map(profilesData.map(p => [p.id, p]));
+                  const profilesMap = new Map<string, UserProfileData>(profilesData.map(p => [p.id, p]));
+
+                  // Function to calculate distance (Haversine)
+                  const calculateDistanceKm = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+                      const R = 6371; // Radius of the Earth in km
+                      const dLat = (lat2 - lat1) * Math.PI / 180;
+                      const dLon = (lon2 - lon1) * Math.PI / 180;
+                      const a =
+                          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                      return R * c;
+                  };
+
                   enrichedUsers = enrichedUsers.map(user => {
-                      if (profilesMap.has(user.user_id)) {
-                          const profile = profilesMap.get(user.user_id)!;
+                      const profile = profilesMap.get(user.user_id);
+                      if (profile) {
+                          // Derive status
+                          let derivedStatus: MapUser['derivedStatus'] = null;
+                          const homeLat = profile.home_latitude;
+                          const homeLng = profile.home_longitude;
+                          const currentLat = user.latitude;
+                          const currentLng = user.longitude;
+                          const LOCAL_THRESHOLD_KM = 50; // Define threshold for being "Local"
+
+                          if (homeLat != null && homeLng != null && currentLat != null && currentLng != null) {
+                              const distance = calculateDistanceKm(currentLat, currentLng, homeLat, homeLng);
+                              derivedStatus = distance <= LOCAL_THRESHOLD_KM ? 'Local' : 'Traveller';
+                          } else {
+                              derivedStatus = 'Traveller'; // Default to Traveller if home location isn't set
+                          }
+
                           return {
                               ...user,
+                              // Merge profile data, potentially overwriting age from RPC if profile has it (consistency)
+                              age: profile.age ?? user.age, // Prefer profile age if available
                               avatar_url: profile.avatar_url,
                               gender: profile.gender,
                               languages: profile.languages,
                               cuisines: profile.cuisines,
+                              home_latitude: profile.home_latitude,
+                              home_longitude: profile.home_longitude,
+                              derivedStatus: derivedStatus, // Set calculated status
                           };
                       }
-                      return user; // Return user as is if no profile found (or mock user)
+                      // For mock users or users without profile data, set default status
+                      return { ...user, derivedStatus: 'Traveller' };
                   });
+              } else {
+                 // If profile fetch fails entirely, still set default status for base users
+                 enrichedUsers = enrichedUsers.map(user => ({ ...user, derivedStatus: 'Traveller' }));
               }
+          } else {
+             // If no real users, process mock users
+             enrichedUsers = enrichedUsers.map(user => ({ ...user, derivedStatus: 'Traveller' }));
           }
 
-          setAllOtherUsers(enrichedUsers); // Store the final merged list
+
+          setAllOtherUsers(enrichedUsers); // Store the final merged list with derived status
 
       } catch (err: any) {
           console.error("Error fetching and merging other user data:", err);
@@ -309,15 +392,18 @@ export const useMapData = (): MapData => {
           population: { min: 0, max: Number.MAX_SAFE_INTEGER }
       }));
  };
- // Add new filter functions
+ // Filter functions (update local status, add age)
  const filterByLocalStatus = (statuses: string[] | null) => {
-     setFilters(prev => ({ ...prev, is_local: statuses && statuses.length > 0 ? statuses : null }));
+     setFilters(prev => ({ ...prev, localStatus: statuses && statuses.length > 0 ? statuses : null }));
  };
  const filterByBudget = (budgets: number[] | null) => {
      setFilters(prev => ({ ...prev, budget: budgets && budgets.length > 0 ? budgets : null }));
  };
 const filterByGender = (genders: string[] | null) => {
     setFilters(prev => ({ ...prev, gender: genders && genders.length > 0 ? genders : null }));
+};
+const filterByAge = (min: number, max: number) => {
+    setFilters(prev => ({ ...prev, age: { min, max } }));
 };
 
  // Update resetFilters to include new filters
@@ -327,9 +413,10 @@ const filterByGender = (genders: string[] | null) => {
          population: { min: 0, max: Number.MAX_SAFE_INTEGER },
          search: null,
          distance: null,
-         is_local: null, // Reset local status
-         budget: null,   // Reset budget
-         gender: null,   // <-- Reset gender
+         localStatus: null, // Reset local status
+         budget: null,      // Reset budget
+         gender: null,      // Reset gender
+         age: { min: 18, max: 99 }, // <-- Reset age to default
      });
  };
 
@@ -364,10 +451,11 @@ const filterByGender = (genders: string[] | null) => {
     filterByPopulation,
     filterBySearch,
     filterByDistance,
-    // Add new filter functions to return object
-    filterByLocalStatus,
+    // User filter functions
+    filterByLocalStatus, // Renamed prop
     filterByBudget,
-    filterByGender, // <-- Return gender filter function
+    filterByGender,
+    filterByAge, // <-- Return age filter function
     selectCity,
     getTopCities,
     resetFilters,

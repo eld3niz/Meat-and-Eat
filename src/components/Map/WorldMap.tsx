@@ -100,10 +100,11 @@ const WorldMap = () => {
     loadingOtherUsers,
     errorOtherUsers,
     filterByDistance,        // <-- Get filterByDistance from hook
-    // Destructure new filter functions
-    filterByLocalStatus,
+    // Destructure user filter functions
+    filterByLocalStatus, // Renamed in hook, matches new prop name
     filterByBudget,
-    filterByGender,          // <-- Get filterByGender from hook
+    filterByGender,
+    filterByAge,             // <-- Get filterByAge from hook
     // ---
     filters,                 // <-- Get filters state object
     cities                   // <-- Get original cities array
@@ -746,11 +747,13 @@ const WorldMap = () => {
           onCountryFilter={filterByCountry}
           onPopulationFilter={filterByPopulation}
           onDistanceFilter={handleDistanceFilter} // Pass the updated handler
-          // Pass new filter props
-          onLocalFilter={filterByLocalStatus}
+          // Pass user filter props
+          onLocalStatusFilter={filterByLocalStatus} // Pass renamed function as renamed prop
           onBudgetFilter={filterByBudget}
-          currentLocalFilter={filters.is_local}
+          onAgeFilter={filterByAge} // <-- Pass age filter function
+          currentLocalStatusFilter={filters.localStatus} // Pass renamed state field as renamed prop
           currentBudgetFilter={filters.budget}
+          currentAgeFilter={filters.age} // <-- Pass current age filter state
           // ---
           onResetFilters={handleResetFilters} // Pass the new wrapper function
           loading={mapDataLoading || loadingOtherUsers} // Combined loading state for sidebar?

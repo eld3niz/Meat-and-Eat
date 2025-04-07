@@ -14,13 +14,15 @@ interface SidebarProps {
   onPopulationFilter: (min: number, max: number) => void;
   onDistanceFilter: (distance: number | null) => void;
   currentDistanceFilter: number | null; // <-- Add prop for current filter value
-  // New user filter props
-  onLocalFilter: (statuses: string[] | null) => void;
+  // User filter props
+  onLocalStatusFilter: (statuses: string[] | null) => void; // Renamed
   onBudgetFilter: (budgets: number[] | null) => void;
-  onGenderFilter: (genders: string[] | null) => void; // <-- Add gender filter prop
-  currentLocalFilter: string[] | null;
+  onGenderFilter: (genders: string[] | null) => void;
+  onAgeFilter: (min: number, max: number) => void; // <-- Add age filter prop
+  currentLocalStatusFilter: string[] | null; // Renamed
   currentBudgetFilter: number[] | null;
-  currentGenderFilter: string[] | null; // <-- Add current gender filter prop
+  currentGenderFilter: string[] | null;
+  currentAgeFilter: { min: number; max: number }; // <-- Add current age filter prop
   // ---
   onResetFilters: () => void;
   loading: boolean; // Represents city loading, might need combined loading state
@@ -42,13 +44,15 @@ const Sidebar = ({
   onCountryFilter,
   onPopulationFilter,
   onDistanceFilter,
-  // Destructure new filter props
-  onLocalFilter,
+  // Destructure user filter props
+  onLocalStatusFilter, // Renamed
   onBudgetFilter,
-  onGenderFilter, // <-- Destructure gender filter prop
-  currentLocalFilter,
+  onGenderFilter,
+  onAgeFilter, // <-- Destructure age filter prop
+  currentLocalStatusFilter, // Renamed
   currentBudgetFilter,
-  currentGenderFilter, // <-- Destructure current gender filter prop
+  currentGenderFilter,
+  currentAgeFilter, // <-- Destructure current age filter prop
   // ---
   onResetFilters,
   loading, // Consider passing loadingCities and loadingUsers separately if needed
@@ -61,10 +65,11 @@ const Sidebar = ({
 }: SidebarProps) => {
   // Removed internal isCollapsed state
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
-  // Local state for new user filters
-  const [selectedLocalStatuses, setSelectedLocalStatuses] = useState<string[]>(currentLocalFilter ?? []);
+  // Local state for user filters
+  const [selectedLocalStatus, setSelectedLocalStatus] = useState<string[]>(currentLocalStatusFilter ?? []); // Renamed state
   const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
-  const [selectedGenders, setSelectedGenders] = useState<string[]>(currentGenderFilter ?? []); // <-- Add state for gender filter
+  const [selectedGenders, setSelectedGenders] = useState<string[]>(currentGenderFilter ?? []);
+  const [ageRange, setAgeRange] = useState<[number, number]>([currentAgeFilter.min, currentAgeFilter.max]); // <-- Add state for age filter
   const [hoveredBudgetLevel, setHoveredBudgetLevel] = useState<number | null>(null); // State for hover effect
 
   // Default distance is 50km (representing "All")
@@ -96,28 +101,33 @@ const Sidebar = ({
     setPopulationRange([0, 40000000]);
     // setDistanceRange(50); // No longer needed, parent state handles reset
     onResetFilters(); // This should trigger parent state update (which clears useMapData state)
-    // Also clear local state for new filters
-    setSelectedLocalStatuses([]);
+    // Also clear local state for user filters
+    setSelectedLocalStatus([]); // Renamed
     setSelectedBudgets([]);
-    setSelectedGenders([]); // <-- Clear gender state on reset
+    setSelectedGenders([]);
+    setAgeRange([18, 99]); // <-- Reset age range to default
   }, [onResetFilters]);
 
   // Removed useEffect that reset distanceRange locally.
   // The filter state is now fully controlled by the parent via currentDistanceFilter prop.
   // Parent component (WorldMap -> useMapData) should handle resetting the filter
   // if userPosition becomes unavailable.
-  // Effect to sync local filter state if props change (e.g., on external reset)
+  // Effects to sync local filter state if props change (e.g., on external reset)
   useEffect(() => {
-    setSelectedLocalStatuses(currentLocalFilter ?? []);
-  }, [currentLocalFilter]);
+    setSelectedLocalStatus(currentLocalStatusFilter ?? []); // Renamed
+  }, [currentLocalStatusFilter]); // Renamed dependency
 
   useEffect(() => {
     setSelectedBudgets(currentBudgetFilter ?? []);
   }, [currentBudgetFilter]);
 
   useEffect(() => {
-    setSelectedGenders(currentGenderFilter ?? []); // <-- Sync gender state with prop
+    setSelectedGenders(currentGenderFilter ?? []);
   }, [currentGenderFilter]);
+
+  useEffect(() => {
+    setAgeRange([currentAgeFilter.min, currentAgeFilter.max]); // <-- Sync age state with prop
+  }, [currentAgeFilter]);
 
 
   // Slider color depends only on whether the filter is enabled (user position available)
@@ -135,13 +145,13 @@ const Sidebar = ({
 
   // Determine if users should be shown based on length (they are pre-filtered in useMapData)
   const showUsers = users.length > 0;
-  // --- Handlers for new user filters ---
+  // --- Handlers for user filters ---
   const handleLocalStatusChange = (status: string) => {
-    const newSelection = selectedLocalStatuses.includes(status)
-      ? selectedLocalStatuses.filter(s => s !== status)
-      : [...selectedLocalStatuses, status];
-    setSelectedLocalStatuses(newSelection);
-    onLocalFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
+    const newSelection = selectedLocalStatus.includes(status) // Renamed state check
+      ? selectedLocalStatus.filter(s => s !== status) // Renamed state filter
+      : [...selectedLocalStatus, status]; // Renamed state spread
+    setSelectedLocalStatus(newSelection); // Renamed state update
+    onLocalStatusFilter(newSelection.length > 0 ? newSelection : null); // Renamed prop call
   };
 
   const handleBudgetChange = (clickedLevel: number) => {
@@ -167,10 +177,37 @@ const Sidebar = ({
       ? selectedGenders.filter(g => g !== gender)
       : [...selectedGenders, gender];
     setSelectedGenders(newSelection);
-    onGenderFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
+    onGenderFilter(newSelection.length > 0 ? newSelection : null);
   };
 
-  const localOptions = ["Local", "Expat", "Tourist", "Other"];
+  // --- Handler for Age Filter ---
+  // Debounce age filter to avoid rapid updates while typing
+  const debouncedAgeFilter = useMemo(
+    () => debounce((min: number, max: number) => {
+      onAgeFilter(min, max);
+    }, 300), // 300ms debounce
+    [onAgeFilter]
+  );
+
+  const handleAgeChange = (type: 'min' | 'max', value: string) => {
+    const numericValue = parseInt(value, 10);
+    if (isNaN(numericValue)) return; // Ignore non-numeric input
+
+    let newMin = ageRange[0];
+    let newMax = ageRange[1];
+
+    if (type === 'min') {
+      newMin = Math.max(18, Math.min(numericValue, ageRange[1])); // Ensure min <= max and >= 18
+    } else { // type === 'max'
+      newMax = Math.min(99, Math.max(numericValue, ageRange[0])); // Ensure max >= min and <= 99
+    }
+
+    setAgeRange([newMin, newMax]);
+    debouncedAgeFilter(newMin, newMax); // Call debounced filter function
+  };
+
+
+  const localOptions = ["Local", "Traveller"]; // <-- Updated local status options
   const budgetOptions = [
       { level: 1, label: '💰' },
       { level: 2, label: '💰💰' },
@@ -270,9 +307,8 @@ const Sidebar = ({
                  <h3 className="font-medium text-sm text-gray-700 mb-4">Filter Users By:</h3> {/* Increased bottom margin */}
 
                  {/* Local Status Filter */}
-                 <div className="mb-6"> {/* Increased bottom margin for the group */}
-                     <label className="block text-xs font-medium text-gray-600 mb-3">Local Status</label> {/* Increased bottom margin */}
-                     {/* Replaced checkboxes with toggle buttons */}
+                 <div className="mb-6">
+                     <label className="block text-xs font-medium text-gray-600 mb-3">Travel Status</label> {/* Changed Label */}
                      <div className="flex flex-wrap gap-2">
                          {localOptions.map(status => (
                              <button
@@ -280,7 +316,7 @@ const Sidebar = ({
                                  type="button"
                                  onClick={() => handleLocalStatusChange(status)}
                                  className={`px-3 py-1 rounded-full text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                                     selectedLocalStatuses.includes(status)
+                                     selectedLocalStatus.includes(status) // Renamed state check
                                          ? 'bg-blue-600 text-white'
                                          : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                  }`}
@@ -344,6 +380,32 @@ const Sidebar = ({
                             </button>
                         ))}
                     </div>
+                </div>
+
+                {/* Age Filter */}
+                <div className="mb-6">
+                  <label className="block text-xs font-medium text-gray-600 mb-3">Age Range</label>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="number"
+                      min="18"
+                      max="99"
+                      value={ageRange[0]}
+                      onChange={(e) => handleAgeChange('min', e.target.value)}
+                      className="w-16 p-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                      aria-label="Minimum age"
+                    />
+                    <span className="text-gray-500">-</span>
+                    <input
+                      type="number"
+                      min="18"
+                      max="99"
+                      value={ageRange[1]}
+                      onChange={(e) => handleAgeChange('max', e.target.value)}
+                      className="w-16 p-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
+                      aria-label="Maximum age"
+                    />
+                  </div>
                 </div>
 
               </div>
