@@ -15,10 +15,13 @@ const Header = () => {
   const [profileFetchStatus, setProfileFetchStatus] = useState<'idle' | 'loading' | 'delaying' | 'animating' | 'display' | 'fallback-delaying' | 'fallback-animating'>('idle');
   const menuRef = useRef<HTMLDivElement>(null);
   const profilePageRef = useRef<HTMLDivElement>(null);
+  const meetsPopupRef = useRef<HTMLDivElement>(null); // Ref for Meets popup
   const fallbackTimerRef = useRef<NodeJS.Timeout | null>(null);
   const animationDelayTimerRef = useRef<NodeJS.Timeout | null>(null);
   const animationEndTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userNameRef = useRef(userName); // Initialize ref at top level
+  const [showMeetsPopup, setShowMeetsPopup] = useState(false); // State for Meets popup
+  const [activeMeetsTab, setActiveMeetsTab] = useState<'chats' | 'meetAndEat' | 'activity'>('chats'); // State for active tab in Meets popup, renamed 'upcoming'
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -167,12 +170,28 @@ const Header = () => {
     };
   }, [showProfilePage]);
 
+  // Close Meets popup when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (meetsPopupRef.current &&
+          !meetsPopupRef.current.contains(event.target as Node) &&
+          showMeetsPopup) {
+        setShowMeetsPopup(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMeetsPopup]);
+
   // Navigation-Handler
   const handleNavigation = (path: string, e: React.MouseEvent) => {
     e.preventDefault();
     window.history.pushState({}, '', path);
     setCurrentPath(path);
-    
+
     // Manuelles Auslösen eines popstate-Events für die App
     const navigationEvent = new PopStateEvent('popstate');
     window.dispatchEvent(navigationEvent);
@@ -222,7 +241,17 @@ const Header = () => {
               >
                 Map
               </a>
-              
+
+              {user && ( // Add Meets button only if user is logged in
+                <button
+                  onClick={() => setShowMeetsPopup(true)}
+                  className="flex items-center hover:text-blue-100 transition-colors duration-200 font-medium px-3 py-1 rounded-md bg-white bg-opacity-10 hover:bg-opacity-20"
+                >
+                  <span role="img" aria-label="calendar" className="mr-1.5">📅</span>
+                  Meets
+                </button>
+              )}
+
               {user ? (
                 <div className="relative" ref={menuRef}>
                   {/* Profile Button with Animation */}
@@ -327,6 +356,86 @@ const Header = () => {
         </div>
       )}
 
+      {/* Meets Popup */}
+      {showMeetsPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 z-[1000] flex items-center justify-center overflow-y-auto"
+             onClick={(e) => {
+               // Close if clicking on the overlay itself
+               if (e.target === e.currentTarget) {
+                 setShowMeetsPopup(false);
+               }
+             }}>
+         {/* Increased max-width from lg to 3xl */}
+         {/* Increased max-width from 3xl to 5xl */}
+         <div className="relative bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl max-w-5xl w-full max-h-[80vh] overflow-hidden p-6 shadow-2xl m-4"
+              ref={meetsPopupRef}>
+           {/* Close Button */}
+           <button
+              onClick={() => setShowMeetsPopup(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors z-10 p-1 rounded-full hover:bg-gray-200"
+              aria-label="Close Meets popup"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            {/* Tab Slider */}
+            <div className="mb-4 flex justify-center">
+              {/* Adjusted width for 3 tabs */}
+              <div className="relative w-72 bg-gray-200 rounded-full p-1">
+                <div
+                  // Adjusted width and transform for 3 tabs
+                  className={`absolute top-1 left-1 w-[calc(33.33%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${
+                    activeMeetsTab === 'chats' ? 'translate-x-0' :
+                    activeMeetsTab === 'meetAndEat' ? 'translate-x-[100%]' : // Renamed
+                    'translate-x-[200%]'
+                  }`}
+                />
+                <div className="relative flex justify-around items-center h-8">
+                  <button
+                    onClick={() => setActiveMeetsTab('chats')}
+                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'chats' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                  >
+                    Chats
+                  </button>
+                  <button
+                    onClick={() => setActiveMeetsTab('meetAndEat')} // Renamed
+                    className={`w-1/3 px-1 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'meetAndEat' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`} // Renamed
+                  >
+                    Meet and Eat
+                  </button>
+                  <button
+                    onClick={() => setActiveMeetsTab('activity')}
+                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                  >
+                    Activity
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Tab Content Area */}
+            <div className="overflow-y-auto h-[calc(80vh-120px)]"> {/* Adjust height as needed */}
+              {activeMeetsTab === 'chats' && (
+                <div className="p-4 text-center text-gray-700">
+                  Content for Chats will go here.
+                </div>
+              )}
+              {activeMeetsTab === 'meetAndEat' && ( // Renamed
+                <div className="p-4 text-center text-gray-700">
+                  Content for Meet and Eat will go here.
+                </div>
+              )}
+              {activeMeetsTab === 'activity' && (
+                <div className="p-4 text-center text-gray-700">
+                  Content for Activity will go here.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
