@@ -31,26 +31,31 @@ const Header = () => {
     const fetchUserProfile = async () => {
       if (user?.id) {
         try {
+          // Remove .single() to avoid error if row doesn't exist yet
           const { data, error } = await supabase
             .from('profiles')
             .select('name')
-            .eq('id', user.id)
-            .single();
+            .eq('id', user.id);
+            // .single(); // Removed
           
+          // Check for actual fetch errors (not just missing row)
           if (error) {
             console.error('Error fetching user profile:', error);
+            setUserName(user.email?.split('@')[0] || ''); // Fallback on error
             return;
           }
-          
-          if (data?.name) {
-            setUserName(data.name);
+
+          // Check if data array is not empty and has the name
+          if (data && data.length > 0 && data[0]?.name) {
+            setUserName(data[0].name);
           } else {
-            // Fallback to email prefix if name is not available
-            setUserName(user.email?.split('@')[0] || '');
+            // Profile might not exist yet, or name is null/empty
+            console.warn('Profile not found or name missing for user:', user.id, 'Falling back to email.');
+            setUserName(user.email?.split('@')[0] || ''); // Fallback
           }
         } catch (err) {
-          console.error('Error in profile fetch:', err);
-          setUserName(user.email?.split('@')[0] || '');
+          console.error('Unexpected error during profile fetch:', err);
+          setUserName(user.email?.split('@')[0] || ''); // Fallback on unexpected error
         }
       }
     };

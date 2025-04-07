@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react'; // Import useCallback
 import LoginForm from './LoginForm';
 import RegisterForm from './RegisterForm';
 import MultiStepRegisterForm from './MultiStepRegisterForm';
@@ -49,6 +49,15 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTab = 'lo
     };
   }, [isOpen, onClose]);
 
+  // Define the success handler for registration
+  const handleRegisterSuccess = useCallback(() => {
+    onClose(); // Close the modal
+    // Navigate to map page
+    window.history.pushState({}, '', '/');
+    const navigationEvent = new PopStateEvent('popstate');
+    window.dispatchEvent(navigationEvent);
+  }, [onClose]);
+
   if (!isOpen) return null;
 
   return (
@@ -95,7 +104,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTab = 'lo
           {activeTab === 'login' ? (
             <LoginForm onSuccess={onClose} />
           ) : (
-            <MultiStepRegisterForm />
+            <MultiStepRegisterForm onSuccess={handleRegisterSuccess} />
           )}
         </div>
 
