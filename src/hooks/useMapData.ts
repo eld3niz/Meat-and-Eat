@@ -18,6 +18,11 @@ export interface MapUser {
   budget?: number | null;
   bio?: string | null;
   age?: number | null; // Added age
+  // Add fields from profiles table
+  avatar_url?: string | null;
+  gender?: string | null;
+  languages?: string[] | null;
+  cuisines?: string[] | null;
 }
 
 interface Filters {
@@ -159,36 +164,79 @@ export const useMapData = (): MapData => {
 
   // --- Data Fetching ---
 
-  // Fetch other user locations/names using the snapped locations function
+  // Fetch other user locations/names using the snapped locations function AND merge profile data
   const fetchOtherUserLocations = async (currentUserId: string | undefined) => {
-    setLoadingOtherUsers(true);
-    setErrorOtherUsers(null);
-    try {
-      // Call the RPC function to get snapped locations
-      const { data, error } = await supabase.rpc('get_snapped_map_users');
+      setLoadingOtherUsers(true);
+      setErrorOtherUsers(null);
+      try {
+          // 1. Call the RPC function to get base user data (location, name, etc.)
+          const { data: rpcData, error: rpcError } = await supabase.rpc('get_snapped_map_users');
 
-      if (error) {
-        console.error("Supabase RPC error calling get_snapped_map_users:", error);
-        throw new Error(`Database RPC error: ${error.message}`); // More specific error
-      }
+          if (rpcError) {
+              console.error("Supabase RPC error calling get_snapped_map_users:", rpcError);
+              throw new Error(`Database RPC error: ${rpcError.message}`);
+          }
 
-      if (data) {
-        // Filter out the current user's location
-        const fetchedUsers = currentUserId
-          ? data.filter((loc: MapUser) => loc.user_id !== currentUserId) // Use MapUser type
-          : data;
-        const combinedUsers = [...fetchedUsers, ...mockUsers]; // Combine fetched and mock users
-        setAllOtherUsers(combinedUsers); // Store the combined list
-      } else {
-        // If fetch fails or returns no data, still show mock users
-        setAllOtherUsers([...mockUsers]);
+          let baseUsers: MapUser[] = [];
+          if (rpcData) {
+              // Filter out the current user's location if logged in
+              // Use 'any' temporarily if RPC return type isn't strictly MapUser yet
+              baseUsers = currentUserId
+                  ? rpcData.filter((loc: any) => loc.user_id !== currentUserId)
+                  : rpcData;
+          }
+
+          // Include mock users regardless of fetch success/failure for base data
+          const usersToEnrich = [...baseUsers, ...mockUsers];
+          const userIdsToFetchProfiles = usersToEnrich
+              .map(u => u.user_id)
+              // Correctly filter out mock user IDs which seem to follow 'mockuser_N' pattern
+              .filter(id => !id.startsWith('mockuser_'));
+
+          let enrichedUsers = [...usersToEnrich]; // Start with base + mock users
+
+          // 2. Fetch profile data for non-mock users if IDs exist
+          if (userIdsToFetchProfiles.length > 0) {
+              const { data: profilesData, error: profilesError } = await supabase
+                  .from('profiles')
+                  .select('id, avatar_url, gender, languages, cuisines')
+                  .in('id', userIdsToFetchProfiles);
+
+              if (profilesError) {
+                  console.error("Supabase error fetching profiles data:", profilesError);
+                  // Proceed but log the error, enrichment will be partial.
+                  setErrorOtherUsers("Could not load all profile details."); // Set a non-blocking error
+              }
+
+              // 3. Merge profile data into the user list
+              if (profilesData) {
+                  const profilesMap = new Map(profilesData.map(p => [p.id, p]));
+                  enrichedUsers = enrichedUsers.map(user => {
+                      if (profilesMap.has(user.user_id)) {
+                          const profile = profilesMap.get(user.user_id)!;
+                          return {
+                              ...user,
+                              avatar_url: profile.avatar_url,
+                              gender: profile.gender,
+                              languages: profile.languages,
+                              cuisines: profile.cuisines,
+                          };
+                      }
+                      return user; // Return user as is if no profile found (or mock user)
+                  });
+              }
+          }
+
+          setAllOtherUsers(enrichedUsers); // Store the final merged list
+
+      } catch (err: any) {
+          console.error("Error fetching and merging other user data:", err);
+          setErrorOtherUsers(err.message || "Failed to load other user data.");
+          // Fallback to only mock users if the entire process fails critically
+          setAllOtherUsers([...mockUsers]);
+      } finally {
+          setLoadingOtherUsers(false);
       }
-    } catch (err: any) {
-      console.error("Error fetching other user data:", err);
-      setErrorOtherUsers(err.message || "Failed to load other user data."); // Use error message if available
-    } finally {
-      setLoadingOtherUsers(false);
-    }
   };
 
   // Load initial data (cities and user locations)

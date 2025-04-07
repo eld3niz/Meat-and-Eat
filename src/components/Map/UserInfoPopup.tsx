@@ -1,157 +1,98 @@
-import React, { useState, useEffect } from 'react'; // Import useState, useEffect
-import { MapUser } from '../../hooks/useMapData'; // Adjust path as needed
-import supabase from '../../utils/supabaseClient'; // Import Supabase client
+import React from 'react';
+import { MapUser } from '../../hooks/useMapData'; // Ensure MapUser in useMapData includes all fields now
 
 interface UserInfoPopupProps {
-  user: MapUser;
-  onClose: () => void; // Function to call when the popup should be closed (e.g., by Leaflet)
+  user: MapUser; // User prop now contains all necessary data
+  onClose: () => void;
 }
-
-// Interface for the additional profile data we want to fetch
-interface ExtraProfileData {
-  avatar_url: string | null;
-  gender: string | null;
-  languages: string[] | null;
-  cuisines: string[] | null;
-  // rating: number | null; // Rating not currently in profiles table
-}
-
-// Import a placeholder icon if needed, or use inline SVG/text
-// import { UserCircleIcon } from '@heroicons/react/24/solid'; // Example if using Heroicons
 
 const UserInfoPopup: React.FC<UserInfoPopupProps> = ({ user, onClose }) => {
-  const [extraData, setExtraData] = useState<ExtraProfileData | null>(null);
-  const [loadingExtra, setLoadingExtra] = useState<boolean>(true);
-  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  // Fetch extra profile data when the component mounts (popup opens)
-  useEffect(() => {
-    const fetchExtraData = async () => {
-      // Don't fetch for mock users (assuming they have specific IDs or patterns)
-      // Adjust this condition based on how mock users are identified
-      if (user.user_id.startsWith('mock-')) {
-          setLoadingExtra(false);
-          setExtraData(null); // Ensure extraData is null for mocks
-          return;
-      }
-
-      setLoadingExtra(true);
-      setFetchError(null);
-      try {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('avatar_url, gender, languages, cuisines') // Select the needed fields
-          .eq('id', user.user_id)
-          .single();
-
-        if (error && error.code !== 'PGRST116') { // Ignore 'No rows found' error for users without profile entries yet
-          console.error('Error fetching extra profile data:', error);
-          throw error;
-        }
-        setExtraData(data);
-      } catch (error: any) {
-        setFetchError('Could not load profile details.');
-      } finally {
-        setLoadingExtra(false);
-      }
-    };
-
-    fetchExtraData();
-  }, [user.user_id]); // Re-fetch if the user ID changes
-
-  // Determine user status based on is_local (string type)
+  // Helper function to determine user status display
   const renderUserStatus = (isLocalStatus: string | null | undefined) => {
     if (isLocalStatus === 'Local') return 'Local 🏠';
     if (isLocalStatus === 'Traveller') return 'Traveller ✈️';
-    // Handle null, undefined, or other unexpected strings
-    return 'Status Unknown';
+    return 'Status Unknown'; // Default/fallback
   };
 
   const status = renderUserStatus(user.is_local);
 
+  // Helper function to safely join arrays, handling null/undefined
+  const safeJoin = (arr: string[] | null | undefined, separator: string = ', '): string => {
+    return (arr && arr.length > 0) ? arr.join(separator) : 'Not Given';
+  };
+
   return (
-    // Mimic UserProfile structure and styling, make wider (lg)
-    // Adjusted max-width (2xl) and padding for popup context
-    <div className="user-info-popup-container p-5 max-w-2xl bg-white rounded-lg shadow-xl popup-open-anim relative text-sm"> {/* Wider: lg -> 2xl, more padding */}
+    // Compact Redesign: Reduced padding, max-width, base text size
+    <div className="user-info-popup-container p-3 max-w-md bg-white rounded-lg shadow-lg popup-open-anim relative text-sm">
 
       {/* Section 1: Avatar, Name, Age, Gender, Status */}
-      <div className="flex items-center space-x-4 mb-2 pb-2 border-b border-gray-200"> {/* Reduced mb/pb */}
+      <div className="flex items-start space-x-3 mb-2 pb-2 border-b border-gray-200">
         {/* Avatar */}
         <div className="flex-shrink-0">
-          <div className="w-20 h-20 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 overflow-hidden"> {/* Larger Avatar */}
-            {loadingExtra ? (
-              <div className="animate-pulse w-full h-full bg-gray-400"></div>
-            ) : extraData?.avatar_url ? (
-              <img src={extraData.avatar_url} alt={user.name || 'Avatar'} className="w-full h-full object-cover" />
+          <div className="w-16 h-16 bg-gray-300 rounded-full flex items-center justify-center text-gray-500 overflow-hidden">
+            {user.avatar_url ? (
+              // Added null check for safety, though TS might infer from the condition
+              <img src={user.avatar_url} alt={user.name || 'Avatar'} className="w-full h-full object-cover" />
             ) : (
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-12 w-12" viewBox="0 0 20 20" fill="currentColor"> {/* Larger placeholder icon */}
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-10 w-10" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" />
               </svg>
             )}
           </div>
         </div>
-        {/* Info - Stacked */}
-        <div className="flex-grow">
-          <h3 className="text-lg font-semibold text-gray-900 truncate">{user.name || 'N/A'}</h3> {/* Larger name, removed mb-1 */}
-          <p className="text-sm text-gray-600"> {/* Stacked */}
-            Age: {user.age ?? 'N/A'}
-          </p>
-          <p className="text-sm text-gray-600"> {/* Stacked */}
-             Gender: {loadingExtra ? '...' : extraData?.gender || 'N/A'}
-          </p>
-          <p className="text-sm text-gray-600"> {/* Stacked */}
-             {status}
+        {/* Info Stack */}
+        <div className="flex-grow pt-1">
+          <h3 className="text-base font-semibold text-gray-900 truncate mb-0.5">{user.name || 'N/A'}</h3>
+          <p className="text-xs text-gray-600 leading-tight">
+            {user.age ? `Age: ${user.age}` : 'Age: N/A'}
+            <span className="mx-1">|</span>
+            {user.gender || 'Gender: N/A'}
+            <span className="mx-1">|</span>
+            {status}
           </p>
         </div>
       </div>
 
-      {/* Section 2: Bio and Rating */}
-      <div className="mb-2 pb-2 border-b border-gray-200"> {/* Reduced mb/pb */}
-        <div className="mb-1"> {/* Further reduced margin between Bio and Rating */}
-          <h4 className="text-sm font-semibold text-gray-800">About Me</h4> {/* Removed margin below heading */}
-          <p className="text-sm text-gray-700 whitespace-pre-wrap break-words">
-            {user.bio || 'Not Given'}
-          </p>
+      {/* Section 2: Details (Languages, Cuisines, Budget) */}
+      <div className="mb-2 pb-2 border-b border-gray-200 text-xs space-y-0.5">
+        <div>
+          <span className="font-semibold text-gray-700">Languages: </span>
+          {/* Use safeJoin helper */}
+          <span className="text-gray-600">{safeJoin(user.languages)}</span>
         </div>
         <div>
-           <h4 className="text-sm font-semibold text-gray-800">Rating</h4> {/* Removed mb-1 */}
-           <p className="text-sm text-gray-500">N/A</p> {/* Rating placeholder */}
+          <span className="font-semibold text-gray-700">Cuisines: </span>
+           {/* Use safeJoin helper */}
+          <span className="text-gray-600">{safeJoin(user.cuisines)}</span>
+        </div>
+        <div>
+          <span className="font-semibold text-gray-700">Budget: </span>
+          <span className="text-gray-600">{user.budget ? `$${user.budget}/day` : 'Not Given'}</span>
         </div>
       </div>
 
-      {/* Section 3: Languages, Cuisines, Budget (Stacked) */}
-      <div className="space-y-1 text-sm mb-2"> {/* Reduced space-y and mb */}
-        <div>
-          <span className="font-semibold text-gray-800">Languages: </span>
-          <span className="text-gray-700">
-            {loadingExtra ? '...' : (extraData?.languages && extraData.languages.length > 0) ? extraData.languages.join(', ') : 'Not Given'}
-          </span>
-        </div>
-        <div>
-          <span className="font-semibold text-gray-800">Cuisines: </span>
-          <span className="text-gray-700">
-             {loadingExtra ? '...' : (extraData?.cuisines && extraData.cuisines.length > 0) ? extraData.cuisines.join(', ') : 'Not Given'}
-          </span>
-        </div>
-        <div>
-          <span className="font-semibold text-gray-800">Budget: </span>
-          <span className="text-gray-700">{user.budget ? `$${user.budget}/day` : 'Not Given'}</span>
-        </div>
-        {fetchError && <div className="text-red-500 text-xs pt-1">{fetchError}</div>}
+      {/* Section 3: Bio */}
+      <div className="mb-3">
+         <h4 className="text-sm font-semibold text-gray-800 mb-0.5">About Me</h4>
+         {/* Added max-h-20 and overflow-y-auto for potentially long bios */}
+         <p className="text-sm text-gray-700 whitespace-pre-wrap break-words max-h-20 overflow-y-auto">
+           {user.bio || 'Not Given'}
+         </p>
       </div>
 
-      {/* Buttons Section */}
-      <div className="mt-4 pt-3 border-t border-gray-200 flex justify-end space-x-2">
+      {/* Buttons Section - Smaller buttons */}
+      <div className="mt-2 pt-2 border-t border-gray-200 flex justify-end space-x-1.5">
         <button
           type="button"
-          className="bg-gray-400 text-white text-xs font-bold py-1 px-3 rounded opacity-50 cursor-not-allowed"
+          className="bg-gray-400 text-white text-xs font-medium py-1 px-2 rounded opacity-50 cursor-not-allowed"
           disabled
         >
           Meet
         </button>
         <button
           type="button"
-          className="bg-gray-400 text-white text-xs font-bold py-1 px-3 rounded opacity-50 cursor-not-allowed"
+          className="bg-gray-400 text-white text-xs font-medium py-1 px-2 rounded opacity-50 cursor-not-allowed"
           disabled
         >
           Chat
