@@ -20,6 +20,7 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
     // Existing fields
     email: '',
     password: '',
+    gender: '', // Add gender field
     name: '',
     // age: '', // Removed age, will be calculated or derived
     birthDay: '', // Added birth date components
@@ -131,6 +132,7 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         home_longitude: formData.home_longitude, // Add home location
         home_location_last_updated: formData.home_latitude ? new Date().toISOString() : null, // Set timestamp only if location is provided
         avatar_url: avatarUrl, // Include the avatar URL here
+        gender: formData.gender, // Add gender here
       };
 
       const { error: profileError } = await supabase
@@ -168,7 +170,7 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
 
     switch (currentSlide) {
       case 0: // Slide 1: Email/Password (First Slide) - Only Next
-        return <RegisterSlide1 formData={{ email: formData.email, password: formData.password }} updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
+        return <RegisterSlide1 formData={{ email: formData.email, password: formData.password, gender: formData.gender }} updateFormData={updateFormData} nextSlide={nextSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 1: // Slide 2: Name/Age (Middle Slide) - Prev & Next
         return <RegisterSlide2 formData={{ name: formData.name, birthDay: formData.birthDay, birthMonth: formData.birthMonth, birthYear: formData.birthYear }} updateFormData={updateFormData} nextSlide={nextSlide} prevSlide={prevSlide} currentSlide={currentSlide} totalSlides={totalSlides} />;
       case 2: // Slide 3: Languages/Cuisines/City (Middle Slide) - Prev & Next

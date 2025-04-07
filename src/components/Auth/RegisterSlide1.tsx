@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import Button from '../UI/Button'; // Import Button component
 
 interface RegisterSlide1Props {
-  formData: { email: string; password: string }; // Accept formData from parent
-  updateFormData: (data: { email?: string; password?: string }) => void;
+  formData: { email: string; password: string; gender: string }; // Accept formData from parent, add gender
+  updateFormData: (data: { email?: string; password?: string; gender?: string }) => void; // Update signature
   nextSlide: () => void;
   prevSlide?: () => void; // Optional, as this can be the first slide
   currentSlide: number;
@@ -13,10 +13,10 @@ interface RegisterSlide1Props {
 // Remove prevSlide from destructuring as it's optional and not used when it's the first slide
 const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ formData, updateFormData, nextSlide, currentSlide, totalSlides }) => {
   // Remove local state for email and password
-  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [errors, setErrors] = useState<{ email?: string; password?: string; gender?: string }>({}); // Add gender to errors state
 
   const validateForm = () => {
-    const newErrors: { email?: string; password?: string } = {};
+    const newErrors: { email?: string; password?: string; gender?: string } = {}; // Add gender to newErrors
 
     if (!formData.email) { // Validate using formData prop
       newErrors.email = 'E-Mail ist erforderlich';
@@ -28,6 +28,9 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ formData, updateFormDat
       newErrors.password = 'Passwort ist erforderlich';
     } else if (formData.password.length < 8) { // Validate using formData prop
       newErrors.password = 'Passwort muss mindestens 8 Zeichen lang sein';
+    }
+    if (!formData.gender) { // Validate gender
+        newErrors.gender = 'Geschlecht ist erforderlich';
     }
 
     setErrors(newErrors);
@@ -75,6 +78,28 @@ const RegisterSlide1: React.FC<RegisterSlide1Props> = ({ formData, updateFormDat
         />
         {errors.password && <p className="mt-1 text-sm text-red-600">{errors.password}</p>}
         <p className="mt-1 text-xs text-gray-500">Passwort muss mindestens 8 Zeichen lang sein.</p>
+      </div>
+      {/* Gender Selection */}
+      <div className="mb-6">
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Geschlecht
+        </label>
+        <div className="flex items-center space-x-4">
+          {['male', 'female', 'divers'].map((genderOption) => (
+            <label key={genderOption} className="inline-flex items-center">
+              <input
+                type="radio"
+                className="form-radio h-4 w-4 text-blue-600 transition duration-150 ease-in-out"
+                name="gender"
+                value={genderOption}
+                checked={formData.gender === genderOption}
+                onChange={(e) => updateFormData({ gender: e.target.value })}
+              />
+              <span className="ml-2 text-sm text-gray-700 capitalize">{genderOption === 'male' ? 'Männlich' : genderOption === 'female' ? 'Weiblich' : 'Divers'}</span>
+            </label>
+          ))}
+        </div>
+        {errors.gender && <p className="mt-1 text-sm text-red-600">{errors.gender}</p>}
       </div>
       {/* Slide Indicator and Navigation */}
       <div className="flex items-center justify-between pt-4">

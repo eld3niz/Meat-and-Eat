@@ -253,3 +253,22 @@ USING (auth.role() = 'authenticated');
 
 -- STEP 4: Grant execution permission (This is now handled in Step 4c above)
 -- GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;
+
+-- ==============================================
+-- Gender Field Update [2025-04-07] - START
+-- ==============================================
+
+-- Add gender column to profiles table
+-- Use TEXT type, can add CHECK constraint later if needed (e.g., CHECK (gender IN ('male', 'female', 'divers')))
+ALTER TABLE public.profiles
+ADD COLUMN gender TEXT NULL;
+
+-- Update existing profiles to set gender to 'female'
+-- Run this only once after adding the column
+UPDATE public.profiles
+SET gender = 'female'
+WHERE gender IS NULL; -- Only update rows where gender hasn't been set yet (good practice)
+
+-- ==============================================
+-- Gender Field Update [2025-04-07] - END
+-- ==============================================
