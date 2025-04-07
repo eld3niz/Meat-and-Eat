@@ -103,6 +103,7 @@ const WorldMap = () => {
     // Destructure new filter functions
     filterByLocalStatus,
     filterByBudget,
+    filterByGender,          // <-- Get filterByGender from hook
     // ---
     filters,                 // <-- Get filters state object
     cities                   // <-- Get original cities array
@@ -759,6 +760,8 @@ const WorldMap = () => {
           isCollapsed={isSidebarCollapsed} // <-- Pass state
           onToggleCollapse={handleToggleSidebar} // <-- Pass handler
           isLocationLoading={isFetchingLocation} // <-- Pass location fetching status
+          onGenderFilter={filterByGender} // <-- Pass gender filter function
+          currentGenderFilter={filters.gender} // <-- Pass current gender filter state
         />
         {/* Map Area */}
         <div className="flex-grow relative overflow-hidden">

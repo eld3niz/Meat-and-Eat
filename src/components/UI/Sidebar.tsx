@@ -17,8 +17,10 @@ interface SidebarProps {
   // New user filter props
   onLocalFilter: (statuses: string[] | null) => void;
   onBudgetFilter: (budgets: number[] | null) => void;
+  onGenderFilter: (genders: string[] | null) => void; // <-- Add gender filter prop
   currentLocalFilter: string[] | null;
   currentBudgetFilter: number[] | null;
+  currentGenderFilter: string[] | null; // <-- Add current gender filter prop
   // ---
   onResetFilters: () => void;
   loading: boolean; // Represents city loading, might need combined loading state
@@ -43,8 +45,10 @@ const Sidebar = ({
   // Destructure new filter props
   onLocalFilter,
   onBudgetFilter,
+  onGenderFilter, // <-- Destructure gender filter prop
   currentLocalFilter,
   currentBudgetFilter,
+  currentGenderFilter, // <-- Destructure current gender filter prop
   // ---
   onResetFilters,
   loading, // Consider passing loadingCities and loadingUsers separately if needed
@@ -60,6 +64,7 @@ const Sidebar = ({
   // Local state for new user filters
   const [selectedLocalStatuses, setSelectedLocalStatuses] = useState<string[]>(currentLocalFilter ?? []);
   const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
+  const [selectedGenders, setSelectedGenders] = useState<string[]>(currentGenderFilter ?? []); // <-- Add state for gender filter
   const [hoveredBudgetLevel, setHoveredBudgetLevel] = useState<number | null>(null); // State for hover effect
 
   // Default distance is 50km (representing "All")
@@ -94,6 +99,7 @@ const Sidebar = ({
     // Also clear local state for new filters
     setSelectedLocalStatuses([]);
     setSelectedBudgets([]);
+    setSelectedGenders([]); // <-- Clear gender state on reset
   }, [onResetFilters]);
 
   // Removed useEffect that reset distanceRange locally.
@@ -108,6 +114,10 @@ const Sidebar = ({
   useEffect(() => {
     setSelectedBudgets(currentBudgetFilter ?? []);
   }, [currentBudgetFilter]);
+
+  useEffect(() => {
+    setSelectedGenders(currentGenderFilter ?? []); // <-- Sync gender state with prop
+  }, [currentGenderFilter]);
 
 
   // Slider color depends only on whether the filter is enabled (user position available)
@@ -151,12 +161,22 @@ const Sidebar = ({
     onBudgetFilter(newSelection.length > 0 ? newSelection : null);
   };
 
+  // --- Handler for Gender Filter ---
+  const handleGenderChange = (gender: string) => {
+    const newSelection = selectedGenders.includes(gender)
+      ? selectedGenders.filter(g => g !== gender)
+      : [...selectedGenders, gender];
+    setSelectedGenders(newSelection);
+    onGenderFilter(newSelection.length > 0 ? newSelection : null); // Pass null if empty
+  };
+
   const localOptions = ["Local", "Expat", "Tourist", "Other"];
   const budgetOptions = [
       { level: 1, label: '💰' },
       { level: 2, label: '💰💰' },
       { level: 3, label: '💰💰💰' }
   ];
+  const genderOptions = ["Male", "Female", "Divers"]; // <-- Define gender options
 
 
   return (
@@ -189,8 +209,7 @@ const Sidebar = ({
           ) : (
             // Non-loading state - Main content area that grows
             <div className="flex-grow">
-              {/* Search applies to both cities and users now (handled in useMapData) */}
-              <SearchBar cities={cities} onCitySelect={onCitySelect} />
+              {/* SearchBar removed as requested */}
 
               {/* Distance Filter */}
               <div className="mt-6 mb-6"> {/* Adjusted margin */}
@@ -305,6 +324,28 @@ const Sidebar = ({
                          })}
                      </div>
                  </div>
+
+                {/* Gender Filter */}
+                <div className="mb-6">
+                    <label className="block text-xs font-medium text-gray-600 mb-3">Gender</label>
+                    <div className="flex flex-wrap gap-2">
+                        {genderOptions.map(gender => (
+                            <button
+                                key={gender}
+                                type="button"
+                                onClick={() => handleGenderChange(gender)}
+                                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 ${
+                                    selectedGenders.includes(gender)
+                                        ? 'bg-pink-600 text-white' // Use pink theme for gender
+                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                }`}
+                            >
+                                {gender}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+
               </div>
               {/* --- End User Filters --- */}
             </div> // End flex-grow wrapper for non-loading content

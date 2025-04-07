@@ -36,6 +36,7 @@ interface Filters {
   // New user filters
   is_local: string[] | null; // Array of selected local statuses (e.g., ["Local", "Expat"])
   budget: number[] | null; // Array of selected budget levels (e.g., [1, 3])
+  gender: string[] | null; // <-- Add gender filter
 }
 
 // Update MapData interface
@@ -58,6 +59,7 @@ interface MapData {
   // Add new filter functions
   filterByLocalStatus: (statuses: string[] | null) => void;
   filterByBudget: (budgets: number[] | null) => void;
+  filterByGender: (genders: string[] | null) => void; // <-- Add gender filter function
   selectCity: (cityId: number | null) => void;
   getTopCities: (count: number) => City[];
   resetFilters: () => void;
@@ -82,6 +84,7 @@ export const useMapData = (): MapData => {
     // Initialize new filters
     is_local: null,
     budget: null,
+    gender: null, // <-- Initialize gender filter
   });
 
   // State for all fetched other user locations (including name)
@@ -158,6 +161,15 @@ export const useMapData = (): MapData => {
     if (filters.budget && filters.budget.length > 0) {
         result = result.filter(u => u.budget && filters.budget!.includes(u.budget));
     }
+
+    // Apply Gender Filter
+    if (filters.gender && filters.gender.length > 0) {
+        // Map frontend labels ('Male', 'Female', 'Divers') to potential backend values if needed,
+        // assuming backend stores 'male', 'female', 'divers' (case-insensitive check is safer)
+        const selectedGendersLower = filters.gender.map(g => g.toLowerCase());
+        result = result.filter(u => u.gender && selectedGendersLower.includes(u.gender.toLowerCase()));
+    }
+
 
     return result;
   }, [filters, allOtherUsers, userCoordinates]); // Keep dependencies
@@ -304,6 +316,9 @@ export const useMapData = (): MapData => {
  const filterByBudget = (budgets: number[] | null) => {
      setFilters(prev => ({ ...prev, budget: budgets && budgets.length > 0 ? budgets : null }));
  };
+const filterByGender = (genders: string[] | null) => {
+    setFilters(prev => ({ ...prev, gender: genders && genders.length > 0 ? genders : null }));
+};
 
  // Update resetFilters to include new filters
  const resetFilters = () => {
@@ -314,6 +329,7 @@ export const useMapData = (): MapData => {
          distance: null,
          is_local: null, // Reset local status
          budget: null,   // Reset budget
+         gender: null,   // <-- Reset gender
      });
  };
 
@@ -351,6 +367,7 @@ export const useMapData = (): MapData => {
     // Add new filter functions to return object
     filterByLocalStatus,
     filterByBudget,
+    filterByGender, // <-- Return gender filter function
     selectCity,
     getTopCities,
     resetFilters,
