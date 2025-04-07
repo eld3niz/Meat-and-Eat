@@ -127,6 +127,10 @@ const WorldMap = () => {
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null); // State for the separate profile modal
+  // State for positioning the profile view relative to the list popup
+  interface PopupPosition { top: number; left: number; width: number; height: number; }
+  const [listPopupPosition, setListPopupPosition] = useState<PopupPosition | null>(null);
+  const profileWrapperRef = useRef<HTMLDivElement | null>(null); // Ref for the profile view wrapper div
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -264,15 +268,37 @@ const WorldMap = () => {
     const c = map.getCenter();
     setMapCenter([c.lat, c.lng]);
 
-    // Auto-close popup if marker is out of bounds
+    // Auto-close CITY popup if marker is out of bounds
     if (clickedCity) {
       const bounds = map.getBounds();
       const cityLatLng = L.latLng(clickedCity.latitude, clickedCity.longitude);
       if (!bounds.contains(cityLatLng)) {
-        setClickedCity(null);
+        setClickedCity(null); // Close only the city popup
       }
     }
-  }, 150), [isFlying, clickedCity, closeAllPopups]); // Add closeAllPopups dependency
+
+    // --- ADDED: Update profile position if it's open ---
+    if (viewingProfileUserId && aggregatePopupRef.current) {
+      const listPopupElement = aggregatePopupRef.current.getElement();
+      if (listPopupElement) {
+        const rect = listPopupElement.getBoundingClientRect();
+        // Update position state - useEffect will handle repositioning the profile
+        setListPopupPosition({
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        });
+      } else {
+        // If the list popup element is somehow gone, close the profile
+        console.warn("List popup element not found during map move, closing profile.");
+        setViewingProfileUserId(null);
+        setListPopupPosition(null);
+      }
+    }
+    // --- END ADDED ---
+
+  }, 150), [isFlying, clickedCity, closeAllPopups, viewingProfileUserId]); // Add viewingProfileUserId dependency
 
   // Close clicked popup when clicking outside of it
   const handleMapClick = useCallback((event: L.LeafletMouseEvent) => {
@@ -282,12 +308,15 @@ const WorldMap = () => {
         targetElement.closest('.leaflet-marker-icon') ||
         targetElement.closest('.info-popup-container') || // Existing city popup
         targetElement.closest('.tile-list-popup-container') || // New aggregate list
-        targetElement.closest('.user-info-popup-container') // New user info
+        targetElement.closest('.user-info-popup-container') || // New user info
+        targetElement.closest('.profile-view-wrapper') // --- ADDED: Ignore clicks inside profile view ---
     ) {
       return; // Click was inside a marker or popup, do nothing
     }
-    // Otherwise, close all popups
+    // Otherwise, close all popups AND the profile view
     closeAllPopups();
+    setViewingProfileUserId(null); // --- ADDED: Close profile view ---
+    setListPopupPosition(null); // --- ADDED: Clear position ---
   }, [closeAllPopups]); // Dependency on closeAllPopups
 
   // Handler for clicking the user's own location marker
@@ -442,10 +471,28 @@ const WorldMap = () => {
           <TileListPopup
             items={items}
             onUserClick={(userId) => {
-              // Close the aggregate popup first
-              aggregatePopupRef.current?.remove();
+              // --- MODIFIED: Keep list popup open, capture its position ---
+              // Don't close the aggregate popup:
+              // aggregatePopupRef.current?.remove();
+
+              // Capture the list popup's position
+              const listPopupElement = aggregatePopupRef.current?.getElement();
+              if (listPopupElement) {
+                const rect = listPopupElement.getBoundingClientRect();
+                setListPopupPosition({
+                  top: rect.top,
+                  left: rect.left,
+                  width: rect.width,
+                  height: rect.height,
+                });
+              } else {
+                console.warn("Could not get list popup element to determine position.");
+                setListPopupPosition(null); // Reset position if element not found
+              }
+
               // Set the state in WorldMap to open the separate profile modal
               setViewingProfileUserId(userId);
+              // --- END MODIFICATION ---
             }}
           />
         </React.StrictMode>
@@ -471,6 +518,10 @@ const WorldMap = () => {
       }
       if (aggregatePopupRef.current === popup) {
          aggregatePopupRef.current = null;
+         // --- ADDED: Close profile view when list popup closes ---
+         setViewingProfileUserId(null);
+         setListPopupPosition(null);
+         // --- END ADDED ---
       }
     });
 
@@ -698,6 +749,35 @@ const WorldMap = () => {
   // Dependencies: Run when filters change (affecting filteredUsers/tileAggregationData) or when a popup is opened/closed
   }, [filteredUsers, tileAggregationData, openPopupData, mapRef]);
 
+  // --- useEffect for positioning the profile view ---
+  useEffect(() => {
+    if (viewingProfileUserId && listPopupPosition && profileWrapperRef.current) {
+      const profileElement = profileWrapperRef.current;
+      // Use requestAnimationFrame to ensure layout is calculated after potential style changes
+      requestAnimationFrame(() => {
+        // Check ref again inside animation frame as component might unmount
+        if (!profileWrapperRef.current || !listPopupPosition) return;
+        
+        const profileWidth = profileElement.offsetWidth;
+        const gap = 10; // 10px gap between list popup and profile view
+
+        // Calculate desired left position
+        const desiredLeft = listPopupPosition.left - profileWidth - gap;
+
+        // Apply the calculated position and make visible
+        profileElement.style.left = `${desiredLeft}px`;
+        profileElement.style.top = `${listPopupPosition.top}px`; // Ensure top is also updated
+        profileElement.style.visibility = 'visible';
+      });
+
+    } else if (profileWrapperRef.current) {
+      // Ensure it's hidden if conditions aren't met
+      profileWrapperRef.current.style.visibility = 'hidden';
+    }
+  }, [viewingProfileUserId, listPopupPosition]); // Rerun when user or position changes
+  // --- End useEffect ---
+
+
 
   const RadiusCircle = useCallback(() => {
       // Use userCoordinates from context
@@ -777,12 +857,30 @@ const WorldMap = () => {
   return (
     <>
       {/* Render the ReadOnlyUserProfile modal conditionally at the top level */}
-      {viewingProfileUserId && (
-        <ReadOnlyUserProfile
-          userId={viewingProfileUserId}
-          onClose={() => setViewingProfileUserId(null)}
-        />
+      {/* --- MODIFIED: Render ReadOnlyUserProfile in a positioned wrapper --- */}
+      {viewingProfileUserId && listPopupPosition && ( // Only render if we have a user ID AND the list popup position
+        <div
+          ref={profileWrapperRef} // Add ref for measurement
+          className="profile-view-wrapper" // Add class for potential styling
+          style={{
+            position: 'fixed',
+            top: `${listPopupPosition.top}px`, // Align top with list popup
+            left: '0px', // Initial left position (will be updated by useEffect)
+            visibility: 'hidden', // Initially hidden until position is calculated
+            zIndex: 1050, // Ensure it's above Leaflet popups (default ~400-1000) and potentially other UI
+            // Add other necessary styles like background, shadow etc. if not handled by ReadOnlyUserProfile itself
+          }}
+        >
+          <ReadOnlyUserProfile
+            userId={viewingProfileUserId}
+            onClose={() => {
+              setViewingProfileUserId(null);
+              setListPopupPosition(null); // Also clear position state on close
+            }}
+          />
+        </div>
       )}
+      {/* --- END MODIFICATION --- */}
 
       {/* Map/Sidebar Area - Restore flex-grow, remove explicit height */}
       {/* Restore flex-grow to allow this main section to fill space */}
@@ -889,5 +987,7 @@ const WorldMap = () => {
   );
   // Log user data just before returning the component's JSX
 };
+
+
 
 export default WorldMap;
