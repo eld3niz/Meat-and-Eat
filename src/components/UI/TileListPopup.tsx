@@ -1,15 +1,16 @@
-import React, { useState } from 'react'; // Import useState
+import React from 'react'; // Removed useState import
 import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData';
-import ReadOnlyUserProfile from '../Profile/ReadOnlyUserProfile'; // Import the new component
+// Removed ReadOnlyUserProfile import
 
 interface TileListPopupProps {
   items: (City | MapUser)[];
   onClose?: () => void;
+  onUserClick: (userId: string) => void; // Add new prop for handling user clicks
 }
 
-const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
-  const [viewingUserId, setViewingUserId] = useState<string | null>(null); // State to track viewed user profile
+const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserClick }) => { // Add onUserClick to props
+  // Removed viewingUserId state
 
   // Filter out only user items (we're only interested in users for this popup)
   const userItems = items.filter((item): item is MapUser => 'user_id' in item);
@@ -52,7 +53,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
                   </td>
                   <td
                     className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900"
-                    onClick={() => setViewingUserId(user.user_id)} // Moved onClick handler here
+                    onClick={() => onUserClick(user.user_id)} // Call the passed prop instead of setting local state
                   >
                     {user.name || 'N/A'}
                   </td>
@@ -67,13 +68,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
           Keine Benutzer in diesem Cluster gefunden.
         </div>
       )}
-      {/* Conditionally render the profile modal */}
-      {viewingUserId && (
-        <ReadOnlyUserProfile
-          userId={viewingUserId}
-          onClose={() => setViewingUserId(null)}
-        />
-      )}
+      {/* Removed rendering of ReadOnlyUserProfile */}
     </div>
   );
 };

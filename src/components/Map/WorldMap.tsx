@@ -11,7 +11,8 @@ import TileAggregateLayer from './TileAggregateLayer'; // For zoom >= 14
 // TiledMarkersLayer import removed
 import InfoPopup from './InfoPopup'; // Existing city popup
 import UserInfoPopup from './UserInfoPopup'; // <-- Import new User Info Popup
-import TileListPopup from '../UI/TileListPopup'; // <-- Import new Tile List Popup
+import TileListPopup from '../UI/TileListPopup';
+import ReadOnlyUserProfile from '../Profile/ReadOnlyUserProfile'; // Import ReadOnlyUserProfile
 import Sidebar from '../UI/Sidebar';
 import CityTable from '../UI/CityTable';
 import UserTable from '../UI/UserTable';
@@ -124,7 +125,8 @@ const WorldMap = () => {
   const aggregatePopupRef = useRef<Popup | null>(null); // Ref for aggregate list popup instance
   const userInfoPopupRef = useRef<Popup | null>(null); // Ref for user info popup instance
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // <-- State for sidebar visibility
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null); // State for the separate profile modal
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -437,7 +439,15 @@ const WorldMap = () => {
       root = createRoot(container);
       root.render(
         <React.StrictMode>
-          <TileListPopup items={items} />
+          <TileListPopup
+            items={items}
+            onUserClick={(userId) => {
+              // Close the aggregate popup first
+              aggregatePopupRef.current?.remove();
+              // Set the state in WorldMap to open the separate profile modal
+              setViewingProfileUserId(userId);
+            }}
+          />
         </React.StrictMode>
       );
       // console.log('[handleAggregateTileClick] React render called immediately.'); // DEBUG (Optional)
@@ -766,6 +776,14 @@ const WorldMap = () => {
   // Return a fragment to render map/sidebar and user table sequentially
   return (
     <>
+      {/* Render the ReadOnlyUserProfile modal conditionally at the top level */}
+      {viewingProfileUserId && (
+        <ReadOnlyUserProfile
+          userId={viewingProfileUserId}
+          onClose={() => setViewingProfileUserId(null)}
+        />
+      )}
+
       {/* Map/Sidebar Area - Restore flex-grow, remove explicit height */}
       {/* Restore flex-grow to allow this main section to fill space */}
       <div className="flex flex-col md:flex-row flex-grow w-full">
