@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react'; // Added React import for JSX rendering in popups
-import ReactDOMServer from 'react-dom/server'; // Needed to render React components into Leaflet popups
+import ReactDOMServer from 'react-dom/server'; // Needed for InfoPopup and UserInfoPopup
+import { createRoot } from 'react-dom/client'; // Import createRoot for client-side rendering in popups
 import { MapContainer, TileLayer, ZoomControl, useMap, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
@@ -405,33 +406,63 @@ const WorldMap = () => {
 
   // --- Handler for clicking an aggregate marker representing a tile ---
   const handleAggregateTileClick = useCallback((items: (City | MapUser)[], markerPosition: L.LatLng) => {
+    // console.log('[handleAggregateTileClick] Called with items:', items, 'at', markerPosition); // DEBUG REMOVED
     const map = mapRef.current;
     if (!map) return;
 
     closeAllPopups();
 
-    // Render TileListPopup content
-    const popupContent = ReactDOMServer.renderToString(
-      <TileListPopup 
-        items={items} 
-        onClose={() => {
-          aggregatePopupRef.current?.remove();
-          aggregatePopupRef.current = null;
-          setOpenPopupData(null);
-        }} 
-      />
-    );
+    // Create a container div for React rendering
+    const container = L.DomUtil.create('div', 'tile-list-popup-react-container');
+    // console.log('[handleAggregateTileClick] Created container div:', container); // DEBUG REMOVED
 
-    // Create the popup at the marker's position with offset
-    const popup = L.popup({ 
+    // Create the popup instance with the container div
+    const popup = L.popup({
       closeButton: true,
-      offset: [0, -15], // Add 15px vertical offset
-      className: 'custom-leaflet-popup', // Add custom class for consistent styling
-      minWidth: 400 // Make popup wider by setting minimum width
+      offset: [0, -15],
+      className: 'custom-leaflet-popup tile-list-popup-leaflet-wrapper', // Added wrapper class
+      minWidth: 400,
+      // maxWidth: 450, // Optional: set max width if needed
+      // maxHeight: 300 // Optional: set max height if needed
     })
-      .setLatLng(markerPosition) // Use actual marker position
-      .setContent(popupContent)
+      .setLatLng(markerPosition)
+      .setContent(container) // Set the empty container as content initially
       .openOn(map);
+    // console.log('[handleAggregateTileClick] Created and opened Leaflet popup instance:', popup); // DEBUG REMOVED
+
+    // Render the React component into the container AFTER the popup is added to the map
+    // Render the React component immediately after opening the popup
+    let root: ReturnType<typeof createRoot> | null = null;
+    try {
+      root = createRoot(container);
+      root.render(
+        <React.StrictMode>
+          <TileListPopup items={items} />
+        </React.StrictMode>
+      );
+      // console.log('[handleAggregateTileClick] React render called immediately.'); // DEBUG (Optional)
+    } catch (error) {
+      console.error('[handleAggregateTileClick] Error during immediate React render:', error);
+      // Optionally close the popup if rendering fails immediately
+      popup.remove();
+      return; // Stop further execution for this click
+    }
+
+    // Unmount the React component when the popup is removed
+    popup.on('remove', () => {
+      // console.log('[handleAggregateTileClick] Popup "remove" event triggered.'); // DEBUG REMOVED
+      if (root) {
+        root.unmount(); // Unmount React component
+        root = null;
+      }
+      // Also clear our state tracking this popup
+      if (openPopupData?.type === 'aggregate' && openPopupData.ref === aggregatePopupRef) {
+         setOpenPopupData(null);
+      }
+      if (aggregatePopupRef.current === popup) {
+         aggregatePopupRef.current = null;
+      }
+    });
 
     aggregatePopupRef.current = popup;
     setOpenPopupData({ 

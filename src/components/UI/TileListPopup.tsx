@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react'; // Import useState
 import { City } from '../../types';
 import { MapUser } from '../../hooks/useMapData';
+import ReadOnlyUserProfile from '../Profile/ReadOnlyUserProfile'; // Import the new component
 
 interface TileListPopupProps {
   items: (City | MapUser)[];
@@ -8,6 +9,8 @@ interface TileListPopupProps {
 }
 
 const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
+  const [viewingUserId, setViewingUserId] = useState<string | null>(null); // State to track viewed user profile
+
   // Filter out only user items (we're only interested in users for this popup)
   const userItems = items.filter((item): item is MapUser => 'user_id' in item);
   
@@ -29,7 +32,11 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {userItems.map((user) => (
-                <tr key={user.user_id} className="hover:bg-blue-50">
+                <tr
+                  key={user.user_id}
+                  className="hover:bg-blue-50 cursor-pointer" // Add cursor-pointer
+                  // onClick moved to the name cell below
+                >
                   <td className="px-1 py-1 whitespace-nowrap">
                     {user.avatar_url ? (
                       <img
@@ -43,7 +50,12 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">{user.name || 'N/A'}</td>
+                  <td
+                    className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900"
+                    onClick={() => setViewingUserId(user.user_id)} // Moved onClick handler here
+                  >
+                    {user.name || 'N/A'}
+                  </td>
                   <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{user.age ?? 'N/A'}</td>
                 </tr>
               ))}
@@ -54,6 +66,13 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose }) => {
         <div className="py-3 text-center text-gray-500">
           Keine Benutzer in diesem Cluster gefunden.
         </div>
+      )}
+      {/* Conditionally render the profile modal */}
+      {viewingUserId && (
+        <ReadOnlyUserProfile
+          userId={viewingUserId}
+          onClose={() => setViewingUserId(null)}
+        />
       )}
     </div>
   );
