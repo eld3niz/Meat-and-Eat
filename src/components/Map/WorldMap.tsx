@@ -759,7 +759,7 @@ const WorldMap = () => {
         if (!profileWrapperRef.current || !listPopupPosition) return;
         
         const profileWidth = profileElement.offsetWidth;
-        const gap = 10; // 10px gap between list popup and profile view
+        const gap = 5; // 5px gap between list popup and profile view (Adjust as needed)
 
         // Calculate desired left position
         const desiredLeft = listPopupPosition.left - profileWidth - gap;

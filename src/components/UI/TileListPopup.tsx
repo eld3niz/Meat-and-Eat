@@ -36,7 +36,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                 <tr
                   key={user.user_id}
                   className="hover:bg-blue-50 cursor-pointer" // Add cursor-pointer
-                  // onClick moved to the name cell below
+                  onClick={() => onUserClick(user.user_id)} // <-- MOVED onClick here
                 >
                   <td className="px-1 py-1 whitespace-nowrap">
                     {user.avatar_url ? (
@@ -53,7 +53,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                   </td>
                   <td
                     className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900"
-                    onClick={() => onUserClick(user.user_id)} // Call the passed prop instead of setting local state
+                    // onClick removed from here
                   >
                     {user.name || 'N/A'}
                   </td>
