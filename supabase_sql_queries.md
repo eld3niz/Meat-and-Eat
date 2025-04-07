@@ -14,7 +14,7 @@ CREATE TABLE public.profiles (
 
 -- Add new columns for user attributes (is_local, budget, bio) - Added [YYYY-MM-DD]
 ALTER TABLE public.profiles
-ADD COLUMN is_local TEXT NULL,
+ADD COLUMN is_local TEXT NULL, -- Note: This column will be removed later by the location status update
 ADD COLUMN budget SMALLINT NULL CHECK (budget >= 1 AND budget <= 3),
 ADD COLUMN bio TEXT NULL CHECK (char_length(bio) <= 255);
 
@@ -29,6 +29,114 @@ ADD COLUMN avatar_url TEXT NULL;
 --    - Allow authenticated users to INSERT their own avatar (using user_id in path).
 --    - Allow authenticated users to UPDATE/DELETE their own avatar (using user_id in path).
 --    (Refer to implementation guide for specific policy conditions).
+
+-- ==============================================
+-- Location-Based Status Update [YYYY-MM-DD] - START
+-- ==============================================
+
+-- Step 1: Add new columns for home location and remove old 'is_local'
+ALTER TABLE public.profiles
+ADD COLUMN home_latitude DOUBLE PRECISION NULL,
+ADD COLUMN home_longitude DOUBLE PRECISION NULL,
+ADD COLUMN home_location_last_updated TIMESTAMPTZ NULL;
+
+-- Important: Ensure any data from 'is_local' is migrated or backed up if needed before dropping!
+ALTER TABLE public.profiles
+DROP COLUMN IF EXISTS is_local;
+
+-- Step 2: Create function to update home location with monthly limit
+CREATE OR REPLACE FUNCTION update_home_location(p_latitude DOUBLE PRECISION, p_longitude DOUBLE PRECISION)
+RETURNS TEXT -- Return a status message
+LANGUAGE plpgsql
+SECURITY INVOKER -- Run as the calling user, respecting RLS
+AS $$
+DECLARE
+    last_update TIMESTAMPTZ;
+    allowed_interval INTERVAL := '30 days';
+    current_user_id UUID := auth.uid(); -- Get the ID of the calling user
+BEGIN
+    -- Get the last update time for the current user
+    SELECT home_location_last_updated INTO last_update
+    FROM public.profiles
+    WHERE id = current_user_id;
+
+    -- Check if update is allowed
+    IF last_update IS NULL OR last_update <= now() - allowed_interval THEN
+        -- Perform the update
+        UPDATE public.profiles
+        SET
+            home_latitude = p_latitude,
+            home_longitude = p_longitude,
+            home_location_last_updated = now()
+        WHERE id = current_user_id;
+
+        RETURN 'Home location updated successfully.';
+    ELSE
+        -- Update not allowed, return informative message
+        RETURN 'Update failed: Home location can only be updated once every ' || allowed_interval::TEXT || '. Next update possible after ' || (last_update + allowed_interval)::DATE::TEXT || '.';
+    END IF;
+
+EXCEPTION
+    WHEN OTHERS THEN
+        RETURN 'An error occurred: ' || SQLERRM;
+END;
+$$;
+
+-- Step 3: Grant execute permission for the new function
+GRANT EXECUTE ON FUNCTION public.update_home_location(DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated;
+
+-- Step 4: (Optional but Recommended) Update 'get_snapped_map_users' function
+-- If you are using the 'get_snapped_map_users' function (defined further below),
+-- you MUST update it by running the following commands sequentially in the Supabase SQL Editor
+-- AFTER completing Step 1 (removing the is_local column).
+
+-- 4a. Drop the existing function (Required because the return type changed)
+DROP FUNCTION IF EXISTS public.get_snapped_map_users();
+
+-- 4b. Recreate the Function WITHOUT is_local
+CREATE OR REPLACE FUNCTION public.get_snapped_map_users()
+RETURNS TABLE(
+    user_id UUID,
+    latitude double precision,
+    longitude double precision,
+    name TEXT,
+    -- is_local TEXT, -- <<< REMOVED
+    budget SMALLINT,
+    bio TEXT,
+    age INTEGER
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, extensions
+AS $$
+DECLARE
+    grid_size DECIMAL := 0.01;
+BEGIN
+    RETURN QUERY
+    SELECT
+        ul.user_id,
+        extensions.ST_Y(extensions.ST_SnapToGrid(extensions.ST_SetSRID(extensions.ST_MakePoint(ul.longitude, ul.latitude), 4326), grid_size)) AS latitude,
+        extensions.ST_X(extensions.ST_SnapToGrid(extensions.ST_SetSRID(extensions.ST_MakePoint(ul.longitude, ul.latitude), 4326), grid_size)) AS longitude,
+        p.name,
+        -- p.is_local, -- <<< REMOVED
+        p.budget,
+        p.bio,
+        p.age
+    FROM
+        public.user_locations ul
+    JOIN
+        public.profiles p ON ul.user_id = p.id;
+END;
+$$;
+
+-- 4c. Grant execution permission (Run this again after recreating the function)
+GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;
+
+
+-- ==============================================
+-- Location-Based Status Update [YYYY-MM-DD] - END
+-- ==============================================
+
 
 -- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -130,53 +238,18 @@ USING (auth.role() = 'authenticated');
 
 -- ==============================================
 -- Function for Snapped User Locations (Privacy) - Updated [2025-04-04] to include Age
+-- NOTE: This function needs to be updated if used, see Step 4 in the Location-Based Status Update section above.
+-- The queries provided in Step 4 should be run AFTER removing the is_local column in Step 1.
 -- ==============================================
 
 -- STEP 1: Enable PostGIS Extension (Run this in Supabase SQL Editor if not already enabled)
 -- CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA extensions;
 
--- STEP 2: Drop the old function signature (Run this first if replacing)
-DROP FUNCTION IF EXISTS public.get_snapped_map_users();
+-- STEP 2: Drop the old function signature (This is now handled in Step 4a above)
+-- DROP FUNCTION IF EXISTS public.get_snapped_map_users();
 
--- STEP 3: Create the Function (Updated Version with is_local, budget, bio)
-CREATE OR REPLACE FUNCTION public.get_snapped_map_users()
-RETURNS TABLE(
-    user_id UUID,
-    latitude double precision,
-    longitude double precision,
-    name TEXT,
-    is_local TEXT,
-    budget SMALLINT,
-    bio TEXT,
-    age INTEGER -- Added age column to return type
-)
-LANGUAGE plpgsql
-SECURITY DEFINER -- Important for accessing all locations despite RLS
--- Set search_path to ensure function can find tables and extensions
-SET search_path = public, extensions
-AS $$
-DECLARE
-    grid_size DECIMAL := 0.01; -- Approx 1.1km grid size in degrees
-BEGIN
-    RETURN QUERY
-    SELECT
-        ul.user_id,
-        -- Snap latitude and longitude to the grid center
-        extensions.ST_Y(extensions.ST_SnapToGrid(extensions.ST_SetSRID(extensions.ST_MakePoint(ul.longitude, ul.latitude), 4326), grid_size)) AS latitude,
-        extensions.ST_X(extensions.ST_SnapToGrid(extensions.ST_SetSRID(extensions.ST_MakePoint(ul.longitude, ul.latitude), 4326), grid_size)) AS longitude,
-        p.name,
-        -- Select new profile fields
-        p.is_local,
-        p.budget,
-        p.bio,
-        p.age -- Added age column to select list
-    FROM
-        public.user_locations ul
-    JOIN
-        public.profiles p ON ul.user_id = p.id;
-    -- Optional: Add WHERE clause if needed (e.g., p.location_access = TRUE)
-END;
-$$;
+-- STEP 3: Create the Function (Original Version - Will be replaced by Step 4b query above)
+-- CREATE OR REPLACE FUNCTION public.get_snapped_map_users() ...
 
--- STEP 4: Grant execution permission (Run this after creating/replacing the function)
-GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;
+-- STEP 4: Grant execution permission (This is now handled in Step 4c above)
+-- GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;

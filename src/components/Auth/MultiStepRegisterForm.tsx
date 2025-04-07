@@ -26,11 +26,13 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
     cuisines: [] as string[], // Added type for clarity
     locationAccess: false,
     city: '',
-    // New fields
-    is_local: null as string | null,
+    // New/Modified fields
     budget: null as number | null,
     bio: '',
     avatarFile: null as File | null, // Add state for the avatar file
+    // Location fields instead of is_local
+    home_latitude: null as number | null,
+    home_longitude: null as number | null,
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -96,9 +98,12 @@ const MultiStepRegisterForm: React.FC<MultiStepRegisterFormProps> = ({ onSuccess
         languages: formData.languages,
         cuisines: formData.cuisines,
         city: formData.city,
-        is_local: formData.is_local,
+        // is_local removed
         budget: formData.budget,
         bio: formData.bio,
+        home_latitude: formData.home_latitude, // Add home location
+        home_longitude: formData.home_longitude, // Add home location
+        home_location_last_updated: formData.home_latitude ? new Date().toISOString() : null, // Set timestamp only if location is provided
         avatar_url: avatarUrl, // Include the avatar URL here
       };
 

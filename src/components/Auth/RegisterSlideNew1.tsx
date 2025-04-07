@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import Button from '../UI/Button'; // Assuming a Button component exists
+import Button from '../UI/Button';
+import LocationSearchMap from '../Map/LocationSearchMap'; // Import the map component
 
 interface RegisterSlideNew1Props {
-  updateFormData: (data: { is_local?: string | null; budget?: number | null }) => void;
+  // Update prop type for location data
+  updateFormData: (data: { home_latitude?: number | null; home_longitude?: number | null; budget?: number | null }) => void;
   prevSlide: () => void;
   nextSlide: () => void; // Added nextSlide
   // Removed handleSubmit and isLoading
@@ -10,16 +12,16 @@ interface RegisterSlideNew1Props {
   totalSlides: number;
 }
 
-const localOptions = ["Local", "Expat", "Tourist", "Other"];
+// Removed localOptions
 
 const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, prevSlide, nextSlide, currentSlide, totalSlides }) => {
-  const [selectedLocalStatus, setSelectedLocalStatus] = useState<string | null>(null);
+  // Removed selectedLocalStatus state
   const [selectedBudget, setSelectedBudget] = useState<number | null>(null);
+  // Removed handleLocalChange
 
-  const handleLocalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = e.target.value === "" ? null : e.target.value;
-    setSelectedLocalStatus(value);
-    updateFormData({ is_local: value });
+  // Handler for when a location is selected on the map
+  const handleLocationSelect = (lat: number, lng: number) => {
+    updateFormData({ home_latitude: lat, home_longitude: lng });
   };
 
   const handleBudgetClick = (budgetLevel: number) => {
@@ -36,23 +38,18 @@ const RegisterSlideNew1: React.FC<RegisterSlideNew1Props> = ({ updateFormData, p
         Tell us a bit more. Filling this in leads to more meet up success! (Optional)
       </p>
 
-      {/* Local Status Dropdown */}
+      {/* Home Location Map Search */}
       <div>
-        <label htmlFor="localStatus" className="block text-sm font-medium text-gray-700 mb-1">
-          Are you a local?
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Set Your Home Location (Optional)
         </label>
-        <select
-          id="localStatus"
-          name="localStatus"
-          value={selectedLocalStatus ?? ""}
-          onChange={handleLocalChange}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md shadow-sm"
-        >
-          <option value="">-- Select --</option>
-          {localOptions.map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
+        <p className="text-xs text-gray-500 mb-2">
+          Search for your city or address, or click on the map. This helps determine if you're a 'Local' or 'Traveller' based on your current distance when using the app. You can skip this for now.
+        </p>
+        <LocationSearchMap
+          onLocationSelect={handleLocationSelect}
+          mapHeight="250px" // Adjust height as needed for the form
+        />
       </div>
 
       {/* Budget Selector */}

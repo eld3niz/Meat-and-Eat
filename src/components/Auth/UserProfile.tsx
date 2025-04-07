@@ -3,7 +3,9 @@ import { useAuth } from '../../context/AuthContext';
 import supabase from '../../utils/supabaseClient';
 import { languageOptions, cuisineOptions } from '../../data/options';
 import AvatarUpload from './AvatarUpload';
-import ImageModal from '../UI/ImageModal'; // Import the ImageModal
+import ImageModal from '../UI/ImageModal';
+import LocationSearchMap from '../Map/LocationSearchMap'; // Import the map component
+import { useUserStatus, UserStatus } from '../../hooks/useUserStatus'; // Import the status hook
 
 interface ProfileData {
   id: string;
@@ -12,15 +14,36 @@ interface ProfileData {
   languages: string[] | null;
   cuisines: string[] | null;
   created_at: string | null;
-  // Added fields
-  is_local: string | null;
+  // Modified/Added fields
   budget: number | null;
   bio: string | null;
-  avatar_url: string | null; // Add avatar_url
+  avatar_url: string | null;
+  home_latitude: number | null; // New field
+  home_longitude: number | null; // New field
+  home_location_last_updated: string | null; // New field (timestamp as string)
 }
+
+// Helper function to render status with appropriate emoji
+const renderUserStatus = (status: UserStatus) => {
+  switch (status) {
+    case 'Local':
+      return 'Local 🏠';
+    case 'Traveller':
+      return 'Traveller ✈️';
+    case 'Other':
+      return 'Other (Home not set)';
+    case 'Loading':
+      return 'Loading status...';
+    case 'Unknown':
+    default:
+      return 'Status Unknown';
+  }
+};
+
 
 const UserProfile = () => {
   const { user, signOut } = useAuth(); // Get signOut from context
+  const { status: userStatus, error: statusError } = useUserStatus(); // Use the status hook
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -32,10 +55,14 @@ const UserProfile = () => {
   // Keep original name/age for display in edit mode (non-editable)
   const [originalName, setOriginalName] = useState('');
   const [originalAge, setOriginalAge] = useState('');
-  // State for new editable fields
-  const [editIsLocal, setEditIsLocal] = useState<string | null>(null);
+  // State for editable fields
   const [editBudget, setEditBudget] = useState<number | null>(null);
   const [editBio, setEditBio] = useState<string>('');
+  // State for home location editing
+  const [editHomeLatitude, setEditHomeLatitude] = useState<number | null>(null);
+  const [editHomeLongitude, setEditHomeLongitude] = useState<number | null>(null);
+  const [editHomeLocationLastUpdated, setEditHomeLocationLastUpdated] = useState<string | null>(null);
+  const [editLocationChanged, setEditLocationChanged] = useState(false); // Track if location was changed in edit mode
 
   const [updateMessage, setUpdateMessage] = useState({ type: '', text: '' });
   // State for avatar
@@ -64,7 +91,7 @@ const UserProfile = () => {
 
       const { data, error } = await supabase
         .from('profiles')
-        .select('id, name, age, languages, cuisines, created_at, is_local, budget, bio, avatar_url')
+        .select('id, name, age, languages, cuisines, created_at, budget, bio, avatar_url, home_latitude, home_longitude, home_location_last_updated') // Select new fields
         .eq('id', user.id)
         .single();
 
@@ -78,11 +105,16 @@ const UserProfile = () => {
         setOriginalAge(data.age?.toString() || '');
         setSelectedLanguages(data.languages || []);
         setSelectedCuisines(data.cuisines || []);
-        setEditIsLocal(data.is_local);
+        // setEditIsLocal removed
         setEditBudget(data.budget);
         setEditBio(data.bio || '');
         setAvatarUrl(data.avatar_url);
         setEditAvatarPreviewUrl(data.avatar_url);
+        // Set initial edit state for location
+        setEditHomeLatitude(data.home_latitude);
+        setEditHomeLongitude(data.home_longitude);
+        setEditHomeLocationLastUpdated(data.home_location_last_updated);
+        setEditLocationChanged(false); // Reset change tracker on fetch
       }
     } catch (error) {
       console.error('Error fetching profile:', error);
@@ -114,7 +146,14 @@ const UserProfile = () => {
     setSelectedCuisines(selectedCuisines.filter((cuisine) => cuisine !== cuisineToRemove));
   };
 
-  // Handle Save Changes (including potential avatar upload and password change)
+  // Handle Home Location selection in edit mode
+  const handleLocationSelect = (lat: number, lng: number) => {
+    setEditHomeLatitude(lat);
+    setEditHomeLongitude(lng);
+    setEditLocationChanged(true); // Mark location as changed
+  };
+
+  // Handle Save Changes (including potential avatar, password, and location updates)
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setUploadingAvatar(true); // Indicate loading for potential avatar/password ops
@@ -141,8 +180,35 @@ const UserProfile = () => {
     // --- End Password Validation ---
 
     try {
-      let newAvatarUrl = avatarUrl; // Start with the current URL
-      let uploadedFilePath: string | null = null; // Track path for potential cleanup
+      let newAvatarUrl = avatarUrl;
+      let uploadedFilePath: string | null = null;
+      let locationUpdateMessage: string | null = null; // To store result from RPC call
+
+      // --- Location Update Check & Call (if changed) ---
+      if (editLocationChanged && editHomeLatitude !== null && editHomeLongitude !== null) {
+        const { data: rpcResult, error: rpcError } = await supabase.rpc('update_home_location', {
+          p_latitude: editHomeLatitude,
+          p_longitude: editHomeLongitude
+        });
+
+        if (rpcError) {
+          // Throw error to be caught below, preventing further updates if location save fails
+          throw new Error(`Failed to update home location: ${rpcError.message}`);
+        } else {
+          locationUpdateMessage = rpcResult; // Store the message from the function
+          // If update was successful, update the local timestamp state and reset change tracker
+          if (locationUpdateMessage && locationUpdateMessage.includes('successfully')) {
+            setEditHomeLocationLastUpdated(new Date().toISOString()); // Approximate, ideally re-fetch
+            setEditLocationChanged(false);
+          } else {
+             // If the function returned a failure message (e.g., rate limit), show it and stop
+             setUpdateMessage({ type: 'warning', text: locationUpdateMessage || 'Could not update location.' });
+             setUploadingAvatar(false);
+             return; // Stop the rest of the save process
+          }
+        }
+      }
+      // --- End Location Update ---
 
       // 1. Handle Avatar Upload (if a new file was selected during edit)
       if (editAvatarFile) {
@@ -168,18 +234,18 @@ const UserProfile = () => {
         newAvatarUrl = urlData.publicUrl;
       }
 
-      // 2. Prepare Profile Data to Update
-      const profileUpdates: Partial<ProfileData> & { updated_at: string } = {
+      // 2. Prepare Profile Data to Update (excluding location fields handled by RPC)
+      const profileUpdates: Partial<Omit<ProfileData, 'home_latitude' | 'home_longitude' | 'home_location_last_updated'>> & { updated_at: string } = {
         languages: selectedLanguages,
         cuisines: selectedCuisines,
-        is_local: editIsLocal,
+        // is_local removed
         budget: editBudget,
         bio: editBio,
         updated_at: new Date().toISOString(),
         ...(editAvatarFile && { avatar_url: newAvatarUrl }), // Conditionally add avatar_url if a new one was uploaded
       };
 
-      // 3. Update Profile Table
+      // 3. Update Profile Table (only non-location fields)
       const { error: profileError } = await supabase
         .from('profiles')
         .update(profileUpdates)
@@ -203,24 +269,47 @@ const UserProfile = () => {
         }
       }
 
-      // 5. Update Local State
+      // 5. Update Local State (Profile data excluding location, which is handled by RPC/re-fetch)
       setAvatarUrl(newAvatarUrl);
-      setProfile(prev => prev ? { ...prev, ...profileUpdates, avatar_url: newAvatarUrl } : null);
+      // Update profile state carefully, preserving potentially updated location info if we don't re-fetch immediately
+      setProfile(prev => {
+          if (!prev) return null;
+          // Create a new profile object with updates, but keep existing location data for now
+          const updatedProfileBase = { ...prev, ...profileUpdates, avatar_url: newAvatarUrl };
+          // If location was successfully updated, reflect the new timestamp (or re-fetch for accuracy)
+          if (locationUpdateMessage?.includes('successfully')) {
+              updatedProfileBase.home_location_last_updated = editHomeLocationLastUpdated; // Use state value updated after RPC call
+          }
+          return updatedProfileBase as ProfileData; // Cast might be needed depending on exact types
+      });
       setEditAvatarFile(null);
       setEditAvatarPreviewUrl(newAvatarUrl);
-      setNewPassword(''); // Clear password fields on success/attempt
+      setNewPassword('');
       setConfirmPassword('');
 
       setEditMode(false); // Exit edit mode
 
-      // Determine success/warning message
-      if (passwordUpdateError) {
-          setUpdateMessage({ type: 'warning', text: `Profile updated, but password change failed: ${passwordUpdateError.message}` });
-      } else if (newPassword) {
-          setUpdateMessage({ type: 'success', text: 'Profile and password updated successfully!' });
+      // Determine final success/warning message, considering location update result
+      let finalMessage = '';
+      let finalType: 'success' | 'warning' = 'success';
+
+      if (locationUpdateMessage?.includes('successfully')) {
+          finalMessage = 'Profile and home location updated successfully!';
       } else {
-          setUpdateMessage({ type: 'success', text: 'Profile updated successfully!' });
+          finalMessage = 'Profile updated successfully!'; // Location wasn't changed or failed earlier
       }
+
+      if (passwordUpdateError) {
+          finalMessage += `\nPassword change failed: ${passwordUpdateError.message}`;
+          finalType = 'warning';
+      } else if (newPassword) {
+          finalMessage += '\nPassword updated successfully!';
+      }
+
+      setUpdateMessage({ type: finalType, text: finalMessage });
+
+      // Optionally re-fetch profile data here to ensure timestamp is accurate
+      // fetchProfile();
 
     } catch (error: any) {
       console.error('Error updating profile:', error);
@@ -412,8 +501,10 @@ const UserProfile = () => {
                 <span className="ml-2">🇩🇪</span> {/* Placeholder */}
               </h3>
               <p className="text-sm text-gray-600">{profile?.age ? `${profile.age} yrs` : 'Age not specified'}</p>
+              {/* Display dynamic status */}
               <p className="text-sm text-gray-600">
-                Status: {profile?.is_local === 'local' ? 'Local 🏠' : profile?.is_local === 'traveler' ? 'Traveler ✈️' : 'Not specified'}
+                Status: {renderUserStatus(userStatus)}
+                {statusError && <span className="text-red-500 text-xs ml-2">({statusError})</span>}
               </p>
               <p className="text-sm text-gray-600">
                 Budget: {profile?.budget === 1 ? '💰' : profile?.budget === 2 ? '💰💰' : profile?.budget === 3 ? '💰💰💰' : 'Not specified'}
@@ -473,11 +564,16 @@ const UserProfile = () => {
              <button
                onClick={() => { // Enter edit mode
                    setEditMode(true);
-                   setEditAvatarPreviewUrl(avatarUrl); // Reset preview to current saved
-                   setEditAvatarFile(null); // Clear any previously selected file
-                   setNewPassword(''); // Clear password fields when entering edit mode
+                   setEditAvatarPreviewUrl(avatarUrl);
+                   setEditAvatarFile(null);
+                   setNewPassword('');
                    setConfirmPassword('');
-                   setUpdateMessage({ type: '', text: '' }); // Clear messages
+                   setUpdateMessage({ type: '', text: '' });
+                   // Reset location edit state as well
+                   setEditHomeLatitude(profile?.home_latitude ?? null);
+                   setEditHomeLongitude(profile?.home_longitude ?? null);
+                   setEditHomeLocationLastUpdated(profile?.home_location_last_updated ?? null);
+                   setEditLocationChanged(false);
                }}
                className="text-blue-600 hover:text-blue-800 text-sm hover:underline"
              >
@@ -503,140 +599,91 @@ const UserProfile = () => {
                 type="button"
                 onClick={handleRemoveAvatar}
                 disabled={uploadingAvatar}
-                className="text-xs text-red-600 hover:text-red-800 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                className="text-xs text-red-500 hover:text-red-700 disabled:opacity-50"
               >
-                Remove Avatar
+                Remove Picture
               </button>
             )}
           </div>
 
-          {/* Email (Non-Editable) */}
-           <div>
-             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-             <input type="email" value={user?.email || ''} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100" />
-             <p className="mt-1 text-xs text-gray-500">Email cannot be changed.</p>
-           </div>
+          {/* Name & Age (Non-Editable) */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+              <p className="text-gray-800">{originalName}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Age</label>
+              <p className="text-gray-800">{originalAge || 'Not set'}</p>
+            </div>
+          </div>
 
-           {/* --- Change Password Section --- */}
-           <div className="border-t border-gray-200 pt-6 mt-6">
-             <h3 className="text-lg font-medium text-gray-800 mb-4">Change Password</h3>
-             <p className="text-sm text-gray-500 mb-4">Leave these fields blank to keep your current password.</p>
-             <div className="space-y-4">
-               <div>
-                 <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">New Password</label>
-                 <input
-                   id="newPassword"
-                   name="newPassword"
-                   type="password"
-                   value={newPassword}
-                   onChange={(e) => setNewPassword(e.target.value)}
-                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                   placeholder="Enter new password (min. 6 chars)"
-                 />
-               </div>
-               <div>
-                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">Confirm New Password</label>
-                 <input
-                   id="confirmPassword"
-                   name="confirmPassword"
-                   type="password"
-                   value={confirmPassword}
-                   onChange={(e) => setConfirmPassword(e.target.value)}
-                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500"
-                   placeholder="Confirm new password"
-                 />
-               </div>
-             </div>
-           </div>
-           {/* --- End Change Password Section --- */}
+          {/* Languages Multi-Select */}
+          <div className="mb-4">
+            <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">Languages Spoken</label>
+            <div className="flex">
+              <select id="language" className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={currentLanguage} onChange={(e) => setCurrentLanguage(e.target.value)}>
+                <option value="">Add Language...</option>
+                {languageOptions.map((lang) => (
+                  <option key={lang} value={lang}>{lang}</option>
+                ))}
+              </select>
+              <button type="button" onClick={addLanguage} className="ml-2 px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 text-sm">+</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedLanguages.map((lang) => (
+                <span key={lang} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  {lang}
+                  <button type="button" onClick={() => removeLanguage(lang)} className="ml-1.5 flex-shrink-0 text-blue-500 hover:text-blue-700 focus:outline-none">
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
 
-           {/* Name (Non-Editable) */}
-           <div>
-             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Name</label>
-             <input id="name" name="name" type="text" value={originalName} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" />
-             <p className="mt-1 text-xs text-gray-500">Name cannot be changed.</p>
-           </div>
+          {/* Cuisines Multi-Select */}
+          <div className="mb-4">
+            <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">Favorite Cuisines</label>
+            <div className="flex">
+              <select id="cuisine" className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={currentCuisine} onChange={(e) => setCurrentCuisine(e.target.value)}>
+                <option value="">Add Cuisine...</option>
+                {cuisineOptions.map((cuisine) => (
+                  <option key={cuisine} value={cuisine}>{cuisine}</option>
+                ))}
+              </select>
+              <button type="button" onClick={addCuisine} className="ml-2 px-3 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 text-sm">+</button>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {selectedCuisines.map((cuisine) => (
+                <span key={cuisine} className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  {cuisine}
+                  <button type="button" onClick={() => removeCuisine(cuisine)} className="ml-1.5 flex-shrink-0 text-green-500 hover:text-green-700 focus:outline-none">
+                    &times;
+                  </button>
+                </span>
+              ))}
+            </div>
+          </div>
 
-           {/* Age (Non-Editable) */}
-           <div>
-             <label htmlFor="age" className="block text-sm font-medium text-gray-700 mb-1">Age</label>
-             <input id="age" name="age" type="number" value={originalAge} disabled className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-500 bg-gray-100 cursor-not-allowed" />
-             <p className="mt-1 text-xs text-gray-500">Age cannot be changed.</p>
-           </div>
-
-           {/* Languages Multi-Select */}
+           {/* Home Location */}
            <div className="mb-4">
-             <label htmlFor="language" className="block text-sm font-medium text-gray-700 mb-1">Languages I Speak</label>
-             <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]">
-               {selectedLanguages.map((lang) => (
-                 <div key={lang} className="bg-blue-100 text-blue-700 rounded-full px-3 py-1 text-sm inline-flex items-center">
-                   {lang}
-                   <button type="button" onClick={() => removeLanguage(lang)} className="ml-2 focus:outline-none text-blue-500 hover:text-blue-700">
-                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                   </button>
-                 </div>
-               ))}
-             </div>
-             <div className="flex">
-               <select id="language" className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={currentLanguage} onChange={(e) => setCurrentLanguage(e.target.value)}>
-                 <option value="">Select Language...</option>
-                 {languageOptions.map((lang) => (
-                   <option key={lang} value={lang} disabled={selectedLanguages.includes(lang)}>
-                     {lang}
-                   </option>
-                 ))}
-               </select>
-               <button type="button" className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" onClick={addLanguage} disabled={!currentLanguage || selectedLanguages.includes(currentLanguage)}>
-                 Add
-               </button>
-             </div>
-           </div>
-
-           {/* Cuisines Multi-Select */}
-           <div className="mb-6">
-             <label htmlFor="cuisine" className="block text-sm font-medium text-gray-700 mb-1">Cuisines I Like</label>
-             <div className="flex flex-wrap gap-2 mb-2 min-h-[30px]">
-               {selectedCuisines.map((cuisine) => (
-                 <div key={cuisine} className="bg-green-100 text-green-700 rounded-full px-3 py-1 text-sm inline-flex items-center">
-                   {cuisine}
-                   <button type="button" onClick={() => removeCuisine(cuisine)} className="ml-2 focus:outline-none text-green-500 hover:text-green-700">
-                     <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                   </button>
-                 </div>
-               ))}
-             </div>
-             <div className="flex">
-               <select id="cuisine" className="flex-grow px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" value={currentCuisine} onChange={(e) => setCurrentCuisine(e.target.value)}>
-                 <option value="">Select Cuisine...</option>
-                 {cuisineOptions.map((cuisine) => (
-                   <option key={cuisine} value={cuisine} disabled={selectedCuisines.includes(cuisine)}>
-                     {cuisine}
-                   </option>
-                 ))}
-               </select>
-               <button type="button" className="ml-2 bg-blue-600 text-white py-2 px-4 rounded-md font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed" onClick={addCuisine} disabled={!currentCuisine || selectedCuisines.includes(currentCuisine)}>
-                 Add
-               </button>
-             </div>
-           </div>
-
-           {/* is_local Radio Buttons */}
-           <div className="mb-4">
-             <label className="block text-sm font-medium text-gray-700 mb-2">Are you a Local or a Traveler?</label>
-             <div className="flex items-center space-x-4">
-               <label className="inline-flex items-center">
-                 <input type="radio" name="is_local" value="local" checked={editIsLocal === 'local'} onChange={(e) => setEditIsLocal(e.target.value)} className="form-radio h-4 w-4 text-blue-600" />
-                 <span className="ml-2 text-gray-700">Local</span>
-               </label>
-               <label className="inline-flex items-center">
-                 <input type="radio" name="is_local" value="traveler" checked={editIsLocal === 'traveler'} onChange={(e) => setEditIsLocal(e.target.value)} className="form-radio h-4 w-4 text-blue-600" />
-                 <span className="ml-2 text-gray-700">Traveler</span>
-               </label>
-               <label className="inline-flex items-center">
-                 <input type="radio" name="is_local" value="" checked={editIsLocal === null || editIsLocal === ''} onChange={() => setEditIsLocal(null)} className="form-radio h-4 w-4 text-gray-400" />
-                 <span className="ml-2 text-gray-500 italic">Clear</span>
-               </label>
-             </div>
+             <label className="block text-sm font-medium text-gray-700 mb-1">Home Location</label>
+             <p className="text-xs text-gray-500 mb-2">
+               Search or click to update your home location. Can be updated once per month.
+               {editHomeLocationLastUpdated && (
+                 <span className="block text-indigo-600">
+                   Last updated: {new Date(editHomeLocationLastUpdated).toLocaleDateString()}
+                 </span>
+               )}
+             </p>
+             <LocationSearchMap
+               initialLat={editHomeLatitude}
+               initialLng={editHomeLongitude}
+               onLocationSelect={handleLocationSelect}
+               mapHeight="250px"
+             />
+             {/* Optional: Add logic here to disable map/show warning if update not allowed yet */}
            </div>
 
            {/* Budget Select */}
@@ -657,6 +704,36 @@ const UserProfile = () => {
              <textarea id="bio" name="bio" rows={4} maxLength={255} value={editBio} onChange={(e) => setEditBio(e.target.value)} className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500" placeholder="Tell others a bit about yourself..." />
            </div>
 
+           {/* Password Change Section */}
+           <div className="border-t border-gray-200 pt-6">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">Change Password (Optional)</h3>
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">New Password</label>
+                        <input
+                            type="password"
+                            id="newPassword"
+                            value={newPassword}
+                            onChange={(e) => setNewPassword(e.target.value)}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Leave blank to keep current password"
+                        />
+                    </div>
+                    <div>
+                        <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">Confirm New Password</label>
+                        <input
+                            type="password"
+                            id="confirmPassword"
+                            value={confirmPassword}
+                            onChange={(e) => setConfirmPassword(e.target.value)}
+                            className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                            placeholder="Confirm new password"
+                        />
+                    </div>
+                </div>
+            </div>
+
+
            {/* Buttons */}
            <div className="flex space-x-3">
              <button
@@ -670,22 +747,24 @@ const UserProfile = () => {
                type="button"
                onClick={() => { // Cancel Logic
                  setEditMode(false);
-                 // Reset editable fields to original profile values
-                 if (profile) {
-                   setSelectedLanguages(profile.languages || []);
-                   setSelectedCuisines(profile.cuisines || []);
-                   setEditIsLocal(profile.is_local);
-                   setEditBudget(profile.budget);
-                   setEditBio(profile.bio || '');
-                 }
-                 setEditAvatarFile(null);
+                 // Reset basic fields
+                 setSelectedLanguages(profile?.languages || []);
+                 setSelectedCuisines(profile?.cuisines || []);
+                 setEditBudget(profile?.budget || null);
+                 setEditBio(profile?.bio || '');
+                 // Reset avatar preview
                  setEditAvatarPreviewUrl(avatarUrl);
-                 setCurrentLanguage('');
-                 setCurrentCuisine('');
-                 setUpdateMessage({ type: '', text: '' });
-                 // Also clear password fields on cancel
+                 setEditAvatarFile(null);
+                 // Reset password fields
                  setNewPassword('');
                  setConfirmPassword('');
+                 // Reset location fields and change tracker
+                 setEditHomeLatitude(profile?.home_latitude ?? null);
+                 setEditHomeLongitude(profile?.home_longitude ?? null);
+                 setEditHomeLocationLastUpdated(profile?.home_location_last_updated ?? null);
+                 setEditLocationChanged(false);
+                 // Clear any messages
+                 setUpdateMessage({ type: '', text: '' });
                }}
                className="flex-1 bg-gray-200 text-gray-700 py-2 px-4 rounded-md hover:bg-gray-300 transition duration-200"
              >
