@@ -123,12 +123,13 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
         {!loading && !error && profile && (
           <div className="flex flex-col h-full"> {/* Flex container for content + buttons */}
             {/* Profile Content Area - Takes available space */}
-            <div className="flex-grow space-y-3"> {/* Reduced space-y */}
-              {/* Reduced heading size/margin */}
-              <h2 className="text-xl font-bold text-blue-700 mb-3 text-center">{profile.name || 'User Profile'}</h2>
+            {/* Further reduced space-y */}
+            <div className="flex-grow space-y-2">
+              {/* Name heading removed */}
               {/* Top Section: Avatar & Basic Info */}
               {/* Reduced spacing/padding */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 border-b pb-3">
+              {/* Further reduced padding-bottom */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 border-b pb-2">
                 <div className="flex-shrink-0 flex flex-col items-center">
                   <AvatarUpload
                     avatarUrl={profile.avatar_url}
@@ -143,42 +144,46 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
 
                 {/* Reduced text sizes */}
                 <div className="flex-grow text-center sm:text-left">
-                  <p className="text-lg font-semibold text-gray-800">{profile.name || 'N/A'}</p>
-                  <p className="text-xs text-gray-600"> {/* Reduced text size */}
+                  <p className="text-lg font-semibold text-gray-800 leading-tight">{profile.name || 'N/A'}</p> {/* Added leading-tight */}
+                  <p className="text-xs text-gray-600 leading-tight"> {/* Added leading-tight */}
                     {profile.age ? `${profile.age} years old` : 'Age not specified'}
                     {profile.gender && ` • ${profile.gender}`}
                   </p>
                   {/* Member Since Removed */}
                    {/* Budget Info - Use Emoji */}
-                   <p className="text-sm text-gray-600 mt-1"> {/* Reduced margin/text size */}
+                   <p className="text-sm text-gray-600 mt-0.5 leading-tight"> {/* Reduced margin, added leading-tight */}
                     Budget: {getBudgetEmoji(profile.budget)}
                   </p>
                 </div>
               </div>
 
               {/* Bio Section - Reduced spacing/text size */}
+              {/* Bio Section - Corrected conditional rendering */}
               {profile.bio && (
-                <div className="py-1">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-1">About Me</h3>
-                  <p className="text-xs text-gray-600 whitespace-pre-wrap">{profile.bio}</p>
+                <div className="py-0.5"> {/* Further reduced padding */}
+                  <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">About Me</h3> {/* Reduced margin, added leading-tight */}
+                  <p className="text-xs text-gray-600 whitespace-pre-wrap leading-tight">{profile.bio}</p> {/* Added leading-tight */}
                 </div>
               )}
 
               {/* Languages Section - Reduced spacing/text size */}
-              <div className="py-1">
-                <h3 className="text-sm font-semibold text-gray-700 mb-1">Languages Spoken</h3>
-                <p className="text-xs text-gray-600">{formatList(profile.languages)}</p>
+              {/* Further reduced padding */}
+              <div className="py-0.5">
+                <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Languages Spoken</h3> {/* Reduced margin, added leading-tight */}
+                <p className="text-xs text-gray-600 leading-tight">{formatList(profile.languages)}</p> {/* Added leading-tight */}
               </div>
 
               {/* Cuisines Section - Reduced spacing/text size */}
-              <div className="py-1">
-                <h3 className="text-sm font-semibold text-gray-700 mb-1">Favorite Cuisines</h3>
-                <p className="text-xs text-gray-600">{formatList(profile.cuisines)}</p>
+              {/* Further reduced padding */}
+              <div className="py-0.5">
+                <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Favorite Cuisines</h3> {/* Reduced margin, added leading-tight */}
+                <p className="text-xs text-gray-600 leading-tight">{formatList(profile.cuisines)}</p> {/* Added leading-tight */}
               </div>
             </div> {/* End Profile Content Area */}
 
             {/* Action Buttons Area - Pushed to bottom */}
-            <div className="mt-4 pt-3 border-t border-gray-200 flex justify-center space-x-3 flex-shrink-0">
+            {/* Further reduced button spacing */}
+            <div className="mt-3 pt-2 border-t border-gray-200 flex justify-center space-x-3 flex-shrink-0">
               <button
                 type="button"
                 className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500"
