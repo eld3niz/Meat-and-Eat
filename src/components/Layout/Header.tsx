@@ -69,7 +69,7 @@ const Header = () => {
           // Start animation end timer
           animationEndTimerRef.current = setTimeout(() => {
             setProfileFetchStatus('display');
-          }, 900); // Animation duration
+          }, 400); // Animation duration (changed from 900ms)
         }, 2000); // 2-second delay
       }, 5000); // 5-second fallback
 
@@ -115,7 +115,7 @@ const Header = () => {
              // Start animation end timer
              animationEndTimerRef.current = setTimeout(() => {
                setProfileFetchStatus('display');
-             }, 900); // Animation duration
+             }, 400); // Animation duration (changed from 900ms)
            }, 2000); // 2-second delay
         }
         // If fallback timer already expired, do nothing here
@@ -261,7 +261,8 @@ const Header = () => {
                     className="relative flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-full transition-colors duration-200 min-w-[120px] h-[40px] overflow-hidden"
                   >
                     {/* Mover Div - This div translates */}
-                    <div className={`absolute inset-0 flex items-center transition-transform duration-900 ease-in-out ${
+                    {/* Changed duration-900 to duration-400 */}
+                    <div className={`absolute inset-0 flex items-center transition-transform duration-400 ease-in-out ${
                       // State: Loading/Delaying -> Center the plane (approximate)
                       (profileFetchStatus === 'loading' || profileFetchStatus === 'delaying' || profileFetchStatus === 'fallback-delaying') ? 'translate-x-[calc(50%-10px)]' :
                       // State: Animating/Display -> Center the text (plane moves left with it)

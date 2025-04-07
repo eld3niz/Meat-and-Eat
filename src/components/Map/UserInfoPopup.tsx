@@ -24,7 +24,7 @@ const UserInfoPopup: React.FC<UserInfoPopupProps> = ({ user, onClose }) => {
 
   return (
     // Compact Redesign: Reduced padding, max-width, base text size
-    <div className="user-info-popup-container p-3 max-w-md bg-white rounded-lg shadow-lg popup-open-anim relative text-sm">
+    <div className="user-info-popup-container p-3 max-w-md bg-white rounded-lg shadow-lg relative text-sm"> {/* Removed popup-open-anim */}
 
       {/* Section 1: Avatar, Name, Age, Gender, Status */}
       <div className="flex items-start space-x-3 mb-2 pb-2 border-b border-gray-200">
