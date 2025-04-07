@@ -87,12 +87,10 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
   };
 
   return (
-    // Modal Overlay - Positioned left, no backdrop blur/darkening
-    <div className="fixed left-16 top-1/2 transform -translate-y-1/2 z-50 p-0" onClick={onClose}>
-      {/* Modal Content - stop propagation to prevent closing when clicking inside */}
+    // Position to the left of the list popup with proper z-index
+    <div className="absolute right-full mr-2 top-0 z-50" onClick={(e) => e.stopPropagation()}>
       {/* Modal Content - Slightly off-white, reduced padding, max height */}
-      <div className="bg-gray-50 rounded-lg p-4 max-w-md w-full relative shadow-xl animate-fade-in-scale max-h-[75vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-        {/* Close Button */}
+      <div className="bg-gray-50 rounded-lg p-4 max-w-md w-[320px] relative shadow-xl max-h-[75vh] overflow-y-auto">
         {/* Close Button - Adjusted styling for visibility */}
         <button
           onClick={onClose}
