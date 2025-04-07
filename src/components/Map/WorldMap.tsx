@@ -684,8 +684,9 @@ const WorldMap = () => {
               Log in or create an account to view the interactive map, discover culinary spots, and save your favorites.
             </p>
             <div className="flex justify-center gap-4">
-              <Button onClick={openAuthModal} className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500">Log In</Button>
-              <Button onClick={openAuthModal} className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500">Sign Up</Button>
+              {/* Wrap openAuthModal to pass correct tab */}
+              <Button onClick={() => openAuthModal('login')} className="bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500">Log In</Button>
+              <Button onClick={() => openAuthModal('register')} className="border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-500">Sign Up</Button>
             </div>
           </div>
         </div>
@@ -729,9 +730,12 @@ const WorldMap = () => {
   }
 
   // --- Render Map and UI (Only if logged in, permission granted, no errors) ---
+  // Return a fragment to render map/sidebar and user table sequentially
   return (
-    <div className="flex flex-col h-full w-full">
-      <div className="flex flex-col md:flex-row h-[calc(100vh-120px)] w-full">
+    <>
+      {/* Map/Sidebar Area - Restore flex-grow, remove explicit height */}
+      {/* Restore flex-grow to allow this main section to fill space */}
+      <div className="flex flex-col md:flex-row flex-grow w-full">
         {/* Sidebar - Needs update to accept and display users */}
         <Sidebar
           cities={filteredCities} // Pass filtered cities
@@ -825,17 +829,11 @@ const WorldMap = () => {
           </div>
         </div>
       </div>
-      {/* Render City Table and User Table Separately */}
-      <div className="overflow-y-auto mt-4 mb-8 px-4">
-        {/* City Table Removed */}
-        {/* User Table (conditionally rendered if there are users) */}
-        <UserTable
-            users={filteredUsers}
-            userPosition={userCoordinates}
-        />
-      </div>
-    </div>
+      {/* UserTable section temporarily removed */}
+    </>
   );
+  // Log user data just before returning the component's JSX
+  console.log('[WorldMap.tsx] Final check before return. Filtered Users:', filteredUsers);
 };
 
 export default WorldMap;

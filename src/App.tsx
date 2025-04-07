@@ -13,12 +13,16 @@ import Footer from './components/Layout/Footer';
 import LocationPermissionModal from './components/UI/LocationPermissionModal'; // Import the new modal
 // Import LoginPrompt
 import LoginPrompt from './components/UI/LoginPrompt'; // Added import
+import UserTable from './components/UI/UserTable'; // Import UserTable
+import { useMapData } from './hooks/useMapData'; // Import useMapData hook
 
 // Inner component to access AuthContext
 const AppContent = () => {
-  const { user, locationPermissionStatus, loading: authLoading } = useAuth();
+  const { user, locationPermissionStatus, loading: authLoading, userCoordinates, isFetchingLocation } = useAuth(); // Get userCoordinates and isFetchingLocation
   const [isAppLoading, setIsAppLoading] = useState(true); // Renamed to avoid conflict
   const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
+  // Call useMapData here to get data needed for UserTable
+  const { filteredUsers, loadingOtherUsers } = useMapData();
 
   // Navigation-Handler
   useEffect(() => {
@@ -55,11 +59,9 @@ const AppContent = () => {
 
   // Scroll-Steuerung je nach aktiver Seite
   useEffect(() => {
-    if (currentPage === 'about' || currentPage === 'datenschutz' || currentPage === 'impressum') {
-      document.body.classList.add('allow-scroll');
-    } else {
-      document.body.classList.remove('allow-scroll');
-    }
+    // Always allow scrolling now that UserTable is part of the main flow on map page
+    document.body.classList.add('allow-scroll');
+    // Cleanup function still removes the class on component unmount or page change
     return () => {
       document.body.classList.remove('allow-scroll');
     };
@@ -82,11 +84,13 @@ const AppContent = () => {
   const showLocationModal = currentPage === 'map' && !!user && (locationPermissionStatus === 'denied' || locationPermissionStatus === 'unavailable');
 
   // Render main application content
+  console.log('[App.tsx AppContent] Rendering main content including Footer...'); // Log before returning JSX
   return (
     <div className="app flex flex-col min-h-screen">
       <Header />
       {/* Add relative positioning to make this the context for the modal */}
-      <div className="content flex-grow relative">
+      {/* Make content area a flex column and handle overflow */}
+      <div className="content flex-grow relative flex flex-col overflow-hidden">
         {/* Page rendering logic - Map visibility handled inside WorldMap */}
         {currentPage === 'about' ? (
           <AboutPage />
@@ -104,8 +108,19 @@ const AppContent = () => {
 
         {/* AuthModalPortal is now rendered INSIDE the content div */}
         <AuthModalPortal />
+
+        {/* Conditionally render UserTable directly in AppContent for map page */}
+        {currentPage === 'map' && user && (
+          <div className="px-4"> {/* Add padding */}
+            <UserTable
+              users={filteredUsers}
+              userPosition={userCoordinates}
+              isLoading={loadingOtherUsers || isFetchingLocation}
+            />
+          </div>
+        )}
       </div>
-      <Footer />
+      <Footer /> {/* Add Footer back */}
       {/* AuthModalPortal removed from here */}
       {/* Modal rendering moved inside the content div */}
     </div>

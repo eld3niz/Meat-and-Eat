@@ -5,9 +5,10 @@ import { calculateHaversineDistance } from '../../utils/mapUtils';
 interface UserTableProps {
   users: MapUser[];
   userPosition: [number, number] | null; // Current logged-in user's position
+  isLoading: boolean; // Add loading state prop
 }
 
-const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
+const UserTable: React.FC<UserTableProps> = ({ users, userPosition, isLoading }) => { // Destructure isLoading
   const [visibleCount, setVisibleCount] = useState(20);
   const [sortBy, setSortBy] = useState<'name' | 'distance'>('distance'); // Default sort
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc'); // Default sort order (closest first)
@@ -76,10 +77,7 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
     return sortOrder === 'asc' ? '↑' : '↓';
   };
 
-  // No users available or visible based on filters
-  if (users.length === 0) {
-    return null;
-  }
+  // Removed the early return null for empty users
 
   // Define column widths (adjust percentages as needed)
   const nameWidth = '30%';
@@ -91,9 +89,11 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
     <div className="w-full max-w-7xl mx-auto px-4 md:px-8 py-6 bg-white rounded-lg shadow-sm mt-4">
       <h2 className="text-2xl font-bold text-green-800 mb-4">Benutzerliste</h2>
 
-      <div className="overflow-x-auto">
+      {/* Added h-full to allow table to expand vertically */}
+      <div className="overflow-x-auto h-full">
         {/* Using table-fixed helps align columns based on header widths */}
-        <table className="min-w-full bg-white table-fixed">
+        {/* Added h-full to allow table to expand vertically */}
+        <table className="min-w-full bg-white table-fixed h-full">
           <colgroup>{/* Define column widths */}<col style={{ width: nameWidth }} /><col style={{ width: bioWidth }} /><col style={{ width: budgetWidth }} /><col style={{ width: distanceWidth }} /></colgroup>
           <thead className="bg-gray-100 border-b">
             <tr>
@@ -110,40 +110,59 @@ const UserTable: React.FC<UserTableProps> = ({ users, userPosition }) => {
             </tr>
           </thead>
           <tbody>
-            {visibleUsers.map(user => (
-              <tr
-                key={user.user_id}
-                className="border-b hover:bg-green-50 transition-colors duration-150"
-              >
-                {/* Data Cells - Apply consistent alignment and padding */}
-                <td className="py-3 px-4 text-left align-middle"> {/* Added align-middle */}
-                  <span className="font-bold truncate">{user.name}</span>
-                </td>
-                <td className="py-3 px-4 text-center align-middle"> {/* Added align-middle */}
-                  <span className="text-sm text-gray-600 overflow-hidden text-ellipsis whitespace-nowrap block"> {/* Use block for ellipsis */}
-                    {user.bio || ''}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-center align-middle"> {/* Added align-middle */}
-                  <span className="text-lg">
-                    {user.budget ? '💰'.repeat(user.budget) : ''}
-                  </span>
-                </td>
-                <td className="py-3 px-4 text-right align-middle"> {/* Added align-middle */}
-                  <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
-                    {userPosition
-                      ? (user.distance !== null ? `~ ${Math.round(user.distance)} km` : 'N/A')
-                      : 'N/A'}
-                  </span>
+            {isLoading ? (
+              // Loading State Row
+              <tr>
+                <td colSpan={4} className="text-center py-6 text-gray-500">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                  Lade Benutzer...
                 </td>
               </tr>
-            ))}
+            ) : users.length === 0 ? (
+              // Empty State Row
+              <tr>
+                <td colSpan={4} className="text-center py-6 text-gray-500">
+                  Keine Benutzer in der Nähe gefunden, die den Filtern entsprechen.
+                </td>
+              </tr>
+            ) : (
+              // Data Rows
+              visibleUsers.map(user => (
+                <tr
+                  key={user.user_id}
+                  className="border-b hover:bg-green-50 transition-colors duration-150"
+                >
+                  {/* Data Cells - Apply consistent alignment and padding */}
+                  <td className="py-3 px-4 text-left align-middle"> {/* Added align-middle */}
+                    <span className="font-bold truncate">{user.name}</span>
+                  </td>
+                  <td className="py-3 px-4 text-center align-middle"> {/* Added align-middle */}
+                    <span className="text-sm text-gray-600 overflow-hidden text-ellipsis whitespace-nowrap block"> {/* Use block for ellipsis */}
+                      {user.bio || ''}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-center align-middle"> {/* Added align-middle */}
+                    <span className="text-lg">
+                      {user.budget ? '💰'.repeat(user.budget) : ''}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4 text-right align-middle"> {/* Added align-middle */}
+                    <span className="text-sm font-bold text-gray-700 whitespace-nowrap">
+                      {userPosition
+                        ? (user.distance !== null ? `~ ${Math.round(user.distance)} km` : 'N/A')
+                        : 'N/A'}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
 
       {/* Show More Button */}
-      {visibleCount < sortedUsers.length && (
+      {/* Show More Button - Only show if not loading and there are more users than currently visible */}
+      {!isLoading && visibleCount < sortedUsers.length && (
         <div className="mt-4 text-center">
           <button
             onClick={handleShowMore}
