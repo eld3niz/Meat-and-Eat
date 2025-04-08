@@ -24,11 +24,14 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
   };
 
   return (
-    <div className="flex flex-col items-center space-y-4">
+    <div 
+      className={`avatar-upload-container ${isReadOnly ? 'cursor-pointer' : 'cursor-default'} relative`}
+      onClick={isReadOnly && onClick ? onClick : undefined}
+      style={{ width: `${size}px`, height: `${size}px` }}
+    >
       <div
-        className={`relative rounded-full overflow-hidden bg-gray-200 border-2 border-gray-300 flex items-center justify-center ${onClick && isReadOnly ? 'cursor-pointer' : ''}`} // Add cursor pointer if clickable in read-only
+        className={`relative rounded-full overflow-hidden bg-gray-200 border-2 border-gray-300 flex items-center justify-center`}
         style={avatarStyle}
-        onClick={isReadOnly ? onClick : undefined} // Trigger onClick only if read-only
       >
         {avatarUrl ? (
           <img
@@ -70,6 +73,20 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
            {uploading ? 'Uploading...' : 'Change Avatar'}
          </label>
       )}
+      {/* Make sure the component is properly styled to work in both React and static HTML contexts */}
+      <style jsx>{`
+        .avatar-upload-container {
+          display: inline-block;
+          border-radius: 50%;
+          overflow: hidden;
+          background-color: #e5e7eb;
+        }
+        .avatar-upload-container img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+        }
+      `}</style>
     </div>
   );
 };

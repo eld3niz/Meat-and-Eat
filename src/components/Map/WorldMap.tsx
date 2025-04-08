@@ -24,6 +24,7 @@ import supabase from '../../utils/supabaseClient'; // <-- Import supabase client
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import Button from '../UI/Button';
+import ImageModal from '../UI/ImageModal'; // Add this import
 
 // --- Helper Components (No changes needed) ---
 // Removed MapCenterController as flyTo is now handled directly in event handlers
@@ -122,7 +123,8 @@ const WorldMap = () => {
   const aggregatePopupRef = useRef<Popup | null>(null); // Ref for aggregate list popup instance
   const userInfoPopupRef = useRef<Popup | null>(null); // Ref for user info popup instance
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
-  // Removed isSidebarCollapsed state
+  const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false); // Add state for image modal
+  const [currentModalImage, setCurrentModalImage] = useState<string | null>(null); // Add state for current modal image
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -165,8 +167,6 @@ const WorldMap = () => {
       }, 600);
     }
   }, [filterByDistance, userCoordinates, isFlying, closeAllPopups, mapRef, setIsFlying]);
-
-  // Removed handleToggleSidebar function
 
   const handlePopupClose = useCallback(() => {
     setClickedCity(null);
@@ -350,11 +350,42 @@ const WorldMap = () => {
             }
 
             if (profileData) {
-              // Render the static component to an HTML string
-              const profileHtml = ReactDOMServer.renderToString(
-                <UserProfilePopupContent profile={profileData} />
+              // Create unique functions for this popup instance
+              const handleAvatarClick = () => {
+                if (profileData.avatar_url) {
+                  setCurrentModalImage(profileData.avatar_url);
+                  setIsImageModalOpen(true);
+                }
+              };
+
+              // Create a wrapper for the component that includes the click handler
+              const ProfileWithHandlers = () => (
+                <UserProfilePopupContent 
+                  profile={profileData} 
+                  onAvatarClick={handleAvatarClick} 
+                />
               );
+              
+              // Render to string
+              const profileHtml = ReactDOMServer.renderToString(<ProfileWithHandlers />);
+              
+              // Set popup content
               popup.setContent(profileHtml);
+              
+              // Attach a custom onclick handler to the avatar after the popup is added to the DOM
+              setTimeout(() => {
+                if (popup.isOpen()) {
+                  const avatarElement = popup.getElement()?.querySelector('.avatar-upload-container');
+                  if (avatarElement) {
+                    avatarElement.addEventListener('click', () => {
+                      if (profileData.avatar_url) {
+                        setCurrentModalImage(profileData.avatar_url);
+                        setIsImageModalOpen(true);
+                      }
+                    });
+                  }
+                }
+              }, 100);
             } else {
               popup.setContent('<div class="p-3 text-center text-red-600 text-sm">Profile not found.</div>');
             }
@@ -736,6 +767,11 @@ const WorldMap = () => {
           </div>
         </div>
       </div>
+      <ImageModal
+        isOpen={isImageModalOpen}
+        onClose={() => setIsImageModalOpen(false)}
+        imageUrl={currentModalImage || ''}
+      />
     </>
   );
 };

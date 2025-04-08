@@ -1,117 +1,102 @@
 import React from 'react';
-import supabase from '../../utils/supabaseClient'; // Keep for potential type imports if needed later
-import { languageOptions, cuisineOptions } from '../../data/options'; // Assuming these are needed for display formatting
-import AvatarUpload from '../Auth/AvatarUpload'; // Import AvatarUpload component
-// Re-define or import the ProfileData interface
-interface ProfileData {
-  id: string;
-  name: string | null;
-  age: number | null;
-  gender: string | null;
-  languages: string[] | null;
-  cuisines: string[] | null;
-  budget: number | null;
-  bio: string | null;
-  avatar_url: string | null;
-  created_at: string | null; // Keep if needed for display (e.g., member since)
-}
+import AvatarUpload from '../Auth/AvatarUpload';
 
-interface UserProfilePopupContentProps {
-  profile: ProfileData;
-}
-
-// Helper function for budget emojis (copied from ReadOnlyUserProfile)
-const getBudgetEmoji = (budgetLevel: number | null): string => {
-  if (budgetLevel === 1) return '💰';
-  if (budgetLevel === 2) return '💰💰';
-  if (budgetLevel === 3) return '💰💰💰';
-  return 'N/A';
-};
-
-// Helper function for formatting lists (copied from ReadOnlyUserProfile)
+// Helper functions from original component
 const formatList = (list: string[] | null): string => {
   if (!list || list.length === 0) return 'N/A';
   return list.join(', ');
 };
 
-const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profile }) => {
-  // Base structure and styling mirrored from ReadOnlyUserProfile, but static
+const getBudgetEmoji = (budget: string | null): string => {
+  if (budget === '1') return '💰';
+  if (budget === '2') return '💰💰';
+  if (budget === '3') return '💰💰💰';
+  return 'N/A';
+};
+
+interface UserProfilePopupContentProps {
+  profile: any;
+  onAvatarClick?: () => void; // Add prop for avatar click
+}
+
+const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profile, onAvatarClick }) => {
   return (
-    // Removed outer positioning div, component renders directly into popup content
-    // Reduced padding slightly for popup context
-    <div className="bg-gray-50 p-4 max-w-md w-[320px] max-h-[75vh] overflow-y-auto"> {/* Match padding and max-height */}
-        {/* No loading/error states needed here, handled before rendering */}
-        <div className="flex flex-col h-full">
-          {/* Profile Content Area */}
-          <div className="flex-grow space-y-2"> {/* Match space-y */}
-            {/* Top Section: Avatar & Basic Info */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 border-b pb-2"> {/* Match spacing */}
-              <div className="flex-shrink-0 flex flex-col items-center">
-                {/* Use AvatarUpload component */}
-                <AvatarUpload
-                  avatarUrl={profile.avatar_url}
-                  uploading={false} // Static display
-                  isReadOnly={true}  // Static display
-                  // No onClick for modal in static version
-                  size={80} // Match size from ReadOnlyUserProfile
-                />
-              </div>
-
-              {/* Basic Info */}
-              <div className="flex-grow text-center sm:text-left mt-1 sm:mt-0">
-                <p className="text-lg font-semibold text-gray-800 leading-tight">{profile.name || 'N/A'}</p> {/* Match text size */}
-                <p className="text-xs text-gray-600 leading-tight">
-                  {profile.age ? `${profile.age} years old` : 'Age N/A'}
-                  {profile.gender && ` • ${profile.gender}`}
-                </p>
-                <p className="text-sm text-gray-600 mt-0.5 leading-tight">
-                  Budget: {getBudgetEmoji(profile.budget)}
-                </p>
-              </div>
-            </div>
-
-            {/* Bio Section */}
-            {profile.bio && (
-              <div className="py-0.5">
-                <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">About Me</h3> {/* Match text size */}
-                <p className="text-xs text-gray-600 whitespace-pre-wrap leading-tight">{profile.bio}</p>
-              </div>
-            )}
-
-            {/* Languages Section */}
-            <div className="py-0.5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Languages Spoken</h3> {/* Match text size and content */}
-              <p className="text-xs text-gray-600 leading-tight">{formatList(profile.languages)}</p>
-            </div>
-
-            {/* Cuisines Section */}
-            <div className="py-0.5">
-              <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Favorite Cuisines</h3> {/* Match text size and content */}
-              <p className="text-xs text-gray-600 leading-tight">{formatList(profile.cuisines)}</p>
-            </div>
-          </div> {/* End Profile Content Area */}
-
-          {/* Add (Non-functional) Action Buttons Area */}
-          <div className="mt-3 pt-2 border-t border-gray-200 flex justify-center space-x-3 flex-shrink-0">
-            <button
-              type="button"
-              disabled // Disable button in static context
-              className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded shadow-sm opacity-50 cursor-not-allowed" // Style as disabled
-            >
-              Meet Me
-            </button>
-            <button
-              type="button"
-              disabled // Disable button in static context
-              className="px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded shadow-sm opacity-50 cursor-not-allowed" // Style as disabled
-            >
-              Chat
-            </button>
+    <div className="bg-gray-50 p-3 w-full max-h-[70vh] overflow-y-auto">
+      <div className="flex flex-col h-full">
+        {/* Top Section: Avatar & Basic Info */}
+        <div className="flex flex-col items-center border-b pb-2">
+          <div className="flex-shrink-0 mb-2">
+            {/* Use AvatarUpload component */}
+            <AvatarUpload
+              avatarUrl={profile.avatar_url}
+              uploading={false}
+              isReadOnly={true}
+              onClick={onAvatarClick} // Add click handler
+              size={70} // Slightly smaller to fit popup
+            />
           </div>
-        </div> {/* End Flex container */}
+
+          {/* Basic Info */}
+          <div className="text-center mt-1">
+            <p className="text-lg font-semibold text-gray-800 leading-tight">{profile.name || 'N/A'}</p>
+            <p className="text-xs text-gray-600 leading-tight">
+              {profile.age ? `${profile.age} years old` : 'Age N/A'}
+              {profile.gender && ` • ${profile.gender}`}
+            </p>
+            <p className="text-sm text-gray-600 mt-0.5 leading-tight">
+              Budget: {getBudgetEmoji(profile.budget)}
+            </p>
+          </div>
+        </div>
+
+        {/* Bio Section */}
+        <div className="mt-2 border-b pb-2">
+          <h3 className="text-sm font-medium text-gray-700">About Me</h3>
+          <p className="text-sm text-gray-600 mt-1 whitespace-pre-wrap">
+            {profile.bio || 'No bio available.'}
+          </p>
+        </div>
+
+        {/* Food Preferences */}
+        <div className="mt-2 border-b pb-2">
+          <h3 className="text-sm font-medium text-gray-700">Food Preferences</h3>
+          <p className="text-sm text-gray-600 mt-1">
+            {profile.cuisines && profile.cuisines.length > 0
+              ? formatList(profile.cuisines)
+              : 'No preferences specified.'}
+          </p>
+        </div>
+
+        {/* Languages */}
+        <div className="mt-2">
+          <h3 className="text-sm font-medium text-gray-700">Languages</h3>
+          <p className="text-sm text-gray-600 mt-1">
+            {profile.languages && profile.languages.length > 0
+              ? formatList(profile.languages)
+              : 'No languages specified.'}
+          </p>
+        </div>
+
+        {/* Action Buttons - Simplified Version */}
+        <div className="flex gap-2 mt-3">
+          <button
+            type="button"
+            className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg shadow text-xs font-medium flex items-center justify-center space-x-1"
+          >
+            <span>💬</span>
+            <span>Chat</span>
+          </button>
+          <button
+            type="button"
+            className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg shadow text-xs font-medium flex items-center justify-center space-x-1"
+          >
+            <span>🤝</span>
+            <span>Meet Me</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };
 
 export default UserProfilePopupContent;
-// Removed internal close button, state, effects, and interactive elements
