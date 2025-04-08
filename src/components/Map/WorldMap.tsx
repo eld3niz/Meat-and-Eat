@@ -307,9 +307,19 @@ const WorldMap = () => {
     if ('population' in item) {
       handleMarkerClick(item, event);
     } else {
-      // Intentionally left blank: Do nothing when a user marker is clicked.
+      // Handle user click
+      // Check if it's another user (not the current logged-in user)
+      if (item.user_id !== user?.id) {
+        console.log("hello"); // Log message for other user click
+        // Stop the event from propagating further (e.g., to map click)
+        if (event && event.originalEvent) {
+          L.DomEvent.stopPropagation(event.originalEvent);
+        }
+      }
+      // If it IS the current user (item.user_id === user?.id), do nothing here.
+      // The dedicated UserLocationMarker handles clicks for the current user at high zoom.
     }
-  }, [handleMarkerClick, closeAllPopups, mapZoom]);
+  }, [handleMarkerClick, closeAllPopups, mapZoom, user?.id]); // Added user?.id dependency
 
   const handleAggregateTileClick = useCallback((items: (City | MapUser)[], markerPosition: L.LatLng) => {
     const map = mapRef.current;
