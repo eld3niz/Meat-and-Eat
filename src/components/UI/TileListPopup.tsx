@@ -42,6 +42,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                 <th scope="col" className="px-1 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Avatar</th>
                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th> {/* <-- ADD THIS HEADER */}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -68,6 +69,13 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                     {user.name || 'N/A'}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">{user.age ?? 'N/A'}</td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500"> {/* <-- ADD THIS CELL */}
+                    {user.distance !== null && user.distance !== undefined
+                      ? user.distance <= 1
+                        ? 'less than 1km' // Display this if distance is 1km or less
+                        : `${user.distance.toFixed(1)} km` // Otherwise, show rounded distance
+                      : 'N/A'}
+                  </td>
                 </tr>
               ))}
             </tbody>

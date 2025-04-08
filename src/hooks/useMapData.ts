@@ -36,6 +36,7 @@ export interface MapUser {
   home_latitude?: number | null; // From Profile
   home_longitude?: number | null; // From Profile
   derivedStatus?: 'Local' | 'Traveller' | null; // Calculated status
+  distance?: number | null; // <-- ADD THIS: Distance from current user in km
 }
 
 interface Filters {
@@ -300,6 +301,18 @@ return result;
 
                   enrichedUsers = enrichedUsers.map(user => {
                       const profile = profilesMap.get(user.user_id);
+                      let calculatedDistance: number | null = null; // <-- Initialize distance
+
+                      // Calculate distance if userCoordinates are available
+                      if (userCoordinates && user.latitude != null && user.longitude != null) {
+                          calculatedDistance = calculateDistanceKm(
+                              userCoordinates[0],
+                              userCoordinates[1],
+                              user.latitude,
+                              user.longitude
+                          );
+                      }
+
                       if (profile) {
                           // Derive status
                           let derivedStatus: MapUser['derivedStatus'] = null;
@@ -327,10 +340,15 @@ return result;
                               home_latitude: profile.home_latitude,
                               home_longitude: profile.home_longitude,
                               derivedStatus: derivedStatus, // Set calculated status
+                              distance: calculatedDistance, // <-- STORE CALCULATED DISTANCE
                           };
                       }
-                      // For mock users or users without profile data, set default status
-                      return { ...user, derivedStatus: 'Traveller' };
+                      // For mock users or users without profile data
+                      return {
+                          ...user,
+                          derivedStatus: 'Traveller',
+                          distance: calculatedDistance // <-- STORE CALCULATED DISTANCE
+                      };
                   });
               } else {
                  // If profile fetch fails entirely, still set default status for base users
