@@ -1,7 +1,7 @@
 import React from 'react';
 import supabase from '../../utils/supabaseClient'; // Keep for potential type imports if needed later
 import { languageOptions, cuisineOptions } from '../../data/options'; // Assuming these are needed for display formatting
-
+import AvatarUpload from '../Auth/AvatarUpload'; // Import AvatarUpload component
 // Re-define or import the ProfileData interface
 interface ProfileData {
   id: string;
@@ -39,31 +39,27 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
   return (
     // Removed outer positioning div, component renders directly into popup content
     // Reduced padding slightly for popup context
-    <div className="bg-gray-50 p-3 max-w-md w-[320px] max-h-[70vh] overflow-y-auto">
+    <div className="bg-gray-50 p-4 max-w-md w-[320px] max-h-[75vh] overflow-y-auto"> {/* Match padding and max-height */}
         {/* No loading/error states needed here, handled before rendering */}
         <div className="flex flex-col h-full">
           {/* Profile Content Area */}
-          <div className="flex-grow space-y-1"> {/* Reduced space-y */}
+          <div className="flex-grow space-y-2"> {/* Match space-y */}
             {/* Top Section: Avatar & Basic Info */}
-            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-1 sm:space-y-0 sm:space-x-3 border-b pb-1.5"> {/* Reduced spacing */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 border-b pb-2"> {/* Match spacing */}
               <div className="flex-shrink-0 flex flex-col items-center">
-                {/* Static Avatar Display */}
-                {profile.avatar_url ? (
-                  <img
-                    src={profile.avatar_url}
-                    alt={`${profile.name || 'User'}'s avatar`}
-                    className="w-[70px] h-[70px] rounded-full object-cover border border-gray-300" // Slightly smaller, added border
-                  />
-                ) : (
-                  <div className="w-[70px] h-[70px] rounded-full bg-gray-300 flex items-center justify-center text-xl font-semibold text-gray-600 border border-gray-300">
-                    {profile.name ? profile.name.substring(0, 1).toUpperCase() : '?'}
-                  </div>
-                )}
+                {/* Use AvatarUpload component */}
+                <AvatarUpload
+                  avatarUrl={profile.avatar_url}
+                  uploading={false} // Static display
+                  isReadOnly={true}  // Static display
+                  // No onClick for modal in static version
+                  size={80} // Match size from ReadOnlyUserProfile
+                />
               </div>
 
               {/* Basic Info */}
               <div className="flex-grow text-center sm:text-left mt-1 sm:mt-0">
-                <p className="text-md font-semibold text-gray-800 leading-tight">{profile.name || 'N/A'}</p>
+                <p className="text-lg font-semibold text-gray-800 leading-tight">{profile.name || 'N/A'}</p> {/* Match text size */}
                 <p className="text-xs text-gray-600 leading-tight">
                   {profile.age ? `${profile.age} years old` : 'Age N/A'}
                   {profile.gender && ` • ${profile.gender}`}
@@ -77,26 +73,42 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
             {/* Bio Section */}
             {profile.bio && (
               <div className="py-0.5">
-                <h3 className="text-xs font-semibold text-gray-700 mb-0.5 leading-tight">About Me</h3>
+                <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">About Me</h3> {/* Match text size */}
                 <p className="text-xs text-gray-600 whitespace-pre-wrap leading-tight">{profile.bio}</p>
               </div>
             )}
 
             {/* Languages Section */}
             <div className="py-0.5">
-              <h3 className="text-xs font-semibold text-gray-700 mb-0.5 leading-tight">Languages</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Languages Spoken</h3> {/* Match text size and content */}
               <p className="text-xs text-gray-600 leading-tight">{formatList(profile.languages)}</p>
             </div>
 
             {/* Cuisines Section */}
             <div className="py-0.5">
-              <h3 className="text-xs font-semibold text-gray-700 mb-0.5 leading-tight">Cuisines</h3>
+              <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Favorite Cuisines</h3> {/* Match text size and content */}
               <p className="text-xs text-gray-600 leading-tight">{formatList(profile.cuisines)}</p>
             </div>
           </div> {/* End Profile Content Area */}
 
-          {/* Removed Action Buttons Area */}
-        </div>
+          {/* Add (Non-functional) Action Buttons Area */}
+          <div className="mt-3 pt-2 border-t border-gray-200 flex justify-center space-x-3 flex-shrink-0">
+            <button
+              type="button"
+              disabled // Disable button in static context
+              className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded shadow-sm opacity-50 cursor-not-allowed" // Style as disabled
+            >
+              Meet Me
+            </button>
+            <button
+              type="button"
+              disabled // Disable button in static context
+              className="px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded shadow-sm opacity-50 cursor-not-allowed" // Style as disabled
+            >
+              Chat
+            </button>
+          </div>
+        </div> {/* End Flex container */}
     </div>
   );
 };

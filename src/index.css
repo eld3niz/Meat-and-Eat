@@ -240,3 +240,8 @@ section {
 .custom-leaflet-popup .leaflet-popup-tip-container {
   display: none;
 }
+
+/* Reset default Leaflet paragraph margin specifically within our static profile popup */
+.user-profile-static-wrapper .leaflet-popup-content p {
+  margin: 0;
+}
