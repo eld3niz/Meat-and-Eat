@@ -4,6 +4,8 @@ import { MapUser } from '../../hooks/useMapData'; // <-- Import MapUser type
 import SearchBar from './SearchBar';
 import CityFilter from './CityFilter'; // Check if CityFilter uses showUserLocation later
 import { debounce } from '../../utils/mapUtils'; // Import debounce
+import TagInput from './TagInput'; // Import the new TagInput component
+import { languageOptions as allLanguageOptions, cuisineOptions as allCuisineOptions } from '../../data/options'; // Import options
 
 interface SidebarProps {
   cities: City[];
@@ -188,19 +190,15 @@ const Sidebar = ({
     setSelectedGenders(newSelection);
     onGenderFilter(newSelection.length > 0 ? newSelection : null);
   };
-
-  const handleLanguageChange = (language: string) => {
-    const newSelection = selectedLanguages.includes(language)
-      ? selectedLanguages.filter(lang => lang !== language)
-      : [...selectedLanguages, language];
+ 
+  // Updated handler for TagInput - receives the full array
+  const handleLanguageChange = (newSelection: string[]) => {
     setSelectedLanguages(newSelection);
     onLanguagesFilter(newSelection.length > 0 ? newSelection : null);
   };
-
-  const handleCuisineChange = (cuisine: string) => {
-    const newSelection = selectedCuisines.includes(cuisine)
-      ? selectedCuisines.filter(c => c !== cuisine)
-      : [...selectedCuisines, cuisine];
+ 
+  // Updated handler for TagInput - receives the full array
+  const handleCuisineChange = (newSelection: string[]) => {
     setSelectedCuisines(newSelection);
     onCuisinesFilter(newSelection.length > 0 ? newSelection : null);
   };
@@ -222,8 +220,9 @@ const Sidebar = ({
   // --- Filter Options ---
   // TODO: Potentially fetch languages/cuisines dynamically or use a more comprehensive list
   const genderOptions = ["Male", "Female", "Divers"];
-  const languageOptions = ["English", "German", "Spanish", "French"]; // Example languages
-  const cuisineOptions = ["Italian", "Mexican", "Indian", "Thai"]; // Example cuisines
+  // Use imported options
+  const languageOptions = allLanguageOptions;
+  const cuisineOptions = allCuisineOptions;
   const budgetOptions = [
       { level: 1, label: '💰' },
       { level: 2, label: '💰💰' },
@@ -379,31 +378,25 @@ const Sidebar = ({
                      </div>
                  </div>
 
-                 {/* Languages Filter */}
-                 <div className="mb-3">
-                     <label className="block text-xs font-medium text-gray-600 mb-1">Languages</label>
-                     <div className="flex flex-wrap gap-1.5">
-                         {languageOptions.map(lang => (
-                             <button key={lang} type="button" onClick={() => handleLanguageChange(lang)}
-                                 className={getButtonClass(selectedLanguages.includes(lang), 'teal')}>
-                                 {lang}
-                             </button>
-                         ))}
-                     </div>
-                 </div>
+                 {/* Languages Filter using TagInput */}
+                 <TagInput
+                   label="Languages"
+                   id="language-filter"
+                   options={languageOptions}
+                   selectedItems={selectedLanguages}
+                   onChange={handleLanguageChange}
+                   placeholder="Select language"
+                 />
 
-                 {/* Cuisines Filter */}
-                 <div className="mb-3">
-                     <label className="block text-xs font-medium text-gray-600 mb-1">Cuisines</label>
-                     <div className="flex flex-wrap gap-1.5">
-                         {cuisineOptions.map(cuisine => (
-                             <button key={cuisine} type="button" onClick={() => handleCuisineChange(cuisine)}
-                                 className={getButtonClass(selectedCuisines.includes(cuisine), 'purple')}>
-                                 {cuisine}
-                             </button>
-                         ))}
-                     </div>
-                 </div>
+                 {/* Cuisines Filter using TagInput */}
+                 <TagInput
+                   label="Cuisines"
+                   id="cuisine-filter"
+                   options={cuisineOptions}
+                   selectedItems={selectedCuisines}
+                   onChange={handleCuisineChange}
+                   placeholder="Select cuisine"
+                 />
 
               </div>
               {/* --- End User Filters --- */}
