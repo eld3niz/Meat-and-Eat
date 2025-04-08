@@ -307,29 +307,7 @@ const WorldMap = () => {
     if ('population' in item) {
       handleMarkerClick(item, event);
     } else {
-      const position = markerPosition ||
-                      (event ? event.latlng : L.latLng(item.latitude, item.longitude));
-      
-      const map = mapRef.current;
-      if (!map) return;
-
-      closeAllPopups();
-
-      const popupContent = ReactDOMServer.renderToString(
-        <UserInfoPopup user={item} onClose={() => userInfoPopupRef.current?.remove()} />
-      );
-
-      const popup = L.popup({
-        closeButton: true,
-        className: 'custom-leaflet-popup',
-        offset: [0, -15]
-      })
-        .setLatLng(position)
-        .setContent(popupContent)
-        .openOn(map);
-
-      userInfoPopupRef.current = popup;
-      setOpenPopupData({ type: 'user', user: item, ref: userInfoPopupRef });
+      // Intentionally left blank: Do nothing when a user marker is clicked.
     }
   }, [handleMarkerClick, closeAllPopups, mapZoom]);
 
