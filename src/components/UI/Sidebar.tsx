@@ -166,21 +166,22 @@ const Sidebar = ({
     [onAgeFilter]
   );
 
-  const handleAgeChange = (type: 'min' | 'max', value: string) => {
+  const handleAgeChange = (event: React.ChangeEvent<HTMLSelectElement>) => { // Changed event type
+    const { name, value } = event.target; // Get name and value from select
     const numericValue = parseInt(value, 10);
-    if (isNaN(numericValue)) return; // Ignore non-numeric input
+    if (isNaN(numericValue)) return;
 
     let newMin = ageRange[0];
     let newMax = ageRange[1];
 
-    if (type === 'min') {
-      newMin = Math.max(18, Math.min(numericValue, ageRange[1])); // Ensure min <= max and >= 18
-    } else { // type === 'max'
-      newMax = Math.min(99, Math.max(numericValue, ageRange[0])); // Ensure max >= min and <= 99
+    if (name === 'minAge') { // Check name attribute
+      newMin = Math.max(18, Math.min(numericValue, newMax)); // Ensure min <= max and >= 18
+    } else if (name === 'maxAge') { // Check name attribute
+      newMax = Math.min(99, Math.max(numericValue, newMin)); // Ensure max >= min and <= 99
     }
 
     setAgeRange([newMin, newMax]);
-    debouncedAgeFilter(newMin, newMax); // Call debounced filter function
+    debouncedAgeFilter(newMin, newMax); // Debounced call remains the same
   };
 
   const handleGenderChange = (gender: string) => {
@@ -228,6 +229,8 @@ const Sidebar = ({
       { level: 2, label: '💰💰' },
       { level: 3, label: '💰💰💰' }
   ];
+  // Generate age options for dropdowns
+  const ageOptions = Array.from({ length: 99 - 18 + 1 }, (_, i) => 18 + i); // Generates [18, 19, ..., 99]
 
   // Helper function for button styling
   const getButtonClass = (isSelected: boolean, baseColor: string = 'blue') => {
@@ -322,19 +325,33 @@ const Sidebar = ({
                  <div className="mb-3">
                    <label className="block text-xs font-medium text-gray-600 mb-1">Age Range</label>
                    <div className="flex items-center space-x-2">
-                     <input
-                       type="number" min="18" max="99" value={ageRange[0]}
-                       onChange={(e) => handleAgeChange('min', e.target.value)}
-                       className="w-14 p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
+                     {/* Minimum Age Dropdown */}
+                     <select
+                       name="minAge" // Added name
+                       value={ageRange[0]}
+                       onChange={handleAgeChange} // Use modified handler
+                       className="w-1/2 p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
                        aria-label="Minimum age"
-                     />
+                     >
+                       {ageOptions.map(age => (
+                         <option key={`min-${age}`} value={age}>{age}</option>
+                       ))}
+                     </select>
+
                      <span className="text-gray-500 text-xs">-</span>
-                     <input
-                       type="number" min="18" max="99" value={ageRange[1]}
-                       onChange={(e) => handleAgeChange('max', e.target.value)}
-                       className="w-14 p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
+
+                     {/* Maximum Age Dropdown */}
+                     <select
+                       name="maxAge" // Added name
+                       value={ageRange[1]}
+                       onChange={handleAgeChange} // Use modified handler
+                       className="w-1/2 p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
                        aria-label="Maximum age"
-                     />
+                     >
+                       {ageOptions.map(age => (
+                         <option key={`max-${age}`} value={age}>{age}</option>
+                       ))}
+                     </select>
                    </div>
                  </div>
 
