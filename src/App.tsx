@@ -13,16 +13,15 @@ import Footer from './components/Layout/Footer';
 import LocationPermissionModal from './components/UI/LocationPermissionModal'; // Import the new modal
 // Import LoginPrompt
 import LoginPrompt from './components/UI/LoginPrompt'; // Added import
-import UserTable from './components/UI/UserTable'; // Import UserTable
 import { useMapData } from './hooks/useMapData'; // Import useMapData hook
 
 // Inner component to access AuthContext
 const AppContent = () => {
-  const { user, locationPermissionStatus, loading: authLoading, userCoordinates, isFetchingLocation } = useAuth(); // Get userCoordinates and isFetchingLocation
+  const { user, locationPermissionStatus, loading: authLoading } = useAuth(); // Get userCoordinates and isFetchingLocation
   const [isAppLoading, setIsAppLoading] = useState(true); // Renamed to avoid conflict
   const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
   // Call useMapData here to get data needed for UserTable
-  const { filteredUsers, loadingOtherUsers } = useMapData();
+  useMapData(); // Call hook, but don't destructure unused variables
 
   // Navigation-Handler
   useEffect(() => {
@@ -108,16 +107,6 @@ const AppContent = () => {
         {/* AuthModalPortal is now rendered INSIDE the content div */}
         <AuthModalPortal />
 
-        {/* Conditionally render UserTable directly in AppContent for map page */}
-        {currentPage === 'map' && user && (
-          <div className="px-4"> {/* Add padding */}
-            <UserTable
-              users={filteredUsers}
-              userPosition={userCoordinates}
-              isLoading={loadingOtherUsers || isFetchingLocation}
-            />
-          </div>
-        )}
       </div>
       <Footer /> {/* Add Footer back */}
       {/* AuthModalPortal removed from here */}
