@@ -7,14 +7,24 @@ import { debounce } from '../../utils/mapUtils'; // Import debounce
 
 interface SidebarProps {
   cities: City[];
-  users: MapUser[]; // <-- Add users prop
+  users: MapUser[];
   onCitySelect: (cityId: number) => void;
-  // onUserSelect: (userId: string) => void; // TODO: Add if user selection is needed
   onCountryFilter: (country: string | null) => void;
   onPopulationFilter: (min: number, max: number) => void;
   onDistanceFilter: (distance: number | null) => void;
-  currentDistanceFilter: number | null; // <-- Add prop for current filter value
-  // User filter props removed
+  currentDistanceFilter: number | null;
+  // --- User Filter Props ---
+  onAgeFilter: (min: number, max: number) => void;
+  onGenderFilter: (genders: string[] | null) => void;
+  onLanguagesFilter: (languages: string[] | null) => void;
+  onCuisinesFilter: (cuisines: string[] | null) => void;
+  onBudgetFilter: (budgets: number[] | null) => void;
+  currentAgeFilter: { min: number; max: number };
+  currentGenderFilter: string[] | null;
+  currentLanguagesFilter: string[] | null;
+  currentCuisinesFilter: string[] | null;
+  currentBudgetFilter: number[] | null;
+  // --- End User Filter Props ---
   // ---
   onResetFilters: () => void;
   loading: boolean; // Represents city loading, might need combined loading state
@@ -36,7 +46,17 @@ const Sidebar = ({
   onCountryFilter,
   onPopulationFilter,
   onDistanceFilter,
-  // Destructure user filter props removed
+  // Destructure user filter props
+  onAgeFilter,
+  onGenderFilter,
+  onLanguagesFilter,
+  onCuisinesFilter,
+  onBudgetFilter,
+  currentAgeFilter,
+  currentGenderFilter,
+  currentLanguagesFilter,
+  currentCuisinesFilter,
+  currentBudgetFilter,
   // ---
   onResetFilters,
   loading, // Consider passing loadingCities and loadingUsers separately if needed
@@ -48,7 +68,13 @@ const Sidebar = ({
   isLocationLoading // <-- Destructure location loading prop
 }: SidebarProps) => {
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
-  // Local state for user filters removed
+  // Local state for user filters
+  const [ageRange, setAgeRange] = useState<[number, number]>([currentAgeFilter.min, currentAgeFilter.max]);
+  const [selectedGenders, setSelectedGenders] = useState<string[]>(currentGenderFilter ?? []);
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(currentLanguagesFilter ?? []);
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>(currentCuisinesFilter ?? []);
+  const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
+  const [hoveredBudgetLevel, setHoveredBudgetLevel] = useState<number | null>(null); // For budget hover effect
 
   // Default distance is 50km (representing "All")
   // Removed distanceRange state, now controlled by currentDistanceFilter prop
@@ -79,14 +105,38 @@ const Sidebar = ({
     setPopulationRange([0, 40000000]);
     // setDistanceRange(50); // No longer needed, parent state handles reset
     onResetFilters(); // This should trigger parent state update (which clears useMapData state)
-    // User filter state reset removed
+    // Reset local user filter state
+    setAgeRange([18, 99]);
+    setSelectedGenders([]);
+    setSelectedLanguages([]);
+    setSelectedCuisines([]);
+    setSelectedBudgets([]);
   }, [onResetFilters]);
 
   // Removed useEffect that reset distanceRange locally.
   // The filter state is now fully controlled by the parent via currentDistanceFilter prop.
   // Parent component (WorldMap -> useMapData) should handle resetting the filter
   // if userPosition becomes unavailable.
-  // Effects to sync local user filter state removed
+  // Effects to sync local user filter state with props
+  useEffect(() => {
+    setAgeRange([currentAgeFilter.min, currentAgeFilter.max]);
+  }, [currentAgeFilter]);
+
+  useEffect(() => {
+    setSelectedGenders(currentGenderFilter ?? []);
+  }, [currentGenderFilter]);
+
+  useEffect(() => {
+    setSelectedLanguages(currentLanguagesFilter ?? []);
+  }, [currentLanguagesFilter]);
+
+  useEffect(() => {
+    setSelectedCuisines(currentCuisinesFilter ?? []);
+  }, [currentCuisinesFilter]);
+
+  useEffect(() => {
+    setSelectedBudgets(currentBudgetFilter ?? []);
+  }, [currentBudgetFilter]);
 
 
   // Slider color depends only on whether the filter is enabled (user position available)
@@ -104,10 +154,90 @@ const Sidebar = ({
 
   // Determine if users should be shown based on length (they are pre-filtered in useMapData)
   const showUsers = users.length > 0;
-  // --- Handlers for user filters removed ---
+  // --- Handlers for User Filters ---
 
+  // Debounce age filter to avoid rapid updates while typing
+  const debouncedAgeFilter = useMemo(
+    () => debounce((min: number, max: number) => {
+      onAgeFilter(min, max);
+    }, 300), // 300ms debounce
+    [onAgeFilter]
+  );
 
-  // User filter options removed
+  const handleAgeChange = (type: 'min' | 'max', value: string) => {
+    const numericValue = parseInt(value, 10);
+    if (isNaN(numericValue)) return; // Ignore non-numeric input
+
+    let newMin = ageRange[0];
+    let newMax = ageRange[1];
+
+    if (type === 'min') {
+      newMin = Math.max(18, Math.min(numericValue, ageRange[1])); // Ensure min <= max and >= 18
+    } else { // type === 'max'
+      newMax = Math.min(99, Math.max(numericValue, ageRange[0])); // Ensure max >= min and <= 99
+    }
+
+    setAgeRange([newMin, newMax]);
+    debouncedAgeFilter(newMin, newMax); // Call debounced filter function
+  };
+
+  const handleGenderChange = (gender: string) => {
+    const newSelection = selectedGenders.includes(gender)
+      ? selectedGenders.filter(g => g !== gender)
+      : [...selectedGenders, gender];
+    setSelectedGenders(newSelection);
+    onGenderFilter(newSelection.length > 0 ? newSelection : null);
+  };
+
+  const handleLanguageChange = (language: string) => {
+    const newSelection = selectedLanguages.includes(language)
+      ? selectedLanguages.filter(lang => lang !== language)
+      : [...selectedLanguages, language];
+    setSelectedLanguages(newSelection);
+    onLanguagesFilter(newSelection.length > 0 ? newSelection : null);
+  };
+
+  const handleCuisineChange = (cuisine: string) => {
+    const newSelection = selectedCuisines.includes(cuisine)
+      ? selectedCuisines.filter(c => c !== cuisine)
+      : [...selectedCuisines, cuisine];
+    setSelectedCuisines(newSelection);
+    onCuisinesFilter(newSelection.length > 0 ? newSelection : null);
+  };
+
+  const handleBudgetChange = (clickedLevel: number) => {
+    const maxSelectedLevel = selectedBudgets.length > 0 ? Math.max(...selectedBudgets) : 0;
+    let newSelection: number[] = [];
+
+    if (clickedLevel === maxSelectedLevel) {
+      newSelection = []; // Deselect all if clicking the highest selected
+    } else {
+      newSelection = Array.from({ length: clickedLevel }, (_, i) => i + 1); // Select up to clicked level
+    }
+
+    setSelectedBudgets(newSelection);
+    onBudgetFilter(newSelection.length > 0 ? newSelection : null);
+  };
+
+  // --- Filter Options ---
+  // TODO: Potentially fetch languages/cuisines dynamically or use a more comprehensive list
+  const genderOptions = ["Male", "Female", "Divers"];
+  const languageOptions = ["English", "German", "Spanish", "French"]; // Example languages
+  const cuisineOptions = ["Italian", "Mexican", "Indian", "Thai"]; // Example cuisines
+  const budgetOptions = [
+      { level: 1, label: '💰' },
+      { level: 2, label: '💰💰' },
+      { level: 3, label: '💰💰💰' }
+  ];
+
+  // Helper function for button styling
+  const getButtonClass = (isSelected: boolean, baseColor: string = 'blue') => {
+      return `px-2 py-1 rounded-full text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-${baseColor}-500 ${
+          isSelected
+              ? `bg-${baseColor}-600 text-white`
+              : `bg-gray-200 text-gray-700 hover:bg-gray-300`
+      }`;
+  };
 
 
   return ( // Added opening parenthesis
@@ -185,7 +315,97 @@ const Sidebar = ({
                 )}
               </div> {/* End of statistics container div */}
 
-              {/* --- User Filters Removed --- */}
+              {/* --- User Filters --- */}
+              <div className="mt-3 mb-3 border-t border-gray-400 pt-2">
+                 <h3 className="font-medium text-sm text-gray-700 mb-2">Filter Users By:</h3>
+
+                 {/* Age Filter */}
+                 <div className="mb-3">
+                   <label className="block text-xs font-medium text-gray-600 mb-1">Age Range</label>
+                   <div className="flex items-center space-x-2">
+                     <input
+                       type="number" min="18" max="99" value={ageRange[0]}
+                       onChange={(e) => handleAgeChange('min', e.target.value)}
+                       className="w-14 p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
+                       aria-label="Minimum age"
+                     />
+                     <span className="text-gray-500 text-xs">-</span>
+                     <input
+                       type="number" min="18" max="99" value={ageRange[1]}
+                       onChange={(e) => handleAgeChange('max', e.target.value)}
+                       className="w-14 p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
+                       aria-label="Maximum age"
+                     />
+                   </div>
+                 </div>
+
+                 {/* Gender Filter */}
+                 <div className="mb-3">
+                     <label className="block text-xs font-medium text-gray-600 mb-1">Gender</label>
+                     <div className="flex flex-wrap gap-1.5">
+                         {genderOptions.map(gender => (
+                             <button key={gender} type="button" onClick={() => handleGenderChange(gender)}
+                                 className={getButtonClass(selectedGenders.includes(gender), 'pink')}>
+                                 {gender}
+                             </button>
+                         ))}
+                     </div>
+                 </div>
+
+                 {/* Budget Filter */}
+                 <div className="mb-3">
+                     <label className="block text-xs font-medium text-gray-600 mb-1">Budget</label>
+                     <div className="flex space-x-2">
+                         {budgetOptions.map(option => {
+                             const isSelected = selectedBudgets.includes(option.level);
+                             const isHoverSelected = hoveredBudgetLevel !== null && option.level <= hoveredBudgetLevel;
+                             let buttonClass = 'bg-gray-200 text-gray-700'; // Default
+                             if (isSelected) buttonClass = 'bg-yellow-400 text-gray-800'; // Selected
+                             else if (isHoverSelected) buttonClass = 'bg-yellow-200 text-gray-600'; // Hover-implied
+
+                             return (
+                                 <button
+                                     key={option.level} type="button"
+                                     onClick={() => handleBudgetChange(option.level)}
+                                     onMouseEnter={() => setHoveredBudgetLevel(option.level)}
+                                     onMouseLeave={() => setHoveredBudgetLevel(null)}
+                                     className={`px-2 py-1 rounded-md text-sm transition-colors focus:outline-none focus:ring-1 focus:ring-offset-1 focus:ring-yellow-500 ${buttonClass} ${!isSelected && !isHoverSelected ? 'hover:bg-gray-300' : ''}`}
+                                     aria-pressed={isSelected}
+                                 >
+                                     {option.label}
+                                 </button>
+                             );
+                         })}
+                     </div>
+                 </div>
+
+                 {/* Languages Filter */}
+                 <div className="mb-3">
+                     <label className="block text-xs font-medium text-gray-600 mb-1">Languages</label>
+                     <div className="flex flex-wrap gap-1.5">
+                         {languageOptions.map(lang => (
+                             <button key={lang} type="button" onClick={() => handleLanguageChange(lang)}
+                                 className={getButtonClass(selectedLanguages.includes(lang), 'teal')}>
+                                 {lang}
+                             </button>
+                         ))}
+                     </div>
+                 </div>
+
+                 {/* Cuisines Filter */}
+                 <div className="mb-3">
+                     <label className="block text-xs font-medium text-gray-600 mb-1">Cuisines</label>
+                     <div className="flex flex-wrap gap-1.5">
+                         {cuisineOptions.map(cuisine => (
+                             <button key={cuisine} type="button" onClick={() => handleCuisineChange(cuisine)}
+                                 className={getButtonClass(selectedCuisines.includes(cuisine), 'purple')}>
+                                 {cuisine}
+                             </button>
+                         ))}
+                     </div>
+                 </div>
+
+              </div>
               {/* --- End User Filters --- */}
             </div> // End flex-grow wrapper for non-loading content
           )}

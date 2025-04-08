@@ -103,7 +103,12 @@ const WorldMap = () => {
     loadingOtherUsers,
     errorOtherUsers,
     filterByDistance,        // <-- Get filterByDistance from hook
-    // Destructure user filter functions removed
+    // Destructure user filter functions
+    filterByAge,
+    filterByGender,
+    filterByLanguages,
+    filterByCuisines,
+    filterByBudget,
     // ---
     filters,                 // <-- Get filters state object
     cities                   // <-- Get original cities array
@@ -701,13 +706,23 @@ const WorldMap = () => {
           onCountryFilter={filterByCountry}
           onPopulationFilter={filterByPopulation}
           onDistanceFilter={handleDistanceFilter}
-          // Removed user filter props
+          // User Filter Props
+          onAgeFilter={filterByAge}
+          onGenderFilter={filterByGender}
+          onLanguagesFilter={filterByLanguages}
+          onCuisinesFilter={filterByCuisines}
+          onBudgetFilter={filterByBudget}
+          currentAgeFilter={filters.age}
+          currentGenderFilter={filters.gender}
+          currentLanguagesFilter={filters.languages}
+          currentCuisinesFilter={filters.cuisines}
+          currentBudgetFilter={filters.budget}
+          // ---
           onResetFilters={handleResetFilters}
           loading={mapDataLoading || loadingOtherUsers}
           userPosition={userCoordinates}
           filteredStats={filteredStats}
           currentDistanceFilter={filters.distance}
-          // Removed isCollapsed and onToggleCollapse props
           isLocationLoading={isFetchingLocation}
           // Removed user filter props
         />

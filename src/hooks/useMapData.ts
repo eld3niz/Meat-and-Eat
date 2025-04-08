@@ -50,10 +50,12 @@ interface Filters {
   localStatus: string[] | null; // Renamed from is_local, uses derivedStatus
   budget: number[] | null;
   gender: string[] | null;
-  age: { // <-- Add age filter
+  age: {
     min: number;
     max: number;
   };
+  languages: string[] | null; // Filter by languages
+  cuisines: string[] | null; // Filter by cuisines
 }
 
 // Update MapData interface
@@ -77,7 +79,9 @@ interface MapData {
   filterByLocalStatus: (statuses: string[] | null) => void; // Renamed prop
   filterByBudget: (budgets: number[] | null) => void;
   filterByGender: (genders: string[] | null) => void;
-  filterByAge: (min: number, max: number) => void; // <-- Add age filter function
+  filterByAge: (min: number, max: number) => void;
+  filterByLanguages: (languages: string[] | null) => void; // Add language filter function
+  filterByCuisines: (cuisines: string[] | null) => void; // Add cuisine filter function
   selectCity: (cityId: number | null) => void;
   getTopCities: (count: number) => City[];
   resetFilters: () => void;
@@ -103,7 +107,9 @@ export const useMapData = (): MapData => {
     localStatus: null, // Renamed from is_local
     budget: null,
     gender: null,
-    age: { min: 18, max: 99 }, // <-- Initialize age filter (default range)
+    age: { min: 18, max: 99 },
+    languages: null, // Initialize language filter
+    cuisines: null, // Initialize cuisine filter
   });
 
   // State for all fetched other user locations (including name)
@@ -196,7 +202,21 @@ if (filters.age) {
     u.age <= filters.age.max
   );
 }
+// Apply Languages Filter
+if (filters.languages && filters.languages.length > 0) {
+  result = result.filter(u =>
+    u.languages && filters.languages!.every(lang => u.languages!.includes(lang))
+  );
+}
 
+// Apply Cuisines Filter
+if (filters.cuisines && filters.cuisines.length > 0) {
+  result = result.filter(u =>
+    u.cuisines && filters.cuisines!.every(cuisine => u.cuisines!.includes(cuisine))
+  );
+}
+
+return result;
 
     return result;
   }, [filters, allOtherUsers, userCoordinates]); // Keep dependencies
@@ -405,6 +425,12 @@ const filterByGender = (genders: string[] | null) => {
 const filterByAge = (min: number, max: number) => {
     setFilters(prev => ({ ...prev, age: { min, max } }));
 };
+const filterByLanguages = (languages: string[] | null) => {
+    setFilters(prev => ({ ...prev, languages: languages && languages.length > 0 ? languages : null }));
+};
+const filterByCuisines = (cuisines: string[] | null) => {
+    setFilters(prev => ({ ...prev, cuisines: cuisines && cuisines.length > 0 ? cuisines : null }));
+};
 
  // Update resetFilters to include new filters
  const resetFilters = () => {
@@ -416,7 +442,9 @@ const filterByAge = (min: number, max: number) => {
          localStatus: null, // Reset local status
          budget: null,      // Reset budget
          gender: null,      // Reset gender
-         age: { min: 18, max: 99 }, // <-- Reset age to default
+         age: { min: 18, max: 99 },
+         languages: null, // Reset languages
+         cuisines: null, // Reset cuisines
      });
  };
 
@@ -455,7 +483,9 @@ const filterByAge = (min: number, max: number) => {
     filterByLocalStatus, // Renamed prop
     filterByBudget,
     filterByGender,
-    filterByAge, // <-- Return age filter function
+    filterByAge,
+    filterByLanguages, // Return language filter function
+    filterByCuisines, // Return cuisine filter function
     selectCity,
     getTopCities,
     resetFilters,
