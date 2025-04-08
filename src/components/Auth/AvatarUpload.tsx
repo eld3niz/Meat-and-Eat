@@ -24,8 +24,8 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
   };
 
   return (
-    <div 
-      className={`avatar-upload-container ${isReadOnly ? 'cursor-pointer' : 'cursor-default'} relative`}
+    <div
+      className={`avatar-upload-container inline-block rounded-full overflow-hidden ${isReadOnly ? 'cursor-pointer' : 'cursor-default'} relative`}
       onClick={isReadOnly && onClick ? onClick : undefined}
       style={{ width: `${size}px`, height: `${size}px` }}
     >
@@ -74,19 +74,6 @@ const AvatarUpload: React.FC<AvatarUploadProps> = ({
          </label>
       )}
       {/* Make sure the component is properly styled to work in both React and static HTML contexts */}
-      <style jsx>{`
-        .avatar-upload-container {
-          display: inline-block;
-          border-radius: 50%;
-          overflow: hidden;
-          background-color: #e5e7eb;
-        }
-        .avatar-upload-container img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-      `}</style>
     </div>
   );
 };

@@ -44,11 +44,11 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
               {profile.gender && ` • ${profile.gender}`}
             </p>
             
-            {/* Travel Status - Using placeholder if not available */}
+            {/* Travel Status - Fetched from profile or default */}
             <p className="text-xs text-gray-600 mt-2 mb-1 leading-tight">
               <span className="inline-flex items-center">
                 <span className="mr-1">🌍</span>
-                Local Explorer
+                {profile.travel_status || 'Explorer'}
               </span>
             </p>
             
