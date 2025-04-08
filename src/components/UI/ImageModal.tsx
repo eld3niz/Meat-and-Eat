@@ -17,7 +17,7 @@ const ImageModal: React.FC<ImageModalProps> = ({ imageUrl, isOpen, onClose }) =>
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 transition-opacity duration-300"
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black bg-opacity-75 transition-opacity duration-300"
       onClick={onClose} // Close modal on overlay click
     >
       <div
