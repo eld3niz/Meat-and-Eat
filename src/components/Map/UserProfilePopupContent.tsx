@@ -43,7 +43,17 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
               {profile.age ? `${profile.age} years old` : 'Age N/A'}
               {profile.gender && ` • ${profile.gender}`}
             </p>
-            <p className="text-sm text-gray-600 mt-0.5 leading-tight">
+            
+            {/* Travel Status - Using placeholder if not available */}
+            <p className="text-xs text-gray-600 mt-2 mb-1 leading-tight">
+              <span className="inline-flex items-center">
+                <span className="mr-1">🌍</span>
+                Local Explorer
+              </span>
+            </p>
+            
+            {/* Added more padding with mt-2 */}
+            <p className="text-sm text-gray-600 mt-2 leading-tight">
               Budget: {getBudgetEmoji(profile.budget)}
             </p>
           </div>

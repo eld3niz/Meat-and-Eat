@@ -339,7 +339,8 @@ const WorldMap = () => {
           try {
             const { data: profileData, error: fetchError } = await supabase
               .from('profiles')
-              .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at') // Select fields needed by UserProfilePopupContent
+              .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at')
+              // Removed travel_status as it doesn't exist
               .eq('id', userIdToFetch)
               .single();
 
@@ -350,10 +351,16 @@ const WorldMap = () => {
             }
 
             if (profileData) {
+              // Add default values for missing fields to match main profile view
+              const enhancedProfile = {
+                ...profileData,
+                travel_status: 'N/A', // Default value since column doesn't exist
+              };
+
               // Create unique functions for this popup instance
               const handleAvatarClick = () => {
-                if (profileData.avatar_url) {
-                  setCurrentModalImage(profileData.avatar_url);
+                if (enhancedProfile.avatar_url) {
+                  setCurrentModalImage(enhancedProfile.avatar_url);
                   setIsImageModalOpen(true);
                 }
               };
@@ -361,7 +368,7 @@ const WorldMap = () => {
               // Create a wrapper for the component that includes the click handler
               const ProfileWithHandlers = () => (
                 <UserProfilePopupContent 
-                  profile={profileData} 
+                  profile={enhancedProfile}
                   onAvatarClick={handleAvatarClick} 
                 />
               );
@@ -372,17 +379,18 @@ const WorldMap = () => {
               // Set popup content
               popup.setContent(profileHtml);
               
-              // Attach a custom onclick handler to the avatar after the popup is added to the DOM
+              // Improved avatar click handler implementation
               setTimeout(() => {
                 if (popup.isOpen()) {
                   const avatarElement = popup.getElement()?.querySelector('.avatar-upload-container');
-                  if (avatarElement) {
-                    avatarElement.addEventListener('click', () => {
-                      if (profileData.avatar_url) {
-                        setCurrentModalImage(profileData.avatar_url);
-                        setIsImageModalOpen(true);
-                      }
-                    });
+                  if (avatarElement && enhancedProfile.avatar_url) {
+                    avatarElement.onclick = (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCurrentModalImage(enhancedProfile.avatar_url);
+                      setIsImageModalOpen(true);
+                    };
+                    avatarElement.style.cursor = 'pointer';
                   }
                 }
               }, 100);
