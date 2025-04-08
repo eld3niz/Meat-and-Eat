@@ -9,7 +9,8 @@ import { useMapData, MapUser } from '../../hooks/useMapData';
 import MarkerCluster from './MarkerCluster'; // For zoom < 14
 import TileAggregateLayer from './TileAggregateLayer'; // For zoom >= 14
 import InfoPopup from './InfoPopup'; // Existing city popup
-import UserInfoPopup from './UserInfoPopup'; // <-- Import new User Info Popup
+import UserInfoPopup from './UserInfoPopup'; // <-- Currently unused?
+import UserProfilePopupContent from './UserProfilePopupContent'; // <-- Import static content component
 import TileListPopup from '../UI/TileListPopup';
 import Sidebar from '../UI/Sidebar';
 import CityTable from '../UI/CityTable';
@@ -19,6 +20,7 @@ import UserLocationMarker from './UserLocationMarker'; // <-- Import UserLocatio
 import L, { Map as LeafletMap, Popup } from 'leaflet'; // <-- Import Popup type
 import { useMapTilingData } from '../../hooks/useMapTilingData'; // <-- Import new hook
 import { calculateDistance, calculateHaversineDistance, isCityWithinRadius, throttle, debounce, getTileCenterLatLng, getTileId, calculateBorderPoint } from '../../utils/mapUtils'; // Added getTileCenterLatLng, getTileId, and calculateBorderPoint
+import supabase from '../../utils/supabaseClient'; // <-- Import supabase client for fetching
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import Button from '../UI/Button';
@@ -307,19 +309,73 @@ const WorldMap = () => {
     if ('population' in item) {
       handleMarkerClick(item, event);
     } else {
-      // Handle user click
-      // Check if it's another user (not the current logged-in user)
+      // Handle user click (render static profile in popup)
       if (item.user_id !== user?.id) {
-        console.log("hello"); // Log message for other user click
-        // Stop the event from propagating further (e.g., to map click)
+        const map = mapRef.current;
+        if (!map || !item.latitude || !item.longitude) return;
+
+        closeAllPopups();
+
+        const position = event?.latlng || L.latLng(item.latitude, item.longitude);
+        const userIdToFetch = item.user_id; // Store userId before async call
+
+        // Create and open popup with loading state immediately
+        const loadingContent = '<div class="p-3 text-center text-gray-500 text-sm">Loading profile...</div>';
+        const popup = L.popup({
+          closeButton: true, // Use Leaflet's close button
+          offset: [0, -15], // Align tip above marker anchor
+          className: 'custom-leaflet-popup user-profile-static-wrapper', // New class
+          minWidth: 320, // Match content width
+        })
+          .setLatLng(position)
+          .setContent(loadingContent)
+          .openOn(map);
+
+        // Store ref to this popup
+        userInfoPopupRef.current = popup;
+
+        // --- Fetch profile data and update popup content ---
+        const fetchAndRenderProfile = async () => {
+          try {
+            const { data: profileData, error: fetchError } = await supabase
+              .from('profiles')
+              .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at') // Select fields needed by UserProfilePopupContent
+              .eq('id', userIdToFetch)
+              .single();
+
+            if (!popup.isOpen()) return; // Check if popup is still open using public method
+
+            if (fetchError) {
+              throw fetchError;
+            }
+
+            if (profileData) {
+              // Render the static component to an HTML string
+              const profileHtml = ReactDOMServer.renderToString(
+                <UserProfilePopupContent profile={profileData} />
+              );
+              popup.setContent(profileHtml);
+            } else {
+              popup.setContent('<div class="p-3 text-center text-red-600 text-sm">Profile not found.</div>');
+            }
+          } catch (err: any) {
+             if (!popup.isOpen()) return; // Check if popup is still open using public method
+             console.error('Error fetching/rendering profile popup:', err);
+             popup.setContent(`<div class="p-3 text-center text-red-600 text-sm">Error: ${err.message || 'Failed to load profile.'}</div>`);
+          }
+        };
+
+        fetchAndRenderProfile(); // Fire off the async fetch/render
+
+        // Stop event propagation *after* creating the popup
         if (event && event.originalEvent) {
           L.DomEvent.stopPropagation(event.originalEvent);
         }
+        // --- End of new logic ---
       }
-      // If it IS the current user (item.user_id === user?.id), do nothing here.
-      // The dedicated UserLocationMarker handles clicks for the current user at high zoom.
+      // If it IS the current user, do nothing here (handled by UserLocationMarker)
     }
-  }, [handleMarkerClick, closeAllPopups, mapZoom, user?.id]); // Added user?.id dependency
+  }, [handleMarkerClick, closeAllPopups, mapZoom, user?.id, mapRef, userInfoPopupRef]); // Updated dependencies
 
   const handleAggregateTileClick = useCallback((items: (City | MapUser)[], markerPosition: L.LatLng) => {
     const map = mapRef.current;
