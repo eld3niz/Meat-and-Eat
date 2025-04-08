@@ -103,11 +103,7 @@ const WorldMap = () => {
     loadingOtherUsers,
     errorOtherUsers,
     filterByDistance,        // <-- Get filterByDistance from hook
-    // Destructure user filter functions
-    filterByLocalStatus, // Renamed in hook, matches new prop name
-    filterByBudget,
-    filterByGender,
-    filterByAge,             // <-- Get filterByAge from hook
+    // Destructure user filter functions removed
     // ---
     filters,                 // <-- Get filters state object
     cities                   // <-- Get original cities array
@@ -382,15 +378,18 @@ const WorldMap = () => {
               // Improved avatar click handler implementation
               setTimeout(() => {
                 if (popup.isOpen()) {
-                  const avatarElement = popup.getElement()?.querySelector('.avatar-upload-container');
+                  const avatarElement = popup.getElement()?.querySelector('.avatar-upload-container') as HTMLElement | null; // Cast to HTMLElement
                   if (avatarElement && enhancedProfile.avatar_url) {
-                    avatarElement.onclick = (e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setCurrentModalImage(enhancedProfile.avatar_url);
-                      setIsImageModalOpen(true);
-                    };
-                    avatarElement.style.cursor = 'pointer';
+                    // Type guard to ensure avatarElement is not null and has onclick/style
+                    if (avatarElement) {
+                        avatarElement.onclick = (e: MouseEvent) => { // Add type for event
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setCurrentModalImage(enhancedProfile.avatar_url);
+                            setIsImageModalOpen(true);
+                        };
+                        avatarElement.style.cursor = 'pointer';
+                    }
                   }
                 }
               }, 100);
@@ -702,12 +701,7 @@ const WorldMap = () => {
           onCountryFilter={filterByCountry}
           onPopulationFilter={filterByPopulation}
           onDistanceFilter={handleDistanceFilter}
-          onLocalStatusFilter={filterByLocalStatus}
-          onBudgetFilter={filterByBudget}
-          onAgeFilter={filterByAge}
-          currentLocalStatusFilter={filters.localStatus}
-          currentBudgetFilter={filters.budget}
-          currentAgeFilter={filters.age}
+          // Removed user filter props
           onResetFilters={handleResetFilters}
           loading={mapDataLoading || loadingOtherUsers}
           userPosition={userCoordinates}
@@ -715,8 +709,7 @@ const WorldMap = () => {
           currentDistanceFilter={filters.distance}
           // Removed isCollapsed and onToggleCollapse props
           isLocationLoading={isFetchingLocation}
-          onGenderFilter={filterByGender}
-          currentGenderFilter={filters.gender}
+          // Removed user filter props
         />
         <div className="flex-grow relative overflow-hidden">
           <MapContainer

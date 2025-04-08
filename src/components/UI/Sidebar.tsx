@@ -14,15 +14,7 @@ interface SidebarProps {
   onPopulationFilter: (min: number, max: number) => void;
   onDistanceFilter: (distance: number | null) => void;
   currentDistanceFilter: number | null; // <-- Add prop for current filter value
-  // User filter props
-  onLocalStatusFilter: (statuses: string[] | null) => void; // Renamed
-  onBudgetFilter: (budgets: number[] | null) => void;
-  onGenderFilter: (genders: string[] | null) => void;
-  onAgeFilter: (min: number, max: number) => void; // <-- Add age filter prop
-  currentLocalStatusFilter: string[] | null; // Renamed
-  currentBudgetFilter: number[] | null;
-  currentGenderFilter: string[] | null;
-  currentAgeFilter: { min: number; max: number }; // <-- Add current age filter prop
+  // User filter props removed
   // ---
   onResetFilters: () => void;
   loading: boolean; // Represents city loading, might need combined loading state
@@ -44,15 +36,7 @@ const Sidebar = ({
   onCountryFilter,
   onPopulationFilter,
   onDistanceFilter,
-  // Destructure user filter props
-  onLocalStatusFilter, // Renamed
-  onBudgetFilter,
-  onGenderFilter,
-  onAgeFilter, // <-- Destructure age filter prop
-  currentLocalStatusFilter, // Renamed
-  currentBudgetFilter,
-  currentGenderFilter,
-  currentAgeFilter, // <-- Destructure current age filter prop
+  // Destructure user filter props removed
   // ---
   onResetFilters,
   loading, // Consider passing loadingCities and loadingUsers separately if needed
@@ -64,12 +48,7 @@ const Sidebar = ({
   isLocationLoading // <-- Destructure location loading prop
 }: SidebarProps) => {
   const [populationRange, setPopulationRange] = useState<[number, number]>([0, 40000000]);
-  // Local state for user filters
-  const [selectedLocalStatus, setSelectedLocalStatus] = useState<string[]>(currentLocalStatusFilter ?? []); // Renamed state
-  const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
-  const [selectedGenders, setSelectedGenders] = useState<string[]>(currentGenderFilter ?? []);
-  const [ageRange, setAgeRange] = useState<[number, number]>([currentAgeFilter.min, currentAgeFilter.max]); // <-- Add state for age filter
-  const [hoveredBudgetLevel, setHoveredBudgetLevel] = useState<number | null>(null); // State for hover effect
+  // Local state for user filters removed
 
   // Default distance is 50km (representing "All")
   // Removed distanceRange state, now controlled by currentDistanceFilter prop
@@ -100,33 +79,14 @@ const Sidebar = ({
     setPopulationRange([0, 40000000]);
     // setDistanceRange(50); // No longer needed, parent state handles reset
     onResetFilters(); // This should trigger parent state update (which clears useMapData state)
-    // Also clear local state for user filters
-    setSelectedLocalStatus([]); // Renamed
-    setSelectedBudgets([]);
-    setSelectedGenders([]);
-    setAgeRange([18, 99]); // <-- Reset age range to default
+    // User filter state reset removed
   }, [onResetFilters]);
 
   // Removed useEffect that reset distanceRange locally.
   // The filter state is now fully controlled by the parent via currentDistanceFilter prop.
   // Parent component (WorldMap -> useMapData) should handle resetting the filter
   // if userPosition becomes unavailable.
-  // Effects to sync local filter state if props change (e.g., on external reset)
-  useEffect(() => {
-    setSelectedLocalStatus(currentLocalStatusFilter ?? []); // Renamed
-  }, [currentLocalStatusFilter]); // Renamed dependency
-
-  useEffect(() => {
-    setSelectedBudgets(currentBudgetFilter ?? []);
-  }, [currentBudgetFilter]);
-
-  useEffect(() => {
-    setSelectedGenders(currentGenderFilter ?? []);
-  }, [currentGenderFilter]);
-
-  useEffect(() => {
-    setAgeRange([currentAgeFilter.min, currentAgeFilter.max]); // <-- Sync age state with prop
-  }, [currentAgeFilter]);
+  // Effects to sync local user filter state removed
 
 
   // Slider color depends only on whether the filter is enabled (user position available)
@@ -144,75 +104,10 @@ const Sidebar = ({
 
   // Determine if users should be shown based on length (they are pre-filtered in useMapData)
   const showUsers = users.length > 0;
-  // --- Handlers for user filters ---
-  const handleLocalStatusChange = (status: string) => {
-    const newSelection = selectedLocalStatus.includes(status) // Renamed state check
-      ? selectedLocalStatus.filter(s => s !== status) // Renamed state filter
-      : [...selectedLocalStatus, status]; // Renamed state spread
-    setSelectedLocalStatus(newSelection); // Renamed state update
-    onLocalStatusFilter(newSelection.length > 0 ? newSelection : null); // Renamed prop call
-  };
-
-  const handleBudgetChange = (clickedLevel: number) => {
-    // Determine the current highest selected level
-    const maxSelectedLevel = selectedBudgets.length > 0 ? Math.max(...selectedBudgets) : 0;
-    let newSelection: number[] = [];
-
-    // If clicking the currently highest selected level, deselect all
-    if (clickedLevel === maxSelectedLevel) {
-      newSelection = [];
-    } else {
-      // Otherwise, select all levels up to the clicked level
-      newSelection = Array.from({ length: clickedLevel }, (_, i) => i + 1); // e.g., click 2 -> [1, 2]
-    }
-
-    setSelectedBudgets(newSelection);
-    onBudgetFilter(newSelection.length > 0 ? newSelection : null);
-  };
-
-  // --- Handler for Gender Filter ---
-  const handleGenderChange = (gender: string) => {
-    const newSelection = selectedGenders.includes(gender)
-      ? selectedGenders.filter(g => g !== gender)
-      : [...selectedGenders, gender];
-    setSelectedGenders(newSelection);
-    onGenderFilter(newSelection.length > 0 ? newSelection : null);
-  };
-
-  // --- Handler for Age Filter ---
-  // Debounce age filter to avoid rapid updates while typing
-  const debouncedAgeFilter = useMemo(
-    () => debounce((min: number, max: number) => {
-      onAgeFilter(min, max);
-    }, 300), // 300ms debounce
-    [onAgeFilter]
-  );
-
-  const handleAgeChange = (type: 'min' | 'max', value: string) => {
-    const numericValue = parseInt(value, 10);
-    if (isNaN(numericValue)) return; // Ignore non-numeric input
-
-    let newMin = ageRange[0];
-    let newMax = ageRange[1];
-
-    if (type === 'min') {
-      newMin = Math.max(18, Math.min(numericValue, ageRange[1])); // Ensure min <= max and >= 18
-    } else { // type === 'max'
-      newMax = Math.min(99, Math.max(numericValue, ageRange[0])); // Ensure max >= min and <= 99
-    }
-
-    setAgeRange([newMin, newMax]);
-    debouncedAgeFilter(newMin, newMax); // Call debounced filter function
-  };
+  // --- Handlers for user filters removed ---
 
 
-  const localOptions = ["Local", "Traveller"]; // <-- Removed "Other" as derivedStatus doesn't support it
-  const budgetOptions = [
-      { level: 1, label: '💰' },
-      { level: 2, label: '💰💰' },
-      { level: 3, label: '💰💰💰' }
-  ];
-  const genderOptions = ["Male", "Female", "Divers"]; // <-- Define gender options
+  // User filter options removed
 
 
   return ( // Added opening parenthesis
@@ -290,113 +185,7 @@ const Sidebar = ({
                 )}
               </div> {/* End of statistics container div */}
 
-              {/* --- User Filters --- */}
-              <div className="mt-4 mb-4 border-t border-gray-400 pt-3"> {/* Reduced margin/padding */}
-                 <h3 className="font-medium text-sm text-gray-700 mb-3">Filter Users By:</h3> {/* Reduced bottom margin */}
-
-                 {/* Local Status Filter */}
-                 <div className="mb-4"> {/* Reduced margin */}
-                     <label className="block text-xs font-medium text-gray-600 mb-2">Travel Status</label> {/* Reduced margin */}
-                     <div className="flex flex-wrap gap-2">
-                         {localOptions.map(status => (
-                             <button
-                                 key={status}
-                                 type="button"
-                                 onClick={() => handleLocalStatusChange(status)}
-                                 className={`px-3 py-1 rounded-full text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                                     selectedLocalStatus.includes(status) // Renamed state check
-                                         ? 'bg-blue-600 text-white'
-                                         : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                 }`}
-                             >
-                                 {status}
-                             </button>
-                         ))}
-                     </div>
-                 </div>
-
-                 {/* Budget Filter */}
-                 <div className="mb-4"> {/* Reduced margin */}
-                     <label className="block text-xs font-medium text-gray-600 mb-2">Budget</label> {/* Reduced margin */}
-                     {/* Replaced checkboxes with toggle buttons */}
-                     <div className="flex space-x-3">
-                         {budgetOptions.map(option => {
-                             const isSelected = selectedBudgets.includes(option.level);
-                             // Determine if the button should appear selected based on hover
-                             const isHoverSelected = hoveredBudgetLevel !== null && option.level <= hoveredBudgetLevel;
-                             // Determine the final background/text color based on selection and hover
-                             let buttonClass = 'bg-gray-200 text-gray-700'; // Default unselected
-                             if (isSelected) {
-                                 buttonClass = 'bg-yellow-400 text-gray-800'; // Actually selected
-                             } else if (isHoverSelected) {
-                                 buttonClass = 'bg-yellow-200 text-gray-600'; // Hover-implied selection
-                             }
-
-                             return (
-                                 <button
-                                     key={option.level}
-                                     type="button"
-                                     onClick={() => handleBudgetChange(option.level)}
-                                     onMouseEnter={() => setHoveredBudgetLevel(option.level)}
-                                     onMouseLeave={() => setHoveredBudgetLevel(null)}
-                                     className={`px-3 py-2 rounded-md text-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500 ${buttonClass} ${!isSelected && !isHoverSelected ? 'hover:bg-gray-300' : ''}`} // Add hover only if not selected/hover-selected
-                                     aria-pressed={isSelected} // aria-pressed reflects actual selection
-                                 >
-                                     {option.label}
-                                 </button>
-                             );
-                         })}
-                     </div>
-                 </div>
-
-                {/* Gender Filter */}
-                <div className="mb-4"> {/* Reduced margin */}
-                    <label className="block text-xs font-medium text-gray-600 mb-2">Gender</label> {/* Reduced margin */}
-                    <div className="flex flex-wrap gap-2">
-                        {genderOptions.map(gender => (
-                            <button
-                                key={gender}
-                                type="button"
-                                onClick={() => handleGenderChange(gender)}
-                                className={`px-3 py-1 rounded-full text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-pink-500 ${
-                                    selectedGenders.includes(gender)
-                                        ? 'bg-pink-600 text-white' // Use pink theme for gender
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                }`}
-                            >
-                                {gender}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-
-                {/* Age Filter */}
-                <div className="mb-4"> {/* Reduced margin */}
-                  <label className="block text-xs font-medium text-gray-600 mb-2">Age Range</label> {/* Reduced margin */}
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="number"
-                      min="18"
-                      max="99"
-                      value={ageRange[0]}
-                      onChange={(e) => handleAgeChange('min', e.target.value)}
-                      className="w-16 p-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                      aria-label="Minimum age"
-                    />
-                    <span className="text-gray-500">-</span>
-                    <input
-                      type="number"
-                      min="18"
-                      max="99"
-                      value={ageRange[1]}
-                      onChange={(e) => handleAgeChange('max', e.target.value)}
-                      className="w-16 p-1 border border-gray-300 rounded text-sm focus:ring-blue-500 focus:border-blue-500"
-                      aria-label="Maximum age"
-                    />
-                  </div>
-                </div>
-
-              </div>
+              {/* --- User Filters Removed --- */}
               {/* --- End User Filters --- */}
             </div> // End flex-grow wrapper for non-loading content
           )}
