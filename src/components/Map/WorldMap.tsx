@@ -120,7 +120,7 @@ const WorldMap = () => {
   const aggregatePopupRef = useRef<Popup | null>(null); // Ref for aggregate list popup instance
   const userInfoPopupRef = useRef<Popup | null>(null); // Ref for user info popup instance
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Removed isSidebarCollapsed state
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -164,9 +164,7 @@ const WorldMap = () => {
     }
   }, [filterByDistance, userCoordinates, isFlying, closeAllPopups, mapRef, setIsFlying]);
 
-  const handleToggleSidebar = useCallback(() => {
-    setIsSidebarCollapsed(prev => !prev);
-  }, []);
+  // Removed handleToggleSidebar function
 
   const handlePopupClose = useCallback(() => {
     setClickedCity(null);
@@ -509,7 +507,7 @@ const WorldMap = () => {
     }, 350);
 
     return () => clearTimeout(timer);
-  }, [isSidebarCollapsed]);
+  }, []); // Removed isSidebarCollapsed from dependencies
 
   useEffect(() => {
     if (!openPopupData || !mapRef.current) return;
@@ -632,8 +630,7 @@ const WorldMap = () => {
           userPosition={userCoordinates}
           filteredStats={filteredStats}
           currentDistanceFilter={filters.distance}
-          isCollapsed={isSidebarCollapsed}
-          onToggleCollapse={handleToggleSidebar}
+          // Removed isCollapsed and onToggleCollapse props
           isLocationLoading={isFetchingLocation}
           onGenderFilter={filterByGender}
           currentGenderFilter={filters.gender}
