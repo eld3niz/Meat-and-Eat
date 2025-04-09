@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom'; // Import ReactDOM for createPortal
 import supabase from '../../utils/supabaseClient';
 import { languageOptions, cuisineOptions } from '../../data/options'; // Assuming these are needed for display formatting
 import AvatarUpload from '../Auth/AvatarUpload'; // Reusing the avatar component
 import ImageModal from '../UI/ImageModal'; // For viewing avatar fullscreen
+import SimpleMessagePopup from '../UI/SimpleMessagePopup'; // Import the new popup
 
 // Define the profile data structure needed for display
 // Simplified from UserProfile.tsx, removing edit-specific fields if any
@@ -34,6 +36,7 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState(false); // State for the popup
 
   // Helper function for budget emojis
   const getBudgetEmoji = (budgetLevel: number | null): string => {
@@ -87,8 +90,13 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
     return list.join(', ');
   };
 
+  const handleMeetMeClick = () => {
+    setIsMeetMePopupOpen(true);
+  };
+
   return (
-    // Position to the left of the list popup with proper z-index
+    <> {/* Start React Fragment */}
+    {/* Position to the left of the list popup with proper z-index */}
     <div className="absolute right-full mr-2 top-0 z-50" onClick={(e) => e.stopPropagation()}>
       {/* Modal Content - Slightly off-white, reduced padding, max height */}
       <div className="bg-gray-50 rounded-lg p-4 max-w-md w-[320px] relative shadow-xl max-h-[75vh] overflow-y-auto">
@@ -191,7 +199,7 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
               <button
                 type="button"
                 className="px-4 py-1 bg-green-500 text-white text-sm font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500" // Slightly larger button
-                // onClick={() => { /* TODO: Implement Meet Me action */ }}
+                onClick={handleMeetMeClick} // Add onClick handler
               >
                 Meet Me
               </button>
@@ -208,8 +216,20 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
             onClose={() => setIsImageModalOpen(false)}
           />
         )}
-      </div>
-    </div>
+      </div> {/* Closes the modal content div from line 101 */}
+    </div> {/* Closes the main positioning div from line 99 */}
+
+    {/* Render the SimpleMessagePopup using a Portal */}
+    {isMeetMePopupOpen && ReactDOM.createPortal(
+      <SimpleMessagePopup
+        isOpen={isMeetMePopupOpen}
+        onClose={() => setIsMeetMePopupOpen(false)}
+        title="Meet Request"
+        message="Hello World"
+      />,
+      document.getElementById('popup-root')! // Assert non-null as we added it
+    )}
+    </> // End React Fragment
   );
 };
 
