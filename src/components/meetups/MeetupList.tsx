@@ -23,9 +23,9 @@ const MeetupList: React.FC<MeetupListProps> = ({ meetups, currentUserId, onDelet
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Place</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Time</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Distance</th> {/* Added Distance Header */}
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Location</th>
-            {/* Actions Header Removed - Button will be in the last cell */}
-            <th className="px-1 py-2 border-b"></th> {/* Empty header for spacing */}
+            <th className="px-1 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Actions</th> {/* Changed to Actions Header */}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200">
