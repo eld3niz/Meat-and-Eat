@@ -90,21 +90,33 @@ const AppContent = () => {
       {/* Add relative positioning to make this the context for the modal */}
       {/* Make content area a flex column and handle overflow */}
       <div className="content flex-grow relative flex flex-col overflow-hidden">
-        {/* Render tabs only on map page for logged-in users */}
+        {/* Render tabs only on map page for logged-in users, styled like Meets popup */}
         {currentPage === 'map' && user && (
-          <div className="flex border-b border-gray-300 px-4 pt-2">
-            <button
-              className={`py-2 px-4 text-sm font-medium ${activeMainTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setActiveMainTab('users')}
-            >
-              Users
-            </button>
-            <button
-              className={`py-2 px-4 text-sm font-medium ${activeMainTab === 'meetups' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-              onClick={() => setActiveMainTab('meetups')}
-            >
-              Meetups
-            </button>
+          <div className="flex justify-center items-center py-2 px-4"> {/* Centering container */}
+            {/* Outer rounded container */}
+            <div className="relative w-48 bg-gray-200 rounded-full p-1"> {/* Adjusted width for 2 tabs */}
+              {/* Sliding background */}
+              <div
+                className={`absolute top-1 left-1 w-[calc(50%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${
+                  activeMainTab === 'users' ? 'translate-x-0' : 'translate-x-[100%]' // Adjusted transform for 2 tabs
+                }`}
+              />
+              {/* Button container */}
+              <div className="relative flex justify-around items-center h-8">
+                <button
+                  onClick={() => setActiveMainTab('users')}
+                  className={`w-1/2 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMainTab === 'users' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  Users
+                </button>
+                <button
+                  onClick={() => setActiveMainTab('meetups')}
+                  className={`w-1/2 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMainTab === 'meetups' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                >
+                  Meetups
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
