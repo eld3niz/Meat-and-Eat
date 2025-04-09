@@ -28,6 +28,11 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
     setSelectedUserId(null);
   };
 
+  // Find the full profile data for the selected user from the items list
+  const selectedUser = selectedUserId
+    ? userItems.find(user => user.user_id === selectedUserId)
+    : null;
+
   return (
     <div className="tile-list-popup-container p-4 max-w-2xl bg-white rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-4 border-b pb-2">
@@ -87,10 +92,11 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
         </div>
       )}
 
-      {selectedUserId && (
-        <ReadOnlyUserProfile 
-          userId={selectedUserId}
+      {selectedUser && ( // Render based on found selectedUser object
+        <ReadOnlyUserProfile
+          userId={selectedUser.user_id}
           onClose={handleCloseProfile}
+          travelStatus={selectedUser.travel_status} // Pass travel_status from the found user
         />
       )}
     </div>

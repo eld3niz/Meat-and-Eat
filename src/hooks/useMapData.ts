@@ -36,6 +36,7 @@ export interface MapUser {
   home_latitude?: number | null; // From Profile
   home_longitude?: number | null; // From Profile
   derivedStatus?: 'Local' | 'Traveller' | null; // Calculated status
+  travel_status?: string | null; // Added travel status (e.g., "Explorer", "On a break")
   distance?: number | null; // <-- ADD THIS: Distance from current user in km
 }
 

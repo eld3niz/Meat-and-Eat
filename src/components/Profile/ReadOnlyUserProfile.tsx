@@ -26,9 +26,10 @@ interface ProfileData {
 interface ReadOnlyUserProfileProps {
   userId: string;
   onClose: () => void;
+  travelStatus?: string | null; // Add prop to receive travel status
 }
 
-const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClose }) => {
+const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClose, travelStatus }) => { // Destructure new prop
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +58,7 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
       try {
         const { data, error: fetchError } = await supabase
           .from('profiles')
-          .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at') // Select fields needed for display
+          .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at') // Reverted: Removed travel_status
           .eq('id', userId)
           .single();
 
@@ -122,7 +123,7 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
           <div className="flex flex-col h-full"> {/* Flex container for content + buttons */}
             {/* Profile Content Area - Takes available space */}
             {/* Further reduced space-y */}
-            <div className="flex-grow space-y-2">
+            <div className="flex-grow space-y-1"> {/* Reduced space-y */}
               {/* Name heading removed */}
               {/* Top Section: Avatar & Basic Info */}
               {/* Reduced spacing/padding */}
@@ -148,8 +149,13 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
                     {profile.gender && ` • ${profile.gender}`}
                   </p>
                   {/* Member Since Removed */}
-                   {/* Budget Info - Use Emoji */}
-                   <p className="text-sm text-gray-600 mt-0.5 leading-tight"> {/* Reduced margin, added leading-tight */}
+                  {/* Travel Status - Now uses prop */}
+                  <p className="text-xs text-gray-600 mt-0.5 leading-tight flex items-center">
+                    <span className="mr-1">🌍</span>
+                    {travelStatus || 'Explorer'} {/* Use travelStatus prop */}
+                  </p>
+                  {/* Budget Info - Use Emoji */}
+                  <p className="text-xs text-gray-600 mt-0.5 leading-tight"> {/* Reduced text size */}
                     Budget: {getBudgetEmoji(profile.budget)}
                   </p>
                 </div>
@@ -158,7 +164,7 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
               {/* Bio Section - Reduced spacing/text size */}
               {/* Bio Section - Corrected conditional rendering */}
               {profile.bio && (
-                <div className="py-0.5"> {/* Further reduced padding */}
+                <div className="pt-1"> {/* Adjusted padding */}
                   <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">About Me</h3> {/* Reduced margin, added leading-tight */}
                   <p className="text-xs text-gray-600 whitespace-pre-wrap leading-tight">{profile.bio}</p> {/* Added leading-tight */}
                 </div>
@@ -166,14 +172,14 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
 
               {/* Languages Section - Reduced spacing/text size */}
               {/* Further reduced padding */}
-              <div className="py-0.5">
+              <div className="pt-1"> {/* Adjusted padding */}
                 <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Languages Spoken</h3> {/* Reduced margin, added leading-tight */}
                 <p className="text-xs text-gray-600 leading-tight">{formatList(profile.languages)}</p> {/* Added leading-tight */}
               </div>
 
               {/* Cuisines Section - Reduced spacing/text size */}
               {/* Further reduced padding */}
-              <div className="py-0.5">
+              <div className="pt-1"> {/* Adjusted padding */}
                 <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Favorite Cuisines</h3> {/* Reduced margin, added leading-tight */}
                 <p className="text-xs text-gray-600 leading-tight">{formatList(profile.cuisines)}</p> {/* Added leading-tight */}
               </div>
@@ -181,21 +187,15 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
 
             {/* Action Buttons Area - Pushed to bottom */}
             {/* Further reduced button spacing */}
-            <div className="mt-3 pt-2 border-t border-gray-200 flex justify-center space-x-3 flex-shrink-0">
+            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-center flex-shrink-0"> {/* Reduced mt, removed space-x */}
               <button
                 type="button"
-                className="px-3 py-1 bg-green-500 text-white text-xs font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500"
+                className="px-4 py-1 bg-green-500 text-white text-sm font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500" // Slightly larger button
                 // onClick={() => { /* TODO: Implement Meet Me action */ }}
               >
                 Meet Me
               </button>
-              <button
-                type="button"
-                className="px-3 py-1 bg-blue-500 text-white text-xs font-medium rounded shadow-sm hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500"
-                // onClick={() => { /* TODO: Implement Chat action */ }}
-              >
-                Chat
-              </button>
+              {/* Chat button removed */}
             </div>
           </div> // End Flex container
         )}
