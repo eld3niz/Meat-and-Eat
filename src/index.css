@@ -30,6 +30,14 @@ a[href^="#"] {
   scroll-margin-top: 2rem; /* Abstand zum oberen Rand beim Scroll zu einem Anker */
 }
 
+/* Ensure react-datepicker popup appears above Leaflet map */
+.react-datepicker-popper {
+  z-index: 1001 !important; /* Leaflet map panes are typically around 400-600 */
+}
+.react-datepicker-high-z { /* Custom class for more specific targeting if needed */
+   z-index: 1001 !important;
+}
+
 section {
   position: relative;
   width: 100%;

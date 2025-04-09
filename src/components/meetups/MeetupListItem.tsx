@@ -1,7 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // Added useMemo
 import MeetupMapPopup from './MeetupMapPopup';
+import { useAuth } from '../../context/AuthContext'; // Import useAuth
+import { calculateHaversineDistance } from '../../utils/mapUtils'; // Import distance function
 
-// Reuse the Meetup type definition (consider moving to a shared types file later)
+// Re-use the detailed Meetup type (consider moving to src/types later)
+interface MeetupProfile {
+    name: string;
+    avatar_url: string | null;
+    age?: number;
+    gender?: string;
+    languages?: string[];
+    home_latitude?: number;
+    home_longitude?: number;
+}
+
 interface Meetup {
     id: string;
     creator_id: string;
@@ -11,17 +23,17 @@ interface Meetup {
     meetup_datetime: string; // ISO string format
     description: string | null;
     created_at: string; // ISO string format
-    profiles: { // Simulating joined data
-        name: string;
-        avatar_url: string | null;
-    };
+    profiles: MeetupProfile;
 }
 
 interface MeetupListItemProps {
     meetup: Meetup;
 }
 
+// Define props including the Meetup type
+
 const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup }) => {
+    const { profile: currentUserProfile } = useAuth(); // Get current user's profile
     const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
 
     const handleOpenMapPopup = () => setIsMapPopupOpen(true);
@@ -30,6 +42,24 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup }) => {
     const formattedDate = new Date(meetup.meetup_datetime).toLocaleDateString();
     const formattedTime = new Date(meetup.meetup_datetime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const avatarSrc = meetup.profiles.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(meetup.profiles.name)}&background=random&size=32`; // Use ui-avatars as fallback
+
+    // Calculate distance using useMemo for efficiency
+    const distanceKm = useMemo(() => {
+        if (
+            currentUserProfile?.home_latitude &&
+            currentUserProfile?.home_longitude &&
+            meetup.latitude &&
+            meetup.longitude
+        ) {
+            return calculateHaversineDistance(
+                currentUserProfile.home_latitude,
+                currentUserProfile.home_longitude,
+                meetup.latitude,
+                meetup.longitude
+            );
+        }
+        return null; // Return null if data is missing
+    }, [currentUserProfile, meetup.latitude, meetup.longitude]); // Dependencies
 
     return (
         <>
@@ -52,6 +82,10 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup }) => {
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{formattedDate}</td>
                 {/* Time Column */}
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{formattedTime}</td>
+                {/* Distance Column */}
+                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                    {distanceKm !== null ? `${distanceKm.toFixed(1)} km` : '-'}
+                </td>
                 {/* Location Column */}
                 <td className="px-4 py-2 whitespace-nowrap text-sm">
                     <button

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
@@ -42,8 +42,6 @@ const MapClickHandler = ({ onMapClick, selectedLocation }: { onMapClick: (latlng
     useMapEvents({
         click(e) {
             // Only allow placing a marker if no Overpass marker is selected (or implement different logic)
-            // For now, clicking always sets a custom marker if no location is selected yet
-            // or replaces the existing custom marker.
             if (!selectedLocation || selectedLocation.alt === undefined) { // Simple check if it's a custom marker
                  onMapClick(e.latlng);
             }
@@ -85,15 +83,16 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
           setIsLoadingLocation(false);
           // TODO: Fetch Overpass data based on initial location/bounds here
           console.log("User location fetched:", userLatLng);
-          // fetchOverpassData(userLatLng); // Call function to fetch data
+          fetchOverpassData(userLatLng); // Call function to fetch data
         },
         (error) => {
           console.error("Error getting user location:", error);
           // Use default location if user denies permission or error occurs
-          setUserLocation(new LatLng(51.505, -0.09)); // Fallback
+          const fallbackLoc = new LatLng(51.505, -0.09);
+          setUserLocation(fallbackLoc); // Fallback
           setMapCenter([51.505, -0.09]);
           setIsLoadingLocation(false);
-          // TODO: Fetch Overpass data for default location?
+          fetchOverpassData(fallbackLoc); // Fetch for default location
         },
         { enableHighAccuracy: true }
       );
@@ -137,7 +136,9 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
       }
        else {
           console.error("Could not determine center coordinates for Overpass fetch.");
-          return; // Or use a default
+          // Use default if failed
+          lat = 51.505;
+          lng = -0.09;
       }
 
 
@@ -175,7 +176,8 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
       alert('Please select a location on the map and set a date/time.');
       return;
     }
-    if (!placeName && selectedLocation.alt === undefined) { // Check if it's a custom marker needing a name
+    // Check if placeName is required (i.e., custom marker is selected) and empty
+    if (selectedLocation.alt === undefined && !placeName) {
         alert('Please provide a name for the custom location.');
         return;
     }
@@ -233,78 +235,86 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
         ) : (
             // Form
             <form onSubmit={handleSubmitAttempt}>
-              <div className="mb-4">
+
+              {/* Map Section First */}
+              <div className="mb-4 h-64 md:h-80"> {/* Map container with fixed height */}
+                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                {isLoadingLocation ? (
+                   <div className="h-full flex justify-center items-center bg-gray-100 text-gray-500">Loading map and location...</div>
+                ) : (
+                  // Add relative positioning and z-index to map container if needed, although datepicker fix might be enough
+                  <div className="relative h-full">
+                      <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
+                        <TileLayer
+                          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                        />
+                        {userLocation && <CenterMapOnUser position={userLocation} />}
+                        <MapClickHandler onMapClick={handleMapClick} selectedLocation={selectedLocation} />
+
+                        {/* Display selected custom marker */}
+                        {selectedLocation && selectedLocation.alt === undefined && (
+                          <Marker position={selectedLocation}>
+                            <Popup>Custom meeting point</Popup>
+                          </Marker>
+                        )}
+
+                         {/* Display Overpass markers (dummy data for now) */}
+                        {overpassPlaces.map(place => (
+                            <Marker
+                                key={place.id}
+                                position={[place.lat, place.lon]}
+                                eventHandlers={{
+                                    click: () => handleOverpassMarkerClick(place),
+                                }}
+                            >
+                                <Popup>
+                                    <b>{place.tags.name || 'Unnamed Place'}</b><br />
+                                    {place.tags.amenity || ''} {place.tags.cuisine ? `(${place.tags.cuisine})` : ''}<br/>
+                                    <button className="text-blue-500 underline text-sm" onClick={(e) => {e.stopPropagation(); handleOverpassMarkerClick(place);}}>Select this place</button>
+                                </Popup>
+                            </Marker>
+                        ))}
+                         {/* Display selected Overpass marker distinctly */}
+                         {selectedLocation && selectedLocation.alt !== undefined && (
+                            <Marker position={selectedLocation} /* icon={selectedIcon} */ >
+                                <Popup>Selected: {placeName}</Popup>
+                            </Marker>
+                         )}
+
+                      </MapContainer>
+                  </div>
+                )}
+                 <p className="text-xs text-gray-500 mt-1">Click on map to set custom marker or click an existing marker.</p>
+              </div>
+
+               {/* Place Name Second */}
+               <div className="mb-4">
                 <label htmlFor="placeName" className="block text-sm font-medium text-gray-700 mb-1">Place Name</label>
                 <input
                   type="text"
                   id="placeName"
                   value={placeName}
                   onChange={(e) => setPlaceName(e.target.value)}
-                  required={selectedLocation?.alt === undefined} // Required only if it's a custom marker
-                  disabled={selectedLocation?.alt !== undefined} // Disable if an Overpass marker is selected
+                  // Required if a custom marker is placed (selectedLocation exists and has no 'alt' property)
+                  required={!!selectedLocation && selectedLocation.alt === undefined}
+                  // Disable if an Overpass marker is selected (selectedLocation exists and has an 'alt' property)
+                  disabled={!!selectedLocation && selectedLocation.alt !== undefined}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
                   placeholder={selectedLocation?.alt !== undefined ? "Selected from map" : "Enter name if placing custom marker"}
                 />
                  {selectedLocation?.alt !== undefined && <p className="text-xs text-gray-500 mt-1">Name is set from the selected map marker.</p>}
-                 {selectedLocation?.alt === undefined && <p className="text-xs text-gray-500 mt-1">Required if placing a custom marker.</p>}
+                 {selectedLocation?.alt === undefined && selectedLocation && <p className="text-xs text-gray-500 mt-1">Required: Name this custom location.</p>}
+                 {!selectedLocation && <p className="text-xs text-gray-500 mt-1">Select a location on the map first.</p>}
               </div>
 
-              <div className="mb-4 h-64 md:h-80"> {/* Map container with fixed height */}
-                <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
-                {isLoadingLocation ? (
-                   <div className="h-full flex justify-center items-center bg-gray-100 text-gray-500">Loading map and location...</div>
-                ) : (
-                  <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {userLocation && <CenterMapOnUser position={userLocation} />}
-                    <MapClickHandler onMapClick={handleMapClick} selectedLocation={selectedLocation} />
-
-                    {/* Display selected custom marker */}
-                    {selectedLocation && selectedLocation.alt === undefined && (
-                      <Marker position={selectedLocation}>
-                        <Popup>Custom meeting point</Popup>
-                      </Marker>
-                    )}
-
-                     {/* Display Overpass markers (dummy data for now) */}
-                    {overpassPlaces.map(place => (
-                        <Marker
-                            key={place.id}
-                            position={[place.lat, place.lon]}
-                            eventHandlers={{
-                                click: () => handleOverpassMarkerClick(place),
-                            }}
-                            // Optionally change icon color if selected
-                            // icon={selectedLocation?.alt === place.id ? selectedIcon : defaultIcon}
-                        >
-                            <Popup>
-                                <b>{place.tags.name || 'Unnamed Place'}</b><br />
-                                {place.tags.amenity || ''} {place.tags.cuisine ? `(${place.tags.cuisine})` : ''}<br/>
-                                <button className="text-blue-500 underline text-sm" onClick={(e) => {e.stopPropagation(); handleOverpassMarkerClick(place);}}>Select this place</button>
-                            </Popup>
-                        </Marker>
-                    ))}
-                     {/* Display selected Overpass marker distinctly */}
-                     {selectedLocation && selectedLocation.alt !== undefined && (
-                        <Marker position={selectedLocation} /* icon={selectedIcon} */ >
-                            <Popup>Selected: {placeName}</Popup>
-                        </Marker>
-                     )}
-
-                  </MapContainer>
-                )}
-                 <p className="text-xs text-gray-500 mt-1">Click on map to set custom marker or click an existing marker.</p>
-              </div>
-
-
-              <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+              {/* Date/Time Picker Section - Add margin-top and wrap for z-index */}
+              <div className="mt-6 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4"> {/* Increased top margin */}
+                <div className="relative z-10"> {/* Add relative and z-index here */}
                     <label htmlFor="meetupDate" className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
                     <DatePicker
                       id="meetupDate"
+                      popperClassName="react-datepicker-high-z" // Add custom class for higher z-index targeting
                       selected={meetupDateTime}
                       onChange={(date: Date | null) => setMeetupDateTime(date)}
                       showTimeSelect
@@ -314,8 +324,10 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                     />
                 </div>
+                {/* Empty div for spacing if needed, or adjust grid cols */}
               </div>
 
+              {/* Description Section */}
               <div className="mb-4">
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description (Optional)</label>
                 <textarea
@@ -328,6 +340,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
                 />
               </div>
 
+              {/* Buttons */}
               <div className="mt-6 flex justify-end gap-3">
                 <button
                   type="button"

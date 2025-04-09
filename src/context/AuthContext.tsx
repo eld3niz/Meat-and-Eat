@@ -4,16 +4,36 @@ import { Session, User } from '@supabase/supabase-js';
 
 export type LocationPermissionStatus = 'pending' | 'granted' | 'denied' | 'unavailable';
 
+// Define a simple Profile type based on supabase_sql_queries.md
+interface UserProfile {
+    id: string;
+    name: string;
+    age?: number;
+    birth_date?: string;
+    languages?: string[];
+    cuisines?: string[];
+    location_access?: boolean;
+    city?: string;
+    budget?: number;
+    bio?: string;
+    avatar_url?: string;
+    home_latitude?: number; // Needed for distance calculation
+    home_longitude?: number;// Needed for distance calculation
+    home_location_last_updated?: string;
+    gender?: string;
+}
+
 interface AuthContextType {
   session: Session | null;
   user: User | null;
-  loading: boolean;
+  profile: UserProfile | null; // <-- Add user profile state
+  loading: boolean; // Combined loading state (auth + profile)
   error: string | null;
   locationPermissionStatus: LocationPermissionStatus;
-  userCoordinates: [number, number] | null;
-  isFetchingLocation: boolean; // <-- Added state for location fetching status
+  userCoordinates: [number, number] | null; // Live coordinates
+  isFetchingLocation: boolean;
   signOut: () => Promise<void>;
-  requestLocationPermission: () => Promise<void>; // Still useful for manual trigger from modal
+  requestLocationPermission: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -25,7 +45,8 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [profile, setProfile] = useState<UserProfile | null>(null); // <-- Add profile state
+  const [loading, setLoading] = useState(true); // Covers initial auth + profile load
   const [error, setError] = useState<string | null>(null);
   const [locationPermissionStatus, setLocationPermissionStatus] = useState<LocationPermissionStatus>('pending');
   const [userCoordinates, setUserCoordinates] = useState<[number, number] | null>(null);
@@ -163,32 +184,89 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   }, [user, locationPermissionStatus, fetchCoordinates]); // Added locationPermissionStatus dependency
 
-  // --- Effect for Initial Session Load ---
+  // --- Function to fetch user profile ---
+  const fetchUserProfile = useCallback(async (userId: string) => {
+    // console.log("[AuthContext] Fetching profile for user:", userId);
+    try {
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('*') // Select all profile fields
+        .eq('id', userId)
+        .single(); // Expect only one profile per user
+
+      if (profileError) {
+        // Handle case where profile might not exist yet after signup
+        if (profileError.code === 'PGRST116') { // "JSON object requested, multiple (or no) rows returned"
+             console.warn(`[AuthContext] Profile not found for user ${userId}. User might need to complete profile setup.`);
+             setProfile(null); // No profile exists yet
+        } else {
+            throw profileError; // Rethrow other errors
+        }
+      } else if (data) {
+        // console.log("[AuthContext] Profile data fetched:", data);
+        setProfile(data as UserProfile);
+      } else {
+         setProfile(null); // Should not happen with .single() unless error occurred
+      }
+    } catch (err: any) {
+      console.error('[AuthContext] Error fetching user profile:', err.message);
+      setError(err.message);
+      setProfile(null);
+    }
+  }, []);
+
+
+  // --- Effect for Initial Session & Profile Load ---
   useEffect(() => {
     setLoading(true);
-    supabase.auth.getSession().then(({ data, error }) => {
-      if (error) {
-        console.error("[AuthContext] Error getting initial session:", error);
-        setError(error.message);
-      }
-      setSession(data?.session ?? null);
-      setUser(data?.session?.user ?? null);
-      // Permission check will be handled by the Permissions API effect below
-    }).finally(() => {
-      setLoading(false);
-    });
+    setError(null); // Clear previous errors
+
+    const fetchInitialData = async () => {
+        try {
+            const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) throw sessionError;
+
+            const currentSession = sessionData?.session ?? null;
+            const currentUser = currentSession?.user ?? null;
+
+            setSession(currentSession);
+            setUser(currentUser);
+
+            if (currentUser) {
+                await fetchUserProfile(currentUser.id); // Fetch profile if user exists
+            } else {
+                setProfile(null); // No user, no profile
+            }
+        } catch (err: any) {
+            console.error("[AuthContext] Error during initial data fetch:", err.message);
+            setError(err.message);
+            setSession(null);
+            setUser(null);
+            setProfile(null);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    fetchInitialData();
 
     // --- Listener for Auth State Changes ---
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        // console.log('[AuthContext] Auth state changed:', _event);
+      async (_event, newSession) => { // Make async to await profile fetch
+        // console.log('[AuthContext] Auth state changed:', _event, newSession?.user?.id);
+        const currentUser = newSession?.user ?? null;
         setSession(newSession);
-        setUser(newSession?.user ?? null);
-        setError(null);
-        // Clear coordinates immediately on auth change, permission effect will re-fetch if needed
-        if (_event === 'SIGNED_OUT' || !newSession) {
-             setUserCoordinates(null);
-             setLocationPermissionStatus('pending'); // Reset status on logout
+        setUser(currentUser);
+        setError(null); // Clear errors on auth change
+
+        if (currentUser) {
+            // If signed in or user updated, fetch/refresh profile
+            await fetchUserProfile(currentUser.id);
+        } else {
+            // If signed out, clear profile and location data
+            setProfile(null);
+            setUserCoordinates(null);
+            setLocationPermissionStatus('pending'); // Reset status on logout
         }
       }
     );
@@ -276,8 +354,8 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   };
 
   const value = {
-    session, user, loading, error,
-    locationPermissionStatus, userCoordinates, isFetchingLocation, // <-- Expose new state
+    session, user, profile, loading, error, // <-- Expose profile
+    locationPermissionStatus, userCoordinates, isFetchingLocation,
     signOut, requestLocationPermission,
   };
 

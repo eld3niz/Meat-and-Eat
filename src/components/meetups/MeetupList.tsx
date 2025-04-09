@@ -3,19 +3,27 @@ import MeetupListItem from './MeetupListItem';
 
 // Define a type for the meetup data based on MeetupsTab placeholder
 // Ensure this matches the structure including the nested profile
-interface Meetup {
-  id: string;
-  creator_id: string;
-  place_name: string;
-  latitude: number;
-  longitude: number;
-  meetup_datetime: string; // ISO string format
-  description: string | null;
-  created_at: string; // ISO string format
-  profiles: { // Simulating joined data
+// Re-use the detailed Meetup type (consider moving to src/types later)
+interface MeetupProfile {
     name: string;
     avatar_url: string | null;
-  };
+    age?: number;
+    gender?: string;
+    languages?: string[];
+    home_latitude?: number;
+    home_longitude?: number;
+}
+
+interface Meetup {
+    id: string;
+    creator_id: string;
+    place_name: string;
+    latitude: number;
+    longitude: number;
+    meetup_datetime: string; // ISO string format
+    description: string | null;
+    created_at: string; // ISO string format
+    profiles: MeetupProfile;
 }
 
 interface MeetupListProps {
@@ -36,6 +44,7 @@ const MeetupList: React.FC<MeetupListProps> = ({ meetups }) => {
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Place</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Date</th>
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Time</th>
+            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Distance</th> {/* Added Distance Header */}
             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-b">Location</th>
           </tr>
         </thead>
