@@ -123,12 +123,12 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
           <div className="flex flex-col h-full"> {/* Flex container for content + buttons */}
             {/* Profile Content Area - Takes available space */}
             {/* Further reduced space-y */}
-            <div className="flex-grow space-y-1"> {/* Reduced space-y */}
+            <div className="flex-grow space-y-0.5"> {/* Further reduced space-y */}
               {/* Name heading removed */}
               {/* Top Section: Avatar & Basic Info */}
               {/* Reduced spacing/padding */}
               {/* Further reduced padding-bottom */}
-              <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-2 sm:space-y-0 sm:space-x-4 border-b pb-2">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-1 sm:space-y-0 sm:space-x-4 border-b pb-1"> {/* Reduced space-y and pb */}
                 <div className="flex-shrink-0 flex flex-col items-center">
                   <AvatarUpload
                     avatarUrl={profile.avatar_url}
@@ -150,12 +150,12 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
                   </p>
                   {/* Member Since Removed */}
                   {/* Travel Status - Now uses prop */}
-                  <p className="text-xs text-gray-600 mt-0.5 leading-tight flex items-center">
+                  <p className="text-xs text-gray-600 leading-tight flex items-center"> {/* Removed mt-0.5 */}
                     <span className="mr-1">🌍</span>
                     {travelStatus || 'Explorer'} {/* Use travelStatus prop */}
                   </p>
                   {/* Budget Info - Use Emoji */}
-                  <p className="text-xs text-gray-600 mt-0.5 leading-tight"> {/* Reduced text size */}
+                  <p className="text-xs text-gray-600 leading-tight"> {/* Removed mt-0.5 */}
                     Budget: {getBudgetEmoji(profile.budget)}
                   </p>
                 </div>
@@ -164,30 +164,30 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
               {/* Bio Section - Reduced spacing/text size */}
               {/* Bio Section - Corrected conditional rendering */}
               {profile.bio && (
-                <div className="pt-1"> {/* Adjusted padding */}
-                  <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">About Me</h3> {/* Reduced margin, added leading-tight */}
+                <div> {/* Removed pt-1 */}
+                  <h3 className="text-sm font-semibold text-gray-700 leading-tight">About Me</h3> {/* Removed mb-0.5 */}
                   <p className="text-xs text-gray-600 whitespace-pre-wrap leading-tight">{profile.bio}</p> {/* Added leading-tight */}
                 </div>
               )}
 
               {/* Languages Section - Reduced spacing/text size */}
               {/* Further reduced padding */}
-              <div className="pt-1"> {/* Adjusted padding */}
-                <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Languages Spoken</h3> {/* Reduced margin, added leading-tight */}
+              <div> {/* Removed pt-1 */}
+                <h3 className="text-sm font-semibold text-gray-700 leading-tight">Languages Spoken</h3> {/* Removed mb-0.5 */}
                 <p className="text-xs text-gray-600 leading-tight">{formatList(profile.languages)}</p> {/* Added leading-tight */}
               </div>
 
               {/* Cuisines Section - Reduced spacing/text size */}
               {/* Further reduced padding */}
-              <div className="pt-1"> {/* Adjusted padding */}
-                <h3 className="text-sm font-semibold text-gray-700 mb-0.5 leading-tight">Favorite Cuisines</h3> {/* Reduced margin, added leading-tight */}
+              <div> {/* Removed pt-1 */}
+                <h3 className="text-sm font-semibold text-gray-700 leading-tight">Favorite Cuisines</h3> {/* Removed mb-0.5 */}
                 <p className="text-xs text-gray-600 leading-tight">{formatList(profile.cuisines)}</p> {/* Added leading-tight */}
               </div>
             </div> {/* End Profile Content Area */}
 
             {/* Action Buttons Area - Pushed to bottom */}
             {/* Further reduced button spacing */}
-            <div className="mt-2 pt-2 border-t border-gray-200 flex justify-center flex-shrink-0"> {/* Reduced mt, removed space-x */}
+            <div className="mt-1 pt-1 border-t border-gray-200 flex justify-center flex-shrink-0"> {/* Further reduced mt and pt */}
               <button
                 type="button"
                 className="px-4 py-1 bg-green-500 text-white text-sm font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500" // Slightly larger button
