@@ -7,10 +7,11 @@ const formatList = (list: string[] | null): string => {
   return list.join(', ');
 };
 
-const getBudgetEmoji = (budget: string | null): string => {
-  if (budget === '1') return '💰';
-  if (budget === '2') return '💰💰';
-  if (budget === '3') return '💰💰💰';
+const getBudgetEmoji = (budget: string | number | null): string => { // Allow number type
+  const budgetStr = String(budget); // Convert to string for comparison
+  if (budgetStr === '1') return '💰';
+  if (budgetStr === '2') return '💰💰';
+  if (budgetStr === '3') return '💰💰💰';
   return 'N/A';
 };
 

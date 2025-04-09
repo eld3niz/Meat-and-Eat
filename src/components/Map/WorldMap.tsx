@@ -341,8 +341,8 @@ const WorldMap = () => {
           try {
             const { data: profileData, error: fetchError } = await supabase
               .from('profiles')
-              .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at')
-              // Removed travel_status as it doesn't exist
+              // Add home_latitude and home_longitude to the select query
+              .select('id, name, age, gender, languages, cuisines, budget, bio, avatar_url, created_at, home_latitude, home_longitude')
               .eq('id', userIdToFetch)
               .single();
 
@@ -353,10 +353,26 @@ const WorldMap = () => {
             }
 
             if (profileData) {
-              // Add default values for missing fields to match main profile view
+              // Calculate derived status based on fetched home location and clicked item's location
+              let derivedStatus: 'Local' | 'Traveller' | null = null;
+              const homeLat = profileData.home_latitude;
+              const homeLng = profileData.home_longitude;
+              const currentLat = item.latitude; // Use the location from the clicked item
+              const currentLng = item.longitude;
+              const LOCAL_THRESHOLD_KM = 50; // Same threshold as in useMapData
+
+              if (homeLat != null && homeLng != null && currentLat != null && currentLng != null) {
+                  // Use the existing utility function (already imported)
+                  const distance = calculateHaversineDistance(currentLat, currentLng, homeLat, homeLng);
+                  derivedStatus = distance <= LOCAL_THRESHOLD_KM ? 'Local' : 'Traveller';
+              } else {
+                  derivedStatus = 'Traveller'; // Default if home location isn't set
+              }
+
+              // Add default values and the calculated status
               const enhancedProfile = {
                 ...profileData,
-                travel_status: 'N/A', // Default value since column doesn't exist
+                travel_status: derivedStatus, // Use the calculated status
               };
 
               // Create unique functions for this popup instance
