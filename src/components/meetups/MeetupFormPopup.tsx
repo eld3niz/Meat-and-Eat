@@ -201,11 +201,29 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
       setShowConfirmation(false);
   }
 
+  // Handle clicking outside the popup
+  const popupRef = useRef<HTMLDivElement>(null);
+  
+  const handleOutsideClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={handleOutsideClick}>
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative" ref={popupRef}>
+        {/* X button in top right corner */}
+        <button 
+          onClick={onClose}
+          className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 text-xl font-bold"
+          aria-label="Close"
+        >
+          &times;
+        </button>
+        
         <h2 className="text-xl font-semibold mb-4">Add New Meeting</h2>
 
         {showConfirmation ? (
@@ -233,52 +251,36 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
         ) : (
             // Form
             <form onSubmit={handleSubmitAttempt}>
-              <div className="mb-4">
-                <label htmlFor="placeName" className="block text-sm font-medium text-gray-700 mb-1">Place Name</label>
-                <input
-                  type="text"
-                  id="placeName"
-                  value={placeName}
-                  onChange={(e) => setPlaceName(e.target.value)}
-                  required={selectedLocation?.alt === undefined} // Required only if it's a custom marker
-                  disabled={selectedLocation?.alt !== undefined} // Disable if an Overpass marker is selected
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
-                  placeholder={selectedLocation?.alt !== undefined ? "Selected from map" : "Enter name if placing custom marker"}
-                />
-                 {selectedLocation?.alt !== undefined && <p className="text-xs text-gray-500 mt-1">Name is set from the selected map marker.</p>}
-                 {selectedLocation?.alt === undefined && <p className="text-xs text-gray-500 mt-1">Required if placing a custom marker.</p>}
-              </div>
-
-              <div className="mb-4 h-64 md:h-80"> {/* Map container with fixed height */}
+              {/* Map comes first now */}
+              <div className="mb-12"> {/* Increased bottom margin for better separation */}
                 <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
                 {isLoadingLocation ? (
                    <div className="h-full flex justify-center items-center bg-gray-100 text-gray-500">Loading map and location...</div>
                 ) : (
-                  <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%' }}>
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    {userLocation && <CenterMapOnUser position={userLocation} />}
-                    <MapClickHandler onMapClick={handleMapClick} selectedLocation={selectedLocation} />
+                  <div className="h-64 md:h-80 relative"> {/* Added relative positioning container */}
+                    <MapContainer center={mapCenter} zoom={13} scrollWheelZoom={true} style={{ height: '100%', width: '100%', zIndex: 1 }}>
+                      {/* ...existing map code... */}
+                      <TileLayer
+                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                      />
+                      {userLocation && <CenterMapOnUser position={userLocation} />}
+                      <MapClickHandler onMapClick={handleMapClick} selectedLocation={selectedLocation} />
 
-                    {/* Display selected custom marker */}
-                    {selectedLocation && selectedLocation.alt === undefined && (
-                      <Marker position={selectedLocation}>
-                        <Popup>Custom meeting point</Popup>
-                      </Marker>
-                    )}
+                      {/* Display markers... */}
+                      {selectedLocation && selectedLocation.alt === undefined && (
+                        <Marker position={selectedLocation}>
+                          <Popup>Custom meeting point</Popup>
+                        </Marker>
+                      )}
 
-                     {/* Display Overpass markers (dummy data for now) */}
-                    {overpassPlaces.map(place => (
+                      {overpassPlaces.map(place => (
                         <Marker
                             key={place.id}
                             position={[place.lat, place.lon]}
                             eventHandlers={{
                                 click: () => handleOverpassMarkerClick(place),
                             }}
-                            // Optionally change icon color if selected
-                            // icon={selectedLocation?.alt === place.id ? selectedIcon : defaultIcon}
                         >
                             <Popup>
                                 <b>{place.tags.name || 'Unnamed Place'}</b><br />
@@ -286,32 +288,65 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
                                 <button className="text-blue-500 underline text-sm" onClick={(e) => {e.stopPropagation(); handleOverpassMarkerClick(place);}}>Select this place</button>
                             </Popup>
                         </Marker>
-                    ))}
-                     {/* Display selected Overpass marker distinctly */}
-                     {selectedLocation && selectedLocation.alt !== undefined && (
-                        <Marker position={selectedLocation} /* icon={selectedIcon} */ >
+                      ))}
+                      {selectedLocation && selectedLocation.alt !== undefined && (
+                        <Marker position={selectedLocation}>
                             <Popup>Selected: {placeName}</Popup>
                         </Marker>
-                     )}
-
-                  </MapContainer>
+                      )}
+                    </MapContainer>
+                  </div>
                 )}
-                 <p className="text-xs text-gray-500 mt-1">Click on map to set custom marker or click an existing marker.</p>
+                <p className="text-xs text-gray-500 mt-2 mb-8">Click on map to set custom marker or click an existing marker.</p>
               </div>
 
+              {/* Place Name after map with increased spacing */}
+              <div className="mb-6"> {/* Normal spacing between form fields */}
+                <label htmlFor="placeName" className="block text-sm font-medium text-gray-700 mb-1">Place Name</label>
+                <input
+                  type="text"
+                  id="placeName"
+                  value={placeName}
+                  onChange={(e) => setPlaceName(e.target.value)}
+                  required={selectedLocation?.alt === undefined}
+                  disabled={selectedLocation?.alt !== undefined}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm disabled:bg-gray-100"
+                  placeholder={selectedLocation?.alt !== undefined ? "Selected from map" : "Enter name if placing custom marker"}
+                />
+                {selectedLocation?.alt !== undefined && <p className="text-xs text-gray-500 mt-1">Name is set from the selected map marker.</p>}
+                {selectedLocation?.alt === undefined && <p className="text-xs text-gray-500 mt-1">Required if placing a custom marker.</p>}
+              </div>
 
               <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
+                <div className="relative"> {/* Added relative positioning */}
                     <label htmlFor="meetupDate" className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
+                    {/* Add CSS to ensure date picker shows above map */}
+                    <style jsx>{`
+                      .react-datepicker-popper {
+                        z-index: 1000 !important;
+                      }
+                    `}</style>
                     <DatePicker
                       id="meetupDate"
                       selected={meetupDateTime}
                       onChange={(date: Date | null) => setMeetupDateTime(date)}
                       showTimeSelect
-                      dateFormat="Pp" // Format like "MM/dd/yyyy, h:mm aa"
-                      minDate={new Date()} // Prevent selecting past dates
+                      dateFormat="Pp"
+                      minDate={new Date()}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                      popperClassName="date-picker-popper"
+                      popperProps={{
+                        strategy: "fixed",
+                        modifiers: [
+                          {
+                            name: "zIndex",
+                            options: {
+                              zIndex: 1000
+                            }
+                          }
+                        ]
+                      }}
                     />
                 </div>
               </div>
