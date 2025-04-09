@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'; // Import React
+import React, { useState, useEffect, useMemo } from 'react'; // Import React and useMemo
 import { useAuth } from '../../context/AuthContext';
 import supabase from '../../utils/supabaseClient';
 import { languageOptions, cuisineOptions } from '../../data/options';
@@ -79,6 +79,18 @@ const UserProfile = () => {
   // State for image modal
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
 
+  // Memoized sorted language options for the dropdown
+  const sortedLanguageOptions = useMemo(() => {
+    // Filter out already selected languages
+    const availableOptions = languageOptions.filter(lang => !selectedLanguages.includes(lang));
+    // Sort the remaining available options alphabetically
+    availableOptions.sort((a, b) => a.localeCompare(b));
+    // Sort the selected languages alphabetically (for consistent order within the selected group)
+    const sortedSelected = [...selectedLanguages].sort((a, b) => a.localeCompare(b));
+    // Combine: selected first, then the rest
+    return [...sortedSelected, ...availableOptions];
+  }, [selectedLanguages]); // Recalculate only when selectedLanguages changes
+ 
   useEffect(() => {
     if (user) {
       fetchProfile();
@@ -125,6 +137,7 @@ const UserProfile = () => {
       setLoading(false);
     }
   };
+
 
   // Handlers for multi-select dropdowns
   const addLanguage = () => {

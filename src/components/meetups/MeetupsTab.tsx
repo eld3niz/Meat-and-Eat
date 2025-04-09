@@ -5,6 +5,9 @@ import AddMeetupButton from './AddMeetupButton';
 import MeetupList from './MeetupList';
 import MeetupFormPopup from './MeetupFormPopup';
 import { Meetup } from '@/types/meetup'; // Use path alias based on tsconfig.json
+import { languageOptions as allLanguageOptions } from '../../data/options'; // Import the full list
+import { useUserStatus } from '../../hooks/useUserStatus'; // Added for location
+import { calculateDistance } from '../../utils/geolocation'; // Added for distance calculation
 
 // Placeholder data removed
 const placeholderMeetups = [
@@ -40,6 +43,7 @@ const placeholderMeetups = [
 
 const MeetupsTab: React.FC = () => {
   const { user } = useAuth(); // Get user info from AuthContext
+  const { currentLocation, error: locationError } = useUserStatus(); // Get current location
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [meetups, setMeetups] = useState<Meetup[]>([]); // Initialize with empty array and type
   const [isLoading, setIsLoading] = useState(true);
@@ -52,6 +56,8 @@ const MeetupsTab: React.FC = () => {
   const languageDropdownRef = useRef<HTMLDivElement>(null); // Ref for click-outside detection
   const [dateFilter, setDateFilter] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
+  // const [minDistanceFilter, setMinDistanceFilter] = useState('0'); // Removed min distance state
+  const [maxDistanceFilter, setMaxDistanceFilter] = useState('any'); // Max distance state, default 'any'
   const [visibleMeetupsCount, setVisibleMeetupsCount] = useState(5); // State for pagination
 
 
@@ -122,7 +128,8 @@ const MeetupsTab: React.FC = () => {
 
   // --- Constants for Filters ---
   const AGE_OPTIONS = Array.from({ length: 82 }, (_, i) => (18 + i).toString()); // Ages 18 to 99
-  const LANGUAGE_OPTIONS = ['English', 'German', 'Spanish', 'French', 'Italian', 'Turkish', 'Other']; // Example languages
+  // const LANGUAGE_OPTIONS = ['English', 'German', 'Spanish', 'French', 'Italian', 'Turkish', 'Other']; // Removed hardcoded list
+  const LANGUAGE_OPTIONS = allLanguageOptions; // Use the imported full list
 
   // --- Click Outside Handler for Language Dropdown ---
   useEffect(() => {
@@ -148,6 +155,8 @@ const MeetupsTab: React.FC = () => {
       const meetupDate = new Date(meetup.meetup_time);
       const profileAge = meetup.profiles?.age;
       const profileLanguages = meetup.profiles?.languages || []; // Default to empty array
+      const meetupLat = meetup.latitude;
+      const meetupLon = meetup.longitude;
 
       // Age Range Filter
       if (profileAge !== undefined && profileAge !== null) {
@@ -198,9 +207,33 @@ const MeetupsTab: React.FC = () => {
         }
       }
 
+      // Distance Filter (Max Only)
+      if (maxDistanceFilter !== 'any' && currentLocation && meetupLat && meetupLon) {
+        const maxDistance = parseInt(maxDistanceFilter, 10);
+        try {
+          const distance = calculateDistance(
+            currentLocation.lat,
+            currentLocation.lon,
+            meetupLat,
+            meetupLon
+          );
+
+          // Check if distance exceeds the selected maximum
+          if (distance > maxDistance) {
+            return false;
+          }
+        } catch (calcError) {
+          console.error("Error calculating distance for filter:", calcError);
+          return false; // Exclude if calculation fails
+        }
+      } else if (maxDistanceFilter !== 'any' && !currentLocation) {
+         // If filtering by distance but location is unavailable, exclude the meetup
+         return false;
+      }
+
       return true; // Include meetup if all filters pass or are inactive
     });
-  }, [meetups, minAgeFilter, maxAgeFilter, selectedLanguages, dateFilter, timeFilter]); // Corrected dependencies
+  }, [meetups, minAgeFilter, maxAgeFilter, selectedLanguages, dateFilter, timeFilter, maxDistanceFilter, currentLocation]); // Updated dependencies
 
   // --- Pagination Logic ---
   const meetupsToShow = useMemo(() => {
@@ -299,7 +332,7 @@ const MeetupsTab: React.FC = () => {
       {/* Filter Section */}
       <div className="my-4 p-4 border rounded shadow-sm bg-gray-50 w-full max-w-4xl"> {/* Filter section container */}
         <h3 className="text-lg font-semibold mb-3">Filter Meetups</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end"> {/* Grid layout, align items to bottom */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end"> {/* Adjusted grid columns */}
 
           {/* Age Filter (Min/Max Dropdowns) */}
           <div className="flex gap-2"> {/* Container for Min/Max Age */}
@@ -396,6 +429,26 @@ const MeetupsTab: React.FC = () => {
               onChange={(e) => setTimeFilter(e.target.value)}
               className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
             />
+          </div>
+    
+          {/* Distance Filter (Max Only Dropdown) */}
+          <div>
+            <label htmlFor="maxDistanceFilter" className="block text-sm font-medium text-gray-700 mb-1">Max Dist (km)</label>
+            <select
+              id="maxDistanceFilter"
+              value={maxDistanceFilter}
+              onChange={(e) => setMaxDistanceFilter(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+              disabled={!!locationError}
+              title={locationError ? `Distance filter disabled: ${locationError}` : 'Filter by maximum distance'}
+            >
+              <option value="any">Any</option>
+              {/* Generate options from 0 to 50 */}
+              {Array.from({ length: 51 }, (_, i) => i).map(dist => (
+                <option key={`max-dist-${dist}`} value={dist}>{dist}</option>
+              ))}
+            </select>
+            {locationError && <p className="text-xs text-red-500 mt-1">{locationError}</p>}
           </div>
         </div>
       </div>
