@@ -52,6 +52,7 @@ const MeetupsTab: React.FC = () => {
   const languageDropdownRef = useRef<HTMLDivElement>(null); // Ref for click-outside detection
   const [dateFilter, setDateFilter] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
+  const [visibleMeetupsCount, setVisibleMeetupsCount] = useState(5); // State for pagination
 
 
   const handleOpenForm = () => setIsFormOpen(true);
@@ -201,6 +202,15 @@ const MeetupsTab: React.FC = () => {
     });
   }, [meetups, minAgeFilter, maxAgeFilter, selectedLanguages, dateFilter, timeFilter]); // Corrected dependencies
 
+  // --- Pagination Logic ---
+  const meetupsToShow = useMemo(() => {
+    return filteredMeetups.slice(0, visibleMeetupsCount);
+  }, [filteredMeetups, visibleMeetupsCount]);
+
+  const handleSeeMore = () => {
+    setVisibleMeetupsCount(prevCount => prevCount + 5); // Increase count by 5
+  };
+
   // Handle adding a meetup via the form popup
   const handleAddMeetup = async (newMeetupData: Omit<Meetup, 'id' | 'created_at' | 'updated_at' | 'creator_id' | 'profiles'>) => {
     if (!supabase || !user) {
@@ -283,7 +293,7 @@ const MeetupsTab: React.FC = () => {
   };
 
   return (
-    <div className="p-4 flex flex-col items-center"> {/* Added flex, flex-col, items-center */}
+    <div className="p-4 flex flex-col items-center pb-20"> {/* Added bottom padding pb-20 */}
       {user && <AddMeetupButton onAddClick={handleOpenForm} />} {/* Only show add button if logged in */}
 
       {/* Filter Section */}
@@ -394,15 +404,28 @@ const MeetupsTab: React.FC = () => {
       {isLoading && <p>Loading meetups...</p>}
       {error && <p className="text-red-500">Error: {error}</p>}
       {!isLoading && !error && (
-         <div className="w-full max-w-4xl"> {/* Optional: Constrain width of the table container */}
-           {filteredMeetups.length > 0 ? (
-             <MeetupList
-               meetups={filteredMeetups} // Use filtered meetups
-               currentUserId={user?.id} // Pass current user ID
-               onDelete={handleDeleteMeetup} // Pass delete handler
-             />
+         <div className="w-full max-w-4xl"> {/* Container for list and button */}
+           {filteredMeetups.length === 0 ? (
+              <p>No meetups match the current filters.</p> // Message when filters result in no meetups
            ) : (
-             <p>No meetups match the current filters.</p> // Message when filters result in no meetups
+             <>
+               <MeetupList
+                 meetups={meetupsToShow} // Pass only the visible slice
+                 currentUserId={user?.id}
+                 onDelete={handleDeleteMeetup}
+               />
+               {/* "See More" Button */}
+               {visibleMeetupsCount < filteredMeetups.length && (
+                 <div className="mt-6 text-center"> {/* Add margin top and center align */}
+                   <button
+                     onClick={handleSeeMore}
+                     className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                   >
+                     See More
+                   </button>
+                 </div>
+               )}
+             </>
            )}
          </div>
        )}
