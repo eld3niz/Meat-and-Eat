@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import MeetupMapPopup from './MeetupMapPopup';
-
+// Modal and ReadOnlyUserProfile are no longer needed here
+import UserProfilePopup from '../Profile/UserProfilePopup'; // Import the new popup component
 import { Meetup } from '@/types/meetup'; // Import shared type
 
 interface MeetupListItemProps {
@@ -11,9 +12,13 @@ interface MeetupListItemProps {
 
 const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDelete }) => {
     const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
+    const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false); // State for the new profile popup
 
     const handleOpenMapPopup = () => setIsMapPopupOpen(true);
     const handleCloseMapPopup = () => setIsMapPopupOpen(false);
+
+    const handleOpenProfilePopup = () => setIsProfilePopupOpen(true);
+    const handleCloseProfilePopup = () => setIsProfilePopupOpen(false);
 
     const formattedDate = new Date(meetup.meetup_time).toLocaleDateString(); // Use meetup_time
     const formattedTime = new Date(meetup.meetup_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Use meetup_time
@@ -32,7 +37,14 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                             className="w-8 h-8 rounded-full mr-2 object-cover"
                             onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorName)}&background=random&size=32`; }} // Use fallback name
                         />
-                        <span className="text-sm font-medium text-gray-900">{creatorName}</span>
+                        <button
+                            onClick={handleOpenProfilePopup} // Use the new handler
+                            className="text-sm font-medium text-gray-900 hover:text-indigo-600 hover:underline focus:outline-none"
+                            aria-label={`View profile of ${creatorName}`}
+                            title={`View profile of ${creatorName}`}
+                        >
+                            {creatorName}
+                        </button>
                     </div>
                 </td>
                 {/* Place Column */}
@@ -82,6 +94,14 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                     latitude={meetup.latitude}
                     longitude={meetup.longitude}
                     placeName={meetup.title || 'Meetup Location'} // Pass title as placeName, provide fallback
+                />
+            )}
+            {/* Profile Popup */}
+            {isProfilePopupOpen && meetup.creator_id && ( // Ensure creator_id exists
+                <UserProfilePopup
+                    userId={meetup.creator_id}
+                    isOpen={isProfilePopupOpen}
+                    onClose={handleCloseProfilePopup}
                 />
             )}
         </>
