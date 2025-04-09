@@ -53,14 +53,23 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                 </td>
                 {/* Actions Column (now just contains the button if creator) */}
                 <td className="px-1 py-2 whitespace-nowrap text-center align-middle"> {/* Center the button */}
-                    {isCreator && (
+                    {isCreator ? (
                         <button
                             onClick={() => onDelete(meetup.id)}
                             className="p-1 h-6 w-6 flex items-center justify-center bg-red-100 text-red-600 hover:bg-red-200 hover:text-red-800 rounded-full text-xs font-bold transition-colors duration-150"
-                            aria-label={`Delete meetup: ${meetup.title || 'Untitled Meetup'}`} // Use title here
-                            title="Delete Meetup" // Tooltip for clarity
+                            aria-label={`Delete meetup: ${meetup.title || 'Untitled Meetup'}`}
+                            title="Delete Meetup"
                         >
                             &times; {/* Use HTML entity for 'X' */}
+                        </button>
+                    ) : (
+                        <button
+                            // onClick={() => { /* TODO: Implement accept functionality */ }} // Placeholder for future action
+                            className="px-2 py-1 text-xs font-medium text-white bg-green-500 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors duration-150"
+                            aria-label={`Accept meetup: ${meetup.title || 'Untitled Meetup'}`}
+                            title="Accept Meetup" // Tooltip for clarity
+                        >
+                            Accept
                         </button>
                     )}
                 </td>

@@ -71,8 +71,19 @@ const MeetupsTab: React.FC = () => {
         throw fetchError;
       }
 
-      // TODO: Define the Meetup type properly, including the nested profiles structure
-      setMeetups(data as Meetup[] || []);
+      // Filter out past meetups
+      const now = new Date();
+      const futureMeetups = (data as Meetup[] || []).filter(meetup => {
+        // Ensure meetup_time is valid before comparing
+        try {
+          return new Date(meetup.meetup_time) > now;
+        } catch (e) {
+          console.error("Invalid date format for meetup:", meetup);
+          return false; // Exclude meetups with invalid dates
+        }
+      });
+
+      setMeetups(futureMeetups);
 
     } catch (err: any) {
       console.error("Error fetching meetups:", err);
