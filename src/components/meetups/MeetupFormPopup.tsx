@@ -24,6 +24,7 @@ interface MeetupFormPopupProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (formData: any) => void; // Define a more specific type later - will include cuisines now
+  userId: string; // Added userId prop
 }
 
 // Placeholder type for Overpass data
@@ -64,7 +65,7 @@ const CenterMapOnUser = ({ position }: { position: LatLngExpression }) => {
 };
 
 
-const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSubmit }) => {
+const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSubmit, userId }) => { // Added userId to destructuring
   const [placeName, setPlaceName] = useState('');
   const [meetupDateTime, setMeetupDateTime] = useState<Date | null>(new Date());
   const [description, setDescription] = useState('');

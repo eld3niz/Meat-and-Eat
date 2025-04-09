@@ -249,12 +249,15 @@ const MeetupsTab: React.FC = () => {
         }
       }
 
-      // Time Filter
+      // Time Filter (From this time onwards)
       if (timeFilter) {
         const [filterHours, filterMinutes] = timeFilter.split(':').map(Number);
-        // Compare hours and minutes
-        if (meetupDate.getHours() !== filterHours || meetupDate.getMinutes() !== filterMinutes) {
-          return false;
+        const meetupHours = meetupDate.getHours();
+        const meetupMinutes = meetupDate.getMinutes();
+
+        // Check if the meetup time is strictly before the filter time
+        if (meetupHours < filterHours || (meetupHours === filterHours && meetupMinutes < filterMinutes)) {
+          return false; // Exclude meetups before the selected time
         }
       }
 
@@ -500,7 +503,7 @@ const MeetupsTab: React.FC = () => {
             )}
           </div>
 
-         {/* Date Filter */}
+          {/* Date Filter */}
           <div>
             <label htmlFor="dateFilter" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <input
@@ -508,9 +511,10 @@ const MeetupsTab: React.FC = () => {
               id="dateFilter"
               value={dateFilter}
               onChange={(e) => setDateFilter(e.target.value)}
-               className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
-           />
+              className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
+            />
           </div>
+
           {/* Time Filter */}
           <div>
             <label htmlFor="timeFilter" className="block text-sm font-medium text-gray-700 mb-1">Time</label>
@@ -519,68 +523,78 @@ const MeetupsTab: React.FC = () => {
               id="timeFilter"
               value={timeFilter}
               onChange={(e) => setTimeFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
             />
           </div>
-    
-          {/* Distance Filter (Max Only Dropdown) */}
+
+          {/* Distance Filter (Max Only) */}
           <div>
-            <label htmlFor="maxDistanceFilter" className="block text-sm font-medium text-gray-700 mb-1">Max Dist (km)</label>
+            <label htmlFor="maxDistanceFilter" className="block text-sm font-medium text-gray-700 mb-1">Max Distance (km)</label>
             <select
               id="maxDistanceFilter"
               value={maxDistanceFilter}
               onChange={(e) => setMaxDistanceFilter(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 bg-white"
-              disabled={!!locationError}
-              title={locationError ? `Distance filter disabled: ${locationError}` : 'Filter by maximum distance'}
+              className={`w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${!currentLocation ? 'bg-gray-200 cursor-not-allowed' : 'bg-white'}`}
+              disabled={!currentLocation} // Disable if location is not available
             >
               <option value="any">Any</option>
-              {/* Generate options from 0 to 50 */}
-              {Array.from({ length: 51 }, (_, i) => i).map(dist => (
-                <option key={`max-dist-${dist}`} value={dist}>{dist}</option>
-              ))}
+              <option value="1">1 km</option>
+              <option value="5">5 km</option>
+              <option value="10">10 km</option>
+              <option value="25">25 km</option>
+              <option value="50">50 km</option>
+              <option value="100">100 km</option>
             </select>
-            {locationError && <p className="text-xs text-red-500 mt-1">{locationError}</p>}
+            {!currentLocation && locationError && (
+               <p className="text-xs text-red-600 mt-1">{locationError}</p>
+            )}
+            {!currentLocation && !locationError && (
+               <p className="text-xs text-gray-500 mt-1">Location needed for distance filter.</p>
+            )}
           </div>
+
         </div>
       </div>
 
       {/* Meetup List Section */}
-      {isLoading && <p>Loading meetups...</p>}
-      {error && <p className="text-red-500">Error: {error}</p>}
-      {!isLoading && !error && (
-         <div className="w-full max-w-4xl"> {/* Container for list and button */}
-           {filteredMeetups.length === 0 ? (
-              <p>No meetups match the current filters.</p> // Message when filters result in no meetups
-           ) : (
-             <>
+      <div className="w-full max-w-4xl mt-4"> {/* Container for the list */}
+        {isLoading ? (
+          <p className="text-center text-gray-500">Loading meetups...</p>
+        ) : error ? (
+          <p className="text-center text-red-600">Error: {error}</p>
+        ) : (
+           <>
+            {filteredMeetups.length === 0 ? (
+              <p className="text-center text-gray-500">No meetups match the current filters.</p>
+            ) : (
                <MeetupList
-                 meetups={meetupsToShow} // Pass only the visible slice
+                 meetups={meetupsToShow} // Pass paginated meetups
                  currentUserId={user?.id}
                  onDelete={handleDeleteMeetup}
                />
-               {/* "See More" Button */}
-               {visibleMeetupsCount < filteredMeetups.length && (
-                 <div className="mt-6 text-center"> {/* Add margin top and center align */}
-                   <button
-                     onClick={handleSeeMore}
-                     className="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                   >
-                     See More
-                   </button>
-                 </div>
-               )}
-             </>
-           )}
-         </div>
-       )}
+            )}
+            {/* "See More" Button */}
+            {filteredMeetups.length > visibleMeetupsCount && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={handleSeeMore}
+                  className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                >
+                  See More Meetups
+                </button>
+              </div>
+            )}
+           </>
+         )}
+      </div>
+
+      {/* Meetup Form Popup */}
       {isFormOpen && user && ( // Only render form if open and user is logged in
         <MeetupFormPopup
           isOpen={isFormOpen}
           onClose={handleCloseForm}
-          onSubmit={handleAddMeetup} // We'll update this function next
-          // Pass fetchMeetups to refresh list after adding
-          // onSuccess prop removed as onSubmit now handles refresh via fetchMeetups
+          onSubmit={handleAddMeetup}
+          userId={user.id} // Pass user ID
         />
       )}
     </div>
