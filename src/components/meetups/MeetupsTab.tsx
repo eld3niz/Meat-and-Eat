@@ -8,7 +8,7 @@ import { Meetup } from '@/types/meetup'; // Use path alias based on tsconfig.jso
 import { languageOptions as allLanguageOptions, cuisineOptions } from '../../data/options'; // Import the full list + cuisineOptions
 import { useUserStatus } from '../../hooks/useUserStatus'; // Added for location
 import { calculateDistance } from '../../utils/geolocation'; // Added for distance calculation
-import TagInput from '../UI/TagInput'; // Import TagInput for cuisine filter
+// TagInput import removed as it's replaced by multi-select dropdown
 // Placeholder data removed
 const placeholderMeetups = [
   {
@@ -55,6 +55,8 @@ const MeetupsTab: React.FC = () => {
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false); // State for multi-select dropdown
   const languageDropdownRef = useRef<HTMLDivElement>(null); // Ref for click-outside detection
   const [selectedCuisinesFilter, setSelectedCuisinesFilter] = useState<string[]>([]); // State for cuisine filter
+  const [isCuisineDropdownOpen, setIsCuisineDropdownOpen] = useState(false); // State for cuisine dropdown
+  const cuisineDropdownRef = useRef<HTMLDivElement>(null); // Ref for cuisine dropdown click-outside
   const [dateFilter, setDateFilter] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
   // const [minDistanceFilter, setMinDistanceFilter] = useState('0'); // Removed min distance state
@@ -166,6 +168,18 @@ const MeetupsTab: React.FC = () => {
     };
   }, []);
 
+  // --- Click Outside Handler for Cuisine Dropdown ---
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (cuisineDropdownRef.current && !cuisineDropdownRef.current.contains(event.target as Node)) {
+        setIsCuisineDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
 
   // --- Filtered meetups logic ---
   const filteredMeetups = useMemo(() => {
@@ -447,16 +461,43 @@ const MeetupsTab: React.FC = () => {
              )}
            </div>
 
-          {/* Cuisine Filter (TagInput) */}
-          <div>
-            <TagInput
-              label="Cuisines"
-              id="cuisine-filter"
-              options={cuisineOptions}
-              selectedItems={selectedCuisinesFilter}
-              onChange={(newSelection) => setSelectedCuisinesFilter(newSelection)}
-              placeholder="Filter by cuisines"
-            />
+          {/* Cuisine Filter (Multi-select Dropdown) */}
+          <div className="relative" ref={cuisineDropdownRef}>
+            <label htmlFor="cuisineFilterButton" className="block text-sm font-medium text-gray-700 mb-1">Cuisines</label>
+            <button
+              id="cuisineFilterButton"
+              type="button"
+              onClick={() => setIsCuisineDropdownOpen(!isCuisineDropdownOpen)}
+              className="w-full p-2 border border-gray-300 rounded shadow-sm bg-white text-left focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 flex justify-between items-center"
+            >
+              <span className="truncate text-gray-700">
+                {selectedCuisinesFilter.length === 0 ? 'Select Cuisines' : selectedCuisinesFilter.join(', ')}
+              </span>
+              <svg className={`w-5 h-5 text-gray-400 transform transition-transform duration-200 ${isCuisineDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                 <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+               </svg>
+            </button>
+            {/* Dropdown Panel */}
+            {isCuisineDropdownOpen && (
+              <div className="absolute z-10 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg max-h-60 overflow-y-auto">
+                {cuisineOptions.map(cuisine => (
+                  <label key={cuisine} className="flex items-center px-3 py-2 hover:bg-gray-100 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedCuisinesFilter.includes(cuisine)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setSelectedCuisinesFilter(prev =>
+                          checked ? [...prev, cuisine] : prev.filter(c => c !== cuisine)
+                        );
+                      }}
+                      className="mr-2 h-4 w-4 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-700">{cuisine}</span>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
 
          {/* Date Filter */}
