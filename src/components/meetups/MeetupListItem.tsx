@@ -1,6 +1,5 @@
-import React, { useState, useMemo } from 'react'; // Added useMemo
-import MeetupMapPopup from './MeetupMapPopup';
-import UserProfilePopup from '../Profile/UserProfilePopup'; // Import the new popup component
+import React, { useMemo } from 'react'; // Removed useState
+// Popups are no longer rendered here
 import { Meetup } from '@/types/meetup'; // Import shared type
 import { useAuth } from '../../context/AuthContext'; // Added
 import { useUserStatus } from '../../hooks/useUserStatus'; // Added
@@ -10,19 +9,14 @@ interface MeetupListItemProps {
     meetup: Meetup;
     isCreator: boolean; // Flag indicating if the current user is the creator
     onDelete: (meetupId: string) => Promise<void>; // Delete handler function
+    onShowMap: (meetup: Meetup) => void; // Callback to show map popup
+    onShowProfile: (userId: string) => void; // Callback to show profile popup
 }
 
-const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDelete }) => {
+const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDelete, onShowMap, onShowProfile }) => {
     const { user } = useAuth(); // Get current user
     const { status: userStatus, error: statusError, currentLocation } = useUserStatus(); // Get user status and current location
-    const [isMapPopupOpen, setIsMapPopupOpen] = useState(false);
-    const [isProfilePopupOpen, setIsProfilePopupOpen] = useState(false); // State for the new profile popup
-
-    const handleOpenMapPopup = () => setIsMapPopupOpen(true);
-    const handleCloseMapPopup = () => setIsMapPopupOpen(false);
-
-    const handleOpenProfilePopup = () => setIsProfilePopupOpen(true);
-    const handleCloseProfilePopup = () => setIsProfilePopupOpen(false);
+    // Removed state for popups - managed by parent now
 
     const formattedDate = new Date(meetup.meetup_time).toLocaleDateString(); // Use meetup_time
     const formattedTime = new Date(meetup.meetup_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); // Use meetup_time
@@ -61,7 +55,7 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                             onError={(e) => { (e.target as HTMLImageElement).src = `https://ui-avatars.com/api/?name=${encodeURIComponent(creatorName)}&background=random&size=32`; }} // Use fallback name
                         />
                         <button
-                            onClick={handleOpenProfilePopup} // Use the new handler
+                            onClick={() => meetup.creator_id && onShowProfile(meetup.creator_id)} // Call parent handler
                             className="text-sm font-medium text-gray-900 hover:text-indigo-600 hover:underline focus:outline-none"
                             aria-label={`View profile of ${creatorName}`}
                             title={`View profile of ${creatorName}`}
@@ -96,7 +90,7 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                  {/* Location Column */}
                  <td className="px-4 py-2 whitespace-nowrap text-sm">
                      <button
-                         onClick={handleOpenMapPopup}
+                         onClick={() => onShowMap(meetup)} // Call parent handler
                          className="text-indigo-600 hover:text-indigo-900 hover:underline"
                      >
                          Where?
@@ -125,24 +119,7 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                      )}
                  </td>
             </tr>
-            {/* Render the actual Map Popup */}
-            {isMapPopupOpen && (
-                <MeetupMapPopup
-                    isOpen={isMapPopupOpen}
-                    onClose={handleCloseMapPopup}
-                    latitude={meetup.latitude}
-                    longitude={meetup.longitude}
-                    placeName={meetup.title || 'Meetup Location'} // Pass title as placeName, provide fallback
-                />
-            )}
-            {/* Profile Popup */}
-            {isProfilePopupOpen && meetup.creator_id && ( // Ensure creator_id exists
-                <UserProfilePopup
-                    userId={meetup.creator_id}
-                    isOpen={isProfilePopupOpen}
-                    onClose={handleCloseProfilePopup}
-                />
-            )}
+            {/* Popups are no longer rendered here */}
         </>
     );
 };

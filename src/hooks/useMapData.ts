@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'; // Added useRef
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'; // Added useRef and useCallback
 import { City } from '../types';
 import { cities } from '../data/cities';
 import { sortCitiesByPopulation, filterCitiesByCountry, isCityWithinRadius } from '../utils/mapUtils'; // Import isCityWithinRadius
@@ -89,6 +89,25 @@ interface MapData {
   resetFilters: () => void;
   zoomToCity: (cityId: number) => [number, number];
 }
+
+// --- Debounce Utility ---
+// Basic debounce function
+function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  // Return a function that schedules func execution
+  return (...args: Parameters<F>): void => {
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+    }
+    timeoutId = setTimeout(() => {
+      timeoutId = null; // Clear timeoutId after execution
+      func(...args); // Execute the original function
+    }, waitFor);
+  };
+}
+
+const DEBOUNCE_DELAY = 300; // ms for filter debounce
 
 /**
  * Custom Hook für die Verwaltung der Kartendaten (Städte und Benutzerstandorte)
@@ -418,54 +437,80 @@ return result;
 
   }, [user]); // Re-run effect when user logs in or out
 
-  // --- Filter Update Functions ---
-  const filterByCountry = (country: string | null) => { setFilters(prev => ({ ...prev, country, distance: null })); }; // Reset distance on country change
-  const filterByPopulation = (min: number, max: number) => { setFilters(prev => ({ ...prev, population: { min, max }, distance: null })); }; // Reset distance
-  const filterBySearch = (term: string | null) => { setFilters(prev => ({ ...prev, search: term })); }; // Keep distance
-  const filterByDistance = (distance: number | null) => {
-      // When setting distance, clear country/population filters as they hide users
-      setFilters(prev => ({
-          ...prev,
-          distance: distance,
-          country: null,
-          population: { min: 0, max: Number.MAX_SAFE_INTEGER }
-      }));
- };
- // Filter functions (update local status, add age)
- const filterByLocalStatus = (statuses: string[] | null) => {
-     setFilters(prev => ({ ...prev, localStatus: statuses && statuses.length > 0 ? statuses : null }));
- };
- const filterByBudget = (budgets: number[] | null) => {
-     setFilters(prev => ({ ...prev, budget: budgets && budgets.length > 0 ? budgets : null }));
- };
-const filterByGender = (genders: string[] | null) => {
-    setFilters(prev => ({ ...prev, gender: genders && genders.length > 0 ? genders : null }));
-};
-const filterByAge = (min: number, max: number) => {
-    setFilters(prev => ({ ...prev, age: { min, max } }));
-};
-const filterByLanguages = (languages: string[] | null) => {
-    setFilters(prev => ({ ...prev, languages: languages && languages.length > 0 ? languages : null }));
-};
-const filterByCuisines = (cuisines: string[] | null) => {
-    setFilters(prev => ({ ...prev, cuisines: cuisines && cuisines.length > 0 ? cuisines : null }));
-};
+  // --- Debounced Filter Update Logic ---
 
- // Update resetFilters to include new filters
- const resetFilters = () => {
-     setFilters({
-         country: null,
-         population: { min: 0, max: Number.MAX_SAFE_INTEGER },
-         search: null,
-         distance: null,
-         localStatus: null, // Reset local status
-         budget: null,      // Reset budget
-         gender: null,      // Reset gender
-         age: { min: 18, max: 99 },
-         languages: null, // Reset languages
-         cuisines: null, // Reset cuisines
-     });
- };
+  // Debounced function to update a part of the filters state
+  // Use useCallback to ensure the debounced function itself is stable unless DEBOUNCE_DELAY changes
+  const debouncedSetFilters = useCallback(
+    debounce((newFilterValues: Partial<Filters>) => {
+      // Use functional update form of setFilters
+      setFilters(prev => ({ ...prev, ...newFilterValues }));
+    }, DEBOUNCE_DELAY),
+    [DEBOUNCE_DELAY] // Dependency array for useCallback
+  );
+
+  // --- Filter Update Functions (Using Debounced Setter) ---
+  // Wrap each filter function with useCallback to ensure stability for consumers of the hook
+  const filterByCountry = useCallback((country: string | null) => {
+    debouncedSetFilters({ country, distance: null }); // Reset distance on country change
+  }, [debouncedSetFilters]);
+
+  const filterByPopulation = useCallback((min: number, max: number) => {
+    debouncedSetFilters({ population: { min, max }, distance: null }); // Reset distance
+  }, [debouncedSetFilters]);
+
+  const filterBySearch = useCallback((term: string | null) => {
+    debouncedSetFilters({ search: term }); // Keep distance
+  }, [debouncedSetFilters]);
+
+  const filterByDistance = useCallback((distance: number | null) => {
+    // When setting distance, clear country/population filters as they hide users
+    debouncedSetFilters({
+      distance: distance,
+      country: null,
+      population: { min: 0, max: Number.MAX_SAFE_INTEGER }
+    });
+  }, [debouncedSetFilters]);
+
+  const filterByLocalStatus = useCallback((statuses: string[] | null) => {
+    debouncedSetFilters({ localStatus: statuses && statuses.length > 0 ? statuses : null });
+  }, [debouncedSetFilters]);
+
+  const filterByBudget = useCallback((budgets: number[] | null) => {
+    debouncedSetFilters({ budget: budgets && budgets.length > 0 ? budgets : null });
+  }, [debouncedSetFilters]);
+
+  const filterByGender = useCallback((genders: string[] | null) => {
+    debouncedSetFilters({ gender: genders && genders.length > 0 ? genders : null });
+  }, [debouncedSetFilters]);
+
+  const filterByAge = useCallback((min: number, max: number) => {
+    debouncedSetFilters({ age: { min, max } });
+  }, [debouncedSetFilters]);
+
+  const filterByLanguages = useCallback((languages: string[] | null) => {
+    debouncedSetFilters({ languages: languages && languages.length > 0 ? languages : null });
+  }, [debouncedSetFilters]);
+
+  const filterByCuisines = useCallback((cuisines: string[] | null) => {
+    debouncedSetFilters({ cuisines: cuisines && cuisines.length > 0 ? cuisines : null });
+  }, [debouncedSetFilters]);
+
+ // Reset filters should NOT be debounced - make it immediate
+ const resetFilters = useCallback(() => {
+      setFilters({ // Direct call to setFilters
+          country: null,
+          population: { min: 0, max: Number.MAX_SAFE_INTEGER },
+          search: null,
+          distance: null,
+          localStatus: null,
+          budget: null,
+          gender: null,
+          age: { min: 18, max: 99 },
+          languages: null,
+          cuisines: null,
+      });
+  }, []); // No dependencies needed if it only uses setFilters
 
   // --- City selection and zooming (no changes needed) ---
   const selectCity = (cityId: number | null) => {

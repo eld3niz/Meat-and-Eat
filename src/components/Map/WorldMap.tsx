@@ -476,7 +476,11 @@ const WorldMap = () => {
 
     popup.on('remove', () => {
       if (root) {
-        root.unmount();
+        // Defer unmounting to avoid synchronous unmount during render
+        const currentRoot = root; // Capture root in closure
+        setTimeout(() => {
+            currentRoot.unmount();
+        }, 0);
         root = null;
       }
       
