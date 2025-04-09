@@ -89,17 +89,11 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
         </div>
 
         {/* Action Buttons - Simplified Version */}
-        <div className="flex gap-2 mt-3">
+        <div className="flex justify-center mt-3"> {/* Changed to justify-center, removed gap */}
+          {/* Chat button removed */}
           <button
             type="button"
-            className="flex-1 bg-blue-500 text-white py-2 px-3 rounded-lg shadow text-xs font-medium flex items-center justify-center space-x-1"
-          >
-            <span>💬</span>
-            <span>Chat</span>
-          </button>
-          <button
-            type="button"
-            className="flex-1 bg-green-500 text-white py-2 px-3 rounded-lg shadow text-xs font-medium flex items-center justify-center space-x-1"
+            className="bg-green-500 text-white py-2 px-4 rounded-lg shadow text-sm font-medium flex items-center justify-center space-x-1" // Removed flex-1, adjusted padding/text size
           >
             <span>🤝</span>
             <span>Meet Me</span>
