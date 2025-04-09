@@ -21,7 +21,7 @@ const Header = () => {
   const animationEndTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userNameRef = useRef(userName); // Initialize ref at top level
   const [showMeetsPopup, setShowMeetsPopup] = useState(false); // State for Meets popup
-  const [activeMeetsTab, setActiveMeetsTab] = useState<'chats' | 'meetAndEat' | 'activity'>('chats'); // State for active tab in Meets popup, renamed 'upcoming'
+  const [activeMeetsTab, setActiveMeetsTab] = useState<'chats' | 'meetAndEat' | 'activity' | 'offers'>('chats'); // State for active tab in Meets popup, added 'offers'
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -382,34 +382,42 @@ const Header = () => {
 
             {/* Tab Slider */}
             <div className="mb-4 flex justify-center">
-              {/* Adjusted width for 3 tabs */}
-              <div className="relative w-72 bg-gray-200 rounded-full p-1">
+              {/* Adjusted width for 4 tabs */}
+              <div className="relative w-96 bg-gray-200 rounded-full p-1"> {/* Increased width */}
                 <div
-                  // Adjusted width and transform for 3 tabs
-                  className={`absolute top-1 left-1 w-[calc(33.33%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${
+                  // Adjusted width and transform for 4 tabs
+                  className={`absolute top-1 left-1 w-[calc(25%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${ // Adjusted width
                     activeMeetsTab === 'chats' ? 'translate-x-0' :
-                    activeMeetsTab === 'meetAndEat' ? 'translate-x-[100%]' : // Renamed
-                    'translate-x-[200%]'
+                    activeMeetsTab === 'meetAndEat' ? 'translate-x-[100%]' :
+                    activeMeetsTab === 'activity' ? 'translate-x-[200%]' :
+                    'translate-x-[300%]' // Added offers position
                   }`}
                 />
                 <div className="relative flex justify-around items-center h-8">
                   <button
                     onClick={() => setActiveMeetsTab('chats')}
-                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'chats' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                    className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'chats' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                     Chats
                   </button>
                   <button
-                    onClick={() => setActiveMeetsTab('meetAndEat')} // Renamed
-                    className={`w-1/3 px-1 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'meetAndEat' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`} // Renamed
+                    onClick={() => setActiveMeetsTab('meetAndEat')}
+                    className={`w-1/4 px-1 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'meetAndEat' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                     Meet and Eat
                   </button>
                   <button
                     onClick={() => setActiveMeetsTab('activity')}
-                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                    className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                     Activity
+                  </button>
+                  {/* Added Offers Tab Button */}
+                  <button
+                    onClick={() => setActiveMeetsTab('offers')}
+                    className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'offers' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                  >
+                    Offers
                   </button>
                 </div>
               </div>
@@ -430,7 +438,13 @@ const Header = () => {
               {activeMeetsTab === 'activity' && (
                 <div className="p-4 text-center text-gray-700">
                   Content for Activity will go here.
-                </div>
+               </div>
+             )}
+             {/* Added Offers Tab Content */}
+             {activeMeetsTab === 'offers' && (
+               <div className="p-4 text-center text-gray-700">
+                 Content for Offers will go here.
+               </div>
               )}
             </div>
           </div>
