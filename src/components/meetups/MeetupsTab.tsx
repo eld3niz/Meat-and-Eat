@@ -5,10 +5,10 @@ import AddMeetupButton from './AddMeetupButton';
 import MeetupList from './MeetupList';
 import MeetupFormPopup from './MeetupFormPopup';
 import { Meetup } from '@/types/meetup'; // Use path alias based on tsconfig.json
-import { languageOptions as allLanguageOptions } from '../../data/options'; // Import the full list
+import { languageOptions as allLanguageOptions, cuisineOptions } from '../../data/options'; // Import the full list + cuisineOptions
 import { useUserStatus } from '../../hooks/useUserStatus'; // Added for location
 import { calculateDistance } from '../../utils/geolocation'; // Added for distance calculation
-
+import TagInput from '../UI/TagInput'; // Import TagInput for cuisine filter
 // Placeholder data removed
 const placeholderMeetups = [
   {
@@ -54,6 +54,7 @@ const MeetupsTab: React.FC = () => {
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([]); // Changed from languageFilter
   const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState(false); // State for multi-select dropdown
   const languageDropdownRef = useRef<HTMLDivElement>(null); // Ref for click-outside detection
+  const [selectedCuisinesFilter, setSelectedCuisinesFilter] = useState<string[]>([]); // State for cuisine filter
   const [dateFilter, setDateFilter] = useState('');
   const [timeFilter, setTimeFilter] = useState('');
   // const [minDistanceFilter, setMinDistanceFilter] = useState('0'); // Removed min distance state
@@ -76,6 +77,7 @@ const MeetupsTab: React.FC = () => {
         .from('meetups')
         .select(`
           *,
+          cuisines,
           profiles (
             name,
             avatar_url,
@@ -89,26 +91,46 @@ const MeetupsTab: React.FC = () => {
         throw fetchError;
       }
 
-      // Filter out past meetups
-      const now = new Date();
-      const futureMeetups = (data as Meetup[] || []).filter(meetup => {
-        // Ensure meetup_time is valid before comparing
-        try {
-          return new Date(meetup.meetup_time) > now;
-        } catch (e) {
-          console.error("Invalid date format for meetup:", meetup);
-          return false; // Exclude meetups with invalid dates
-        }
-      });
+      // Safely process and type the fetched data
+      if (!data || !Array.isArray(data)) {
+        console.warn("Received invalid data from Supabase fetch.");
+        setMeetups([]); // Set to empty if data is invalid
+      } else {
+        // Map the raw data to the Meetup type, providing defaults
+        const transformedData: Meetup[] = data.map((item: any): Meetup => ({
+          id: item.id || '',
+          creator_id: item.creator_id || '',
+          title: item.title || (item.place_name || 'Meetup'), // Use place_name as fallback title if needed
+          description: item.description || null,
+          latitude: item.latitude || 0,
+          longitude: item.longitude || 0,
+          meetup_time: item.meetup_time || '',
+          created_at: item.created_at || '',
+          updated_at: item.updated_at || '',
+          cuisines: item.cuisines || [], // Default cuisines to empty array
+          profiles: item.profiles ? { // Safely handle nested profile
+            name: item.profiles.name || 'Unknown User',
+            avatar_url: item.profiles.avatar_url || null,
+            age: item.profiles.age, // Keep optional
+            languages: item.profiles.languages || [] // Default languages to empty array
+          } : null, // Set profile to null if it doesn't exist
+          place_name: item.place_name // Keep optional place_name if it exists
+        }));
 
-      // Assuming the fetched data structure now includes profiles with age and languages
-      // Ensure profiles is always an object, even if null from DB join
-      const meetupsWithProfiles = (futureMeetups as any[]).map(m => ({
-        ...m,
-        profiles: m.profiles || {} // Ensure profiles object exists
-      }));
+        // Filter out past meetups from the transformed data
+        const now = new Date();
+        const futureMeetups = transformedData.filter(meetup => {
+          try {
+            // Ensure meetup_time is valid before comparing
+            return new Date(meetup.meetup_time) > now;
+          } catch (e) {
+            console.error("Invalid date format for meetup:", meetup);
+            return false; // Exclude meetups with invalid dates
+          }
+        });
 
-      setMeetups(meetupsWithProfiles as Meetup[]); // Cast back to Meetup[] (needs type update)
+        setMeetups(futureMeetups);
+      }
 
 
     } catch (err: any) {
@@ -155,6 +177,7 @@ const MeetupsTab: React.FC = () => {
       const meetupDate = new Date(meetup.meetup_time);
       const profileAge = meetup.profiles?.age;
       const profileLanguages = meetup.profiles?.languages || []; // Default to empty array
+      const meetupCuisines = meetup.cuisines || []; // Get cuisines from the meetup itself
       const meetupLat = meetup.latitude;
       const meetupLon = meetup.longitude;
 
@@ -183,6 +206,20 @@ const MeetupsTab: React.FC = () => {
           );
 
           if (!hasAllLanguages) {
+              return false;
+          }
+      }
+
+      // Cuisine Filter (Meetup must have ALL selected cuisines)
+      if (selectedCuisinesFilter.length > 0) {
+          const meetupCuisinesLower = meetupCuisines.map((c: string) => c.toLowerCase());
+          const selectedCuisinesLower = selectedCuisinesFilter.map(c => c.toLowerCase());
+
+          const hasAllCuisines = selectedCuisinesLower.every(selCuisine =>
+              meetupCuisinesLower.includes(selCuisine)
+          );
+
+          if (!hasAllCuisines) {
               return false;
           }
       }
@@ -233,7 +270,7 @@ const MeetupsTab: React.FC = () => {
 
       return true; // Include meetup if all filters pass or are inactive
     });
-  }, [meetups, minAgeFilter, maxAgeFilter, selectedLanguages, dateFilter, timeFilter, maxDistanceFilter, currentLocation]); // Updated dependencies
+  }, [meetups, minAgeFilter, maxAgeFilter, selectedLanguages, selectedCuisinesFilter, dateFilter, timeFilter, maxDistanceFilter, currentLocation]); // Added selectedCuisinesFilter dependency
 
   // --- Pagination Logic ---
   const meetupsToShow = useMemo(() => {
@@ -245,7 +282,8 @@ const MeetupsTab: React.FC = () => {
   };
 
   // Handle adding a meetup via the form popup
-  const handleAddMeetup = async (newMeetupData: Omit<Meetup, 'id' | 'created_at' | 'updated_at' | 'creator_id' | 'profiles'>) => {
+  // Update the type to expect 'cuisines' in the data from the form
+  const handleAddMeetup = async (newMeetupData: Omit<Meetup, 'id' | 'created_at' | 'updated_at' | 'creator_id' | 'profiles'> & { cuisines?: string[] }) => {
     if (!supabase || !user) {
       setError("User not logged in or Supabase client not available.");
       return;
@@ -332,7 +370,8 @@ const MeetupsTab: React.FC = () => {
       {/* Filter Section */}
       <div className="my-4 p-4 border rounded shadow-sm bg-gray-50 w-full max-w-4xl"> {/* Filter section container */}
         <h3 className="text-lg font-semibold mb-3">Filter Meetups</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-end"> {/* Adjusted grid columns */}
+        {/* Increased columns for new filter */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
 
           {/* Age Filter (Min/Max Dropdowns) */}
           <div className="flex gap-2"> {/* Container for Min/Max Age */}
@@ -408,7 +447,19 @@ const MeetupsTab: React.FC = () => {
              )}
            </div>
 
-          {/* Date Filter */}
+          {/* Cuisine Filter (TagInput) */}
+          <div>
+            <TagInput
+              label="Cuisines"
+              id="cuisine-filter"
+              options={cuisineOptions}
+              selectedItems={selectedCuisinesFilter}
+              onChange={(newSelection) => setSelectedCuisinesFilter(newSelection)}
+              placeholder="Filter by cuisines"
+            />
+          </div>
+
+         {/* Date Filter */}
           <div>
             <label htmlFor="dateFilter" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
             <input

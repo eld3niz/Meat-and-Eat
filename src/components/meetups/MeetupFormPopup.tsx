@@ -4,6 +4,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L, { LatLngExpression, LatLng } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import TagInput from '../UI/TagInput'; // Import TagInput
+import { cuisineOptions } from '../../data/options'; // Import cuisine options
 
 // Fix default icon issue with Leaflet and bundlers
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -21,7 +23,7 @@ L.Icon.Default.mergeOptions({
 interface MeetupFormPopupProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (formData: any) => void; // Define a more specific type later
+  onSubmit: (formData: any) => void; // Define a more specific type later - will include cuisines now
 }
 
 // Placeholder type for Overpass data
@@ -67,6 +69,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
   const [meetupDateTime, setMeetupDateTime] = useState<Date | null>(new Date());
   const [description, setDescription] = useState('');
   const [selectedLocation, setSelectedLocation] = useState<LatLng | null>(null); // Stores LatLng of selected marker (custom or Overpass)
+  const [selectedCuisines, setSelectedCuisines] = useState<string[]>([]); // State for selected cuisines
   const [userLocation, setUserLocation] = useState<LatLng | null>(null); // User's current location
   const [mapCenter, setMapCenter] = useState<LatLngExpression>([51.505, -0.09]); // Default center
   const [overpassPlaces, setOverpassPlaces] = useState<OverpassPlace[]>([]); // Placeholder for fetched places
@@ -103,6 +106,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
         setMeetupDateTime(new Date());
         setDescription('');
         setSelectedLocation(null);
+        setSelectedCuisines([]); // Reset cuisines
         setUserLocation(null);
         setMapCenter([51.505, -0.09]);
         setOverpassPlaces([]);
@@ -194,6 +198,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
       longitude: selectedLocation.lng,
       meetup_time: meetupDateTime.toISOString(),
       description: description,
+      cuisines: selectedCuisines, // Add selected cuisines
       // place_name removed as it's not in the DB schema
     };
     onSubmit(formData);
@@ -212,6 +217,17 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
     if (e.target === e.currentTarget) {
       onClose();
     }
+  };
+
+  // Handler for TagInput changes, enforcing max 3 selections
+  const handleCuisineChange = (newSelection: string[]) => {
+      if (newSelection.length <= 3) {
+          setSelectedCuisines(newSelection);
+      } else {
+          // Optionally provide feedback to the user that the limit is reached
+          console.warn("Maximum of 3 cuisines allowed.");
+          // Or simply don't update the state if limit is exceeded
+      }
   };
 
   if (!isOpen) return null;
@@ -319,6 +335,22 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
                 />
                 {selectedLocation?.alt !== undefined && <p className="text-xs text-gray-500 mt-1">Name is set from the selected map marker.</p>}
                 {selectedLocation?.alt === undefined && <p className="text-xs text-gray-500 mt-1">Required if placing a custom marker.</p>}
+              </div>
+
+              {/* Cuisine Selection */}
+              <div className="mb-6">
+                <TagInput
+                  label="Cuisines (Optional, max 3)"
+                  id="meetup-cuisines"
+                  options={cuisineOptions}
+                  selectedItems={selectedCuisines}
+                  onChange={handleCuisineChange}
+                  placeholder="Select up to 3 cuisines"
+                  // maxSelection={3} // Assuming TagInput doesn't have this, handled in handleCuisineChange
+                />
+                {selectedCuisines.length >= 3 && (
+                   <p className="text-xs text-red-500 mt-1">Maximum of 3 cuisines selected.</p>
+                )}
               </div>
 
               <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">

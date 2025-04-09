@@ -73,6 +73,10 @@ const MeetupListItem: React.FC<MeetupListItemProps> = ({ meetup, isCreator, onDe
                 {/* Place Column */}
                 {/* Use title from meetup data, provide fallback if needed */}
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{meetup.title || 'Untitled Meetup'}</td>
+                {/* Cuisine Column */}
+                <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">
+                   {meetup.cuisines && meetup.cuisines.length > 0 ? meetup.cuisines.join(', ') : 'N/A'}
+                </td>
                 {/* Date Column */}
                 <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500">{formattedDate}</td>
                 {/* Time Column */}
