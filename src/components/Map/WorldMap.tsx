@@ -109,6 +109,7 @@ const WorldMap = () => {
     filterByLanguages,
     filterByCuisines,
     filterByBudget,
+    filterByLocalStatus,     // <-- Destructure the existing local status filter function
     // ---
     filters,                 // <-- Get filters state object
     cities                   // <-- Get original cities array
@@ -717,6 +718,8 @@ const WorldMap = () => {
           currentLanguagesFilter={filters.languages}
           currentCuisinesFilter={filters.cuisines}
           currentBudgetFilter={filters.budget}
+          onTravelStatusFilter={filterByLocalStatus} // Pass the function down
+          currentTravelStatusFilter={filters.localStatus} // Pass the current state down
           // ---
           onResetFilters={handleResetFilters}
           loading={mapDataLoading || loadingOtherUsers}

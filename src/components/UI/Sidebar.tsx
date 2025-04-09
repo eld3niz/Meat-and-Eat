@@ -26,6 +26,8 @@ interface SidebarProps {
   currentLanguagesFilter: string[] | null;
   currentCuisinesFilter: string[] | null;
   currentBudgetFilter: number[] | null;
+  onTravelStatusFilter: (statuses: string[] | null) => void; // New prop for travel status
+  currentTravelStatusFilter: string[] | null; // New prop for current travel status filter
   // --- End User Filter Props ---
   // ---
   onResetFilters: () => void;
@@ -59,6 +61,9 @@ const Sidebar = ({
   currentLanguagesFilter,
   currentCuisinesFilter,
   currentBudgetFilter,
+  // Destructure new travel status props
+  onTravelStatusFilter,
+  currentTravelStatusFilter,
   // ---
   onResetFilters,
   loading, // Consider passing loadingCities and loadingUsers separately if needed
@@ -76,6 +81,7 @@ const Sidebar = ({
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(currentLanguagesFilter ?? []);
   const [selectedCuisines, setSelectedCuisines] = useState<string[]>(currentCuisinesFilter ?? []);
   const [selectedBudgets, setSelectedBudgets] = useState<number[]>(currentBudgetFilter ?? []);
+  const [selectedTravelStatuses, setSelectedTravelStatuses] = useState<string[]>(currentTravelStatusFilter ?? []); // New state for travel status
   const [hoveredBudgetLevel, setHoveredBudgetLevel] = useState<number | null>(null); // For budget hover effect
 
   // Default distance is 50km (representing "All")
@@ -113,6 +119,7 @@ const Sidebar = ({
     setSelectedLanguages([]);
     setSelectedCuisines([]);
     setSelectedBudgets([]);
+    setSelectedTravelStatuses([]); // Reset travel status filter
   }, [onResetFilters]);
 
   // Removed useEffect that reset distanceRange locally.
@@ -139,6 +146,10 @@ const Sidebar = ({
   useEffect(() => {
     setSelectedBudgets(currentBudgetFilter ?? []);
   }, [currentBudgetFilter]);
+
+  useEffect(() => {
+      setSelectedTravelStatuses(currentTravelStatusFilter ?? []);
+  }, [currentTravelStatusFilter]);
 
 
   // Slider color depends only on whether the filter is enabled (user position available)
@@ -218,9 +229,18 @@ const Sidebar = ({
     onBudgetFilter(newSelection.length > 0 ? newSelection : null);
   };
 
+  const handleTravelStatusChange = (status: string) => {
+      const newSelection = selectedTravelStatuses.includes(status)
+        ? selectedTravelStatuses.filter(s => s !== status)
+        : [...selectedTravelStatuses, status];
+      setSelectedTravelStatuses(newSelection);
+      onTravelStatusFilter(newSelection.length > 0 ? newSelection : null);
+  };
+
   // --- Filter Options ---
   // TODO: Potentially fetch languages/cuisines dynamically or use a more comprehensive list
   const genderOptions = ["Male", "Female", "Divers"];
+  const travelStatusOptions = ['Local', 'Traveller']; // 'Other' is implicitly included when 'Traveller' is selected or no filter is active
   // Use imported options
   const languageOptions = allLanguageOptions;
   const cuisineOptions = allCuisineOptions;
@@ -367,6 +387,19 @@ const Sidebar = ({
                          ))}
                      </div>
                  </div>
+
+                {/* Travel Status Filter */}
+                <div className="mb-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Travel Status</label>
+                    <div className="flex flex-wrap gap-1.5">
+                        {travelStatusOptions.map(status => (
+                            <button key={status} type="button" onClick={() => handleTravelStatusChange(status)}
+                                className={getButtonClass(selectedTravelStatuses.includes(status), 'purple')}> {/* Using purple for distinction */}
+                                {status}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                  {/* Budget Filter */}
                  <div className="mb-3">
