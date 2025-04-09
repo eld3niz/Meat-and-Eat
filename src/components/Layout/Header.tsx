@@ -405,20 +405,20 @@ const Header = () => {
                     onClick={() => setActiveMeetsTab('meetAndEat')}
                     className={`w-1/4 px-1 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'meetAndEat' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
-                    Meet and Eat
+                    Requests
                   </button>
                   <button
                     onClick={() => setActiveMeetsTab('activity')}
                     className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
-                    Activity
+                    History
                   </button>
                   {/* Added Offers Tab Button */}
                   <button
                     onClick={() => setActiveMeetsTab('offers')}
                     className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'offers' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
-                    Offers
+                    Events
                   </button>
                 </div>
               </div>
