@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import UserProfile from '../Auth/UserProfile';
 import supabase from '../../utils/supabaseClient';
 import MyOffersTab from '../meetups/MyOffersTab'; // Import the new tab component
+import ChatLayout from '../chat/ChatLayout'; // Import the ChatLayout component
 
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
@@ -427,9 +428,7 @@ const Header = () => {
             {/* Tab Content Area */}
             <div className="overflow-y-auto h-[calc(80vh-120px)]"> {/* Adjust height as needed */}
               {activeMeetsTab === 'chats' && (
-                <div className="p-4 text-center text-gray-700">
-                  Content for Chats will go here.
-                </div>
+                <ChatLayout /> // Render the ChatLayout component
               )}
               {activeMeetsTab === 'meetAndEat' && ( // Renamed
                 <div className="p-4 text-center text-gray-700">
