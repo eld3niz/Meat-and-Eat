@@ -21,7 +21,10 @@ const AppContent = () => {
   const { user, locationPermissionStatus, loading: authLoading } = useAuth(); // Get userCoordinates and isFetchingLocation
   const [isAppLoading, setIsAppLoading] = useState(true); // Renamed to avoid conflict
   const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
-  const [activeMainTab, setActiveMainTab] = useState('users'); // 'users' or 'meetups'
+  // Initialize state from localStorage or default to 'users'
+  const [activeMainTab, setActiveMainTab] = useState(() => {
+    return localStorage.getItem('activeMainTab') || 'users';
+  });
   // Call useMapData here to get data needed for UserTable
   useMapData(); // Call hook, but don't destructure unused variables
 
@@ -105,13 +108,19 @@ const AppContent = () => {
               {/* Button container */}
               <div className="relative flex justify-around items-center h-8">
                 <button
-                  onClick={() => setActiveMainTab('users')}
+                  onClick={() => {
+                    setActiveMainTab('users');
+                    localStorage.setItem('activeMainTab', 'users');
+                  }}
                   className={`w-1/2 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMainTab === 'users' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                 >
                   Users
                 </button>
                 <button
-                  onClick={() => setActiveMainTab('meetups')}
+                  onClick={() => {
+                    setActiveMainTab('meetups');
+                    localStorage.setItem('activeMainTab', 'meetups');
+                  }}
                   className={`w-1/2 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMainTab === 'meetups' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                 >
                   Meetups
