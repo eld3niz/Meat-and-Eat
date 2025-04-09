@@ -20,6 +20,7 @@ const AppContent = () => {
   const { user, locationPermissionStatus, loading: authLoading } = useAuth(); // Get userCoordinates and isFetchingLocation
   const [isAppLoading, setIsAppLoading] = useState(true); // Renamed to avoid conflict
   const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
+  const [activeMainTab, setActiveMainTab] = useState('users'); // 'users' or 'meetups'
   // Call useMapData here to get data needed for UserTable
   useMapData(); // Call hook, but don't destructure unused variables
 
@@ -89,16 +90,41 @@ const AppContent = () => {
       {/* Add relative positioning to make this the context for the modal */}
       {/* Make content area a flex column and handle overflow */}
       <div className="content flex-grow relative flex flex-col overflow-hidden">
-        {/* Page rendering logic - Map visibility handled inside WorldMap */}
+        {/* Render tabs only on map page for logged-in users */}
+        {currentPage === 'map' && user && (
+          <div className="flex border-b border-gray-300 px-4 pt-2">
+            <button
+              className={`py-2 px-4 text-sm font-medium ${activeMainTab === 'users' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveMainTab('users')}
+            >
+              Users
+            </button>
+            <button
+              className={`py-2 px-4 text-sm font-medium ${activeMainTab === 'meetups' ? 'border-b-2 border-blue-600 text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
+              onClick={() => setActiveMainTab('meetups')}
+            >
+              Meetups
+            </button>
+          </div>
+        )}
+
+        {/* Page rendering logic */}
         {currentPage === 'about' ? (
           <AboutPage />
         ) : currentPage === 'datenschutz' ? (
           <DatenschutzPage />
         ) : currentPage === 'impressum' ? (
           <ImpressumPage />
-        ) : ( // Handle map page rendering
-          // Render WorldMap if logged in, otherwise render LoginPrompt
-          user ? <WorldMap /> : <LoginPrompt />
+        ) : ( // Handle map page rendering (Users/Meetups tabs or LoginPrompt)
+          user ? (
+            activeMainTab === 'users' ? (
+              <WorldMap />
+            ) : (
+              <div className="p-4">Meetups content will go here</div> // Placeholder for Meetups
+            )
+          ) : (
+            <LoginPrompt /> // Show login prompt if not logged in
+          )
         )}
         {/* Removed extra closing brace */}
         {/* Conditionally render the location modal INSIDE the content div */}
