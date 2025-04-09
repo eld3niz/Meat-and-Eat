@@ -3,6 +3,7 @@ import { useModal } from '../../contexts/ModalContext';
 import { useAuth } from '../../context/AuthContext';
 import UserProfile from '../Auth/UserProfile';
 import supabase from '../../utils/supabaseClient';
+import MyOffersTab from '../meetups/MyOffersTab'; // Import the new tab component
 
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
@@ -442,10 +443,9 @@ const Header = () => {
              )}
              {/* Added Offers Tab Content */}
              {activeMeetsTab === 'offers' && (
-               <div className="p-4 text-center text-gray-700">
-                 Content for Offers will go here.
-               </div>
-              )}
+               // Render the MyOffersTab component directly
+               <MyOffersTab />
+             )}
             </div>
           </div>
         </div>
