@@ -185,12 +185,16 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
   const handleConfirmSubmit = () => {
      if (!selectedLocation || !meetupDateTime) return; // Should not happen due to previous check
 
+    // Ensure placeName has a value (form validation should handle this, but add fallback)
+    const meetupTitle = placeName || `Meetup @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`;
+
     const formData = {
-      place_name: placeName || `Custom Location @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`, // Default name for custom marker if empty
+      title: meetupTitle, // Use the 'title' column name from the DB schema
       latitude: selectedLocation.lat,
       longitude: selectedLocation.lng,
-      meetup_datetime: meetupDateTime.toISOString(),
+      meetup_time: meetupDateTime.toISOString(),
       description: description,
+      // place_name removed as it's not in the DB schema
     };
     onSubmit(formData);
     setShowConfirmation(false); // Close confirmation
@@ -320,12 +324,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
               <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="relative"> {/* Added relative positioning */}
                     <label htmlFor="meetupDate" className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
-                    {/* Add CSS to ensure date picker shows above map */}
-                    <style jsx>{`
-                      .react-datepicker-popper {
-                        z-index: 1000 !important;
-                      }
-                    `}</style>
+                    {/* Styling for date picker z-index can be handled via popperClassName and CSS if needed */}
                     <DatePicker
                       id="meetupDate"
                       selected={meetupDateTime}
@@ -335,18 +334,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
                       minDate={new Date()}
                       required
                       className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                      popperClassName="date-picker-popper"
-                      popperProps={{
-                        strategy: "fixed",
-                        modifiers: [
-                          {
-                            name: "zIndex",
-                            options: {
-                              zIndex: 1000
-                            }
-                          }
-                        ]
-                      }}
+                      popperClassName="date-picker-popper z-[1000]" // Add Tailwind z-index class directly if needed
                     />
                 </div>
               </div>

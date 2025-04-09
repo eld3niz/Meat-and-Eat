@@ -272,3 +272,60 @@ WHERE gender IS NULL; -- Only update rows where gender hasn't been set yet (good
 -- ==============================================
 -- Gender Field Update [2025-04-07] - END
 -- ==============================================
+
+
+-- ==============================================
+-- Meetups Table & Policies [2025-04-09] - START
+-- ==============================================
+
+-- Create meetups table
+CREATE TABLE public.meetups (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    creator_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    title TEXT NOT NULL CHECK (char_length(title) > 0 AND char_length(title) <= 100),
+    description TEXT CHECK (char_length(description) <= 500),
+    latitude DOUBLE PRECISION NOT NULL,
+    longitude DOUBLE PRECISION NOT NULL,
+    meetup_time TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL
+);
+
+-- Add index for faster querying by creator
+CREATE INDEX idx_meetups_creator_id ON public.meetups(creator_id);
+
+-- Add index for potential geospatial queries (optional, requires PostGIS)
+CREATE INDEX idx_meetups_location ON public.meetups USING gist (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326));
+
+-- Enable Row Level Security
+ALTER TABLE public.meetups ENABLE ROW LEVEL SECURITY;
+
+-- Policies for meetups table
+-- Allow authenticated users to view all meetups
+CREATE POLICY "Allow authenticated read access to meetups"
+ON public.meetups
+FOR SELECT
+USING (auth.role() = 'authenticated');
+
+-- Allow authenticated users to insert their own meetups
+CREATE POLICY "Allow authenticated users to insert own meetup"
+ON public.meetups
+FOR INSERT
+WITH CHECK (auth.uid() = creator_id);
+
+-- Allow creators to update their own meetups
+CREATE POLICY "Allow creator to update own meetup"
+ON public.meetups
+FOR UPDATE
+USING (auth.uid() = creator_id)
+WITH CHECK (auth.uid() = creator_id); -- Optional: Redundant check for clarity
+
+-- Allow creators to delete their own meetups
+CREATE POLICY "Allow creator to delete own meetup"
+ON public.meetups
+FOR DELETE
+USING (auth.uid() = creator_id);
+
+-- ==============================================
+-- Meetups Table & Policies [2025-04-09] - END
+-- ==============================================
