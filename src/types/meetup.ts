@@ -2,6 +2,8 @@
 interface MeetupCreatorProfile {
   name: string;
   avatar_url: string | null;
+  age?: number; // Added optional age
+  languages?: string[]; // Corrected type to array of strings
 }
 
 // Define the main Meetup type based on the Supabase table and the fetch query
