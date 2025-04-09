@@ -14,6 +14,7 @@ import LocationPermissionModal from './components/UI/LocationPermissionModal'; /
 // Import LoginPrompt
 import LoginPrompt from './components/UI/LoginPrompt'; // Added import
 import { useMapData } from './hooks/useMapData'; // Import useMapData hook
+import MeetupsTab from './components/meetups/MeetupsTab'; // Import the new Meetups tab component
 
 // Inner component to access AuthContext
 const AppContent = () => {
@@ -132,7 +133,7 @@ const AppContent = () => {
             activeMainTab === 'users' ? (
               <WorldMap />
             ) : (
-              <div className="p-4">Meetups content will go here</div> // Placeholder for Meetups
+              <MeetupsTab /> // Render the Meetups tab content
             )
           ) : (
             <LoginPrompt /> // Show login prompt if not logged in
