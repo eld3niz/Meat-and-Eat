@@ -550,18 +550,11 @@ const UserProfile = () => {
 
           <hr className="border-gray-200" />
 
-          {/* Buttons Section */}
-          <div className="flex space-x-3 pt-2">
+          {/* Buttons Section - Modified: Removed Chat button, centered Meet Me button */}
+          <div className="flex justify-center pt-2">
             <button
               type="button"
-              className="flex-1 bg-blue-500 text-white py-2 px-4 rounded-lg shadow hover:bg-blue-600 transition duration-200 text-sm font-medium flex items-center justify-center space-x-1"
-            >
-              <span>💬</span>
-              <span>Chat</span>
-            </button>
-            <button
-              type="button"
-              className="flex-1 bg-green-500 text-white py-2 px-4 rounded-lg shadow hover:bg-green-600 transition duration-200 text-sm font-medium flex items-center justify-center space-x-1"
+              className="bg-green-500 text-white py-2 px-4 rounded-lg shadow hover:bg-green-600 transition duration-200 text-sm font-medium flex items-center justify-center space-x-1"
             >
                <span>🤝</span>
                <span>Meet Me</span>
