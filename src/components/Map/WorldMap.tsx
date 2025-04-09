@@ -25,7 +25,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../contexts/ModalContext';
 import Button from '../UI/Button';
 import ImageModal from '../UI/ImageModal'; // Add this import
-
+import SimpleMessagePopup from '../UI/SimpleMessagePopup'; // Import the popup component
 // --- Helper Components (No changes needed) ---
 // Removed MapCenterController as flyTo is now handled directly in event handlers
 const MapBoundsController = () => {
@@ -127,6 +127,7 @@ const WorldMap = () => {
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false); // Add state for image modal
   const [currentModalImage, setCurrentModalImage] = useState<string | null>(null); // Add state for current modal image
+  const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState<boolean>(false); // State for the "Hello World" popup
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -137,6 +138,11 @@ const WorldMap = () => {
     userInfoPopupRef.current = null;
     setOpenPopupData(null); // Clear open popup data state
   }, []); // No dependencies needed
+
+  // Handler to show the "Hello World" popup
+  const handleShowMeetMePopup = useCallback(() => {
+    setIsMeetMePopupOpen(true);
+  }, []);
 
   // --- Callbacks (Defined after state, before early returns) ---
   const handleDistanceFilter = useCallback((distance: number | null) => {
@@ -397,24 +403,35 @@ const WorldMap = () => {
               // Set popup content
               popup.setContent(profileHtml);
               
-              // Improved avatar click handler implementation
+              // Attach click listeners manually after content is set
               setTimeout(() => {
                 if (popup.isOpen()) {
-                  const avatarElement = popup.getElement()?.querySelector('.avatar-upload-container') as HTMLElement | null; // Cast to HTMLElement
+                  const popupElement = popup.getElement();
+                  if (!popupElement) return;
+
+                  // Attach Avatar click listener
+                  const avatarElement = popupElement.querySelector('.avatar-upload-container') as HTMLElement | null;
                   if (avatarElement && enhancedProfile.avatar_url) {
-                    // Type guard to ensure avatarElement is not null and has onclick/style
-                    if (avatarElement) {
-                        avatarElement.onclick = (e: MouseEvent) => { // Add type for event
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setCurrentModalImage(enhancedProfile.avatar_url);
-                            setIsImageModalOpen(true);
-                        };
-                        avatarElement.style.cursor = 'pointer';
-                    }
+                    avatarElement.onclick = (e: MouseEvent) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setCurrentModalImage(enhancedProfile.avatar_url);
+                      setIsImageModalOpen(true);
+                    };
+                    avatarElement.style.cursor = 'pointer';
+                  }
+
+                  // Attach Meet Me button click listener
+                  const meetMeButton = popupElement.querySelector(`#meet-me-button-${profileData.id}`) as HTMLElement | null;
+                  if (meetMeButton) {
+                    meetMeButton.onclick = (e: MouseEvent) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleShowMeetMePopup(); // Call the WorldMap handler
+                    };
                   }
                 }
-              }, 100);
+              }, 100); // Timeout ensures DOM is ready
             } else {
               popup.setContent('<div class="p-3 text-center text-red-600 text-sm">Profile not found.</div>');
             }
@@ -806,10 +823,18 @@ const WorldMap = () => {
           </div>
         </div>
       </div>
+      {/* Render Image Modal */}
       <ImageModal
         isOpen={isImageModalOpen}
         onClose={() => setIsImageModalOpen(false)}
         imageUrl={currentModalImage || ''}
+      />
+      {/* Render Meet Me Popup (conditionally) */}
+      <SimpleMessagePopup
+        isOpen={isMeetMePopupOpen}
+        onClose={() => setIsMeetMePopupOpen(false)}
+        title="Meet Request"
+        message="Hello World"
       />
     </>
   );

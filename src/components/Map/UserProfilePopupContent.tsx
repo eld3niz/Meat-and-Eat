@@ -1,6 +1,6 @@
-import React, { useState } from 'react'; // Import useState
+import React from 'react'; // Remove useState import
 import AvatarUpload from '../Auth/AvatarUpload';
-import SimpleMessagePopup from '../UI/SimpleMessagePopup'; // Import the new popup
+// SimpleMessagePopup is no longer rendered here
 
 // Helper functions from original component
 const formatList = (list: string[] | null): string => {
@@ -17,22 +17,18 @@ const getBudgetEmoji = (budget: string | number | null): string => { // Allow nu
 };
 
 interface UserProfilePopupContentProps {
-  profile: any;
-  onAvatarClick?: () => void; // Add prop for avatar click
+  profile: any; // Keep profile prop
+  onAvatarClick?: () => void; // Keep avatar click prop
+  // onMeetMeClick will be handled manually in WorldMap, so no prop needed here
 }
 
+// Remove local state and handler
 const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profile, onAvatarClick }) => {
-  const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState(false); // State for the popup
-
-  const handleMeetMeClick = (e: React.MouseEvent<HTMLButtonElement>) => { // Add event parameter
-    e.stopPropagation(); // Stop event propagation here
-    setIsMeetMePopupOpen(true);
-  };
 
   return (
     <> {/* Start React Fragment */}
-    {/* Add stopPropagation to prevent Leaflet from interfering with clicks inside */}
-    <div className="bg-gray-50 p-3 w-full max-h-[70vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+    {/* Removed stopPropagation from container; keep it only in button handler */}
+    <div className="bg-gray-50 p-3 w-full max-h-[70vh] overflow-y-auto">
       <div className="flex flex-col h-full">
         {/* Top Section: Avatar & Basic Info */}
         <div className="flex flex-col items-center border-b pb-2">
@@ -103,8 +99,9 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
           {/* Chat button removed */}
           <button
             type="button"
-            onClick={handleMeetMeClick} // Add onClick handler
-            className="bg-green-500 text-white py-2 px-4 rounded-lg shadow text-sm font-medium flex items-center justify-center space-x-1 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500" // Added hover/focus styles
+            // Remove React onClick handler
+            id={`meet-me-button-${profile.id}`} // Add unique ID based on profile ID
+            className="bg-green-500 text-white py-2 px-4 rounded-lg shadow text-sm font-medium flex items-center justify-center space-x-1 hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500"
           >
             <span>🤝</span>
             <span>Meet Me</span>
@@ -113,13 +110,7 @@ const UserProfilePopupContent: React.FC<UserProfilePopupContentProps> = ({ profi
       </div> {/* Closes inner div from line 34 */}
     </div> {/* Closes main div from line 33 */}
 
-    {/* Render the SimpleMessagePopup */}
-    <SimpleMessagePopup
-      isOpen={isMeetMePopupOpen}
-      onClose={() => setIsMeetMePopupOpen(false)}
-      title="Meet Request"
-      message="Hello World"
-    />
+    {/* SimpleMessagePopup is now rendered in WorldMap */}
     </> // End React Fragment
   );
 };
