@@ -29,6 +29,7 @@ interface SimpleMessagePopupProps {
   onSubmit: (formData: any) => void; // Required for form submission
   userId: string; // Required for form submission logic
   title?: string; // Optional title, defaults to "Add New Meeting"
+  userName?: string | null; // Optional: Name of the user being invited
 }
 
 // --- Helper Components from MeetupFormPopup ---
@@ -74,6 +75,7 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   onSubmit, // Added prop
   userId,   // Added prop
   title = "Add New Meeting", // Changed default title
+  userName, // Added prop
 }) => {
   const popupRef = useRef<HTMLDivElement>(null);
 
@@ -225,7 +227,9 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
         </button>
 
         {/* Title (Original, uses prop or default) */}
-        <h2 className="text-xl font-semibold mb-4">{title}</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          {userName ? `Propose Meetup with ${userName}` : title}
+        </h2>
 
         {/* --- Content Area Replaced with Form/Confirmation --- */}
         {showConfirmation ? (

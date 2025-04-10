@@ -127,7 +127,8 @@ const WorldMap = () => {
   const [openPopupData, setOpenPopupData] = useState<{ type: 'user', user: MapUser, ref: React.MutableRefObject<Popup | null> } | { type: 'aggregate', items: (City | MapUser)[], center: L.LatLng, ref: React.MutableRefObject<Popup | null> } | null>(null); // Track open non-city popup
   const [isImageModalOpen, setIsImageModalOpen] = useState<boolean>(false); // Add state for image modal
   const [currentModalImage, setCurrentModalImage] = useState<string | null>(null); // Add state for current modal image
-  const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState<boolean>(false); // State for the "Hello World" popup
+  const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState<boolean>(false); // State for the meetup proposal popup
+  const [meetupTargetUser, setMeetupTargetUser] = useState<{ id: string; name: string | null } | null>(null); // State to hold target user info for meetup popup
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -427,7 +428,10 @@ const WorldMap = () => {
                     meetMeButton.onclick = (e: MouseEvent) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      handleShowMeetMePopup(); // Call the WorldMap handler
+                      // Store the target user's info before opening the popup
+                      setMeetupTargetUser({ id: profileData.id, name: profileData.name });
+                      // Now open the popup
+                      handleShowMeetMePopup(); // This just sets isMeetMePopupOpen = true
                     };
                   }
                 }
@@ -830,12 +834,25 @@ const WorldMap = () => {
         imageUrl={currentModalImage || ''}
       />
       {/* Render Meet Me Popup (conditionally) */}
-      <SimpleMessagePopup
-        isOpen={isMeetMePopupOpen}
-        onClose={() => setIsMeetMePopupOpen(false)}
-        title="Meet Request"
-        message="Hello World"
-      />
+      {/* Meetup Proposal Popup (SimpleMessagePopup) */}
+      {isMeetMePopupOpen && meetupTargetUser && ( // Render only if open and target user is set
+        <SimpleMessagePopup
+          isOpen={isMeetMePopupOpen}
+          onClose={() => {
+            setIsMeetMePopupOpen(false);
+            setMeetupTargetUser(null); // Clear target user on close
+          }}
+          // Title is now handled internally based on userName prop
+          onSubmit={(formData) => {
+            console.log("Meetup form submitted from map:", formData, "Target User:", meetupTargetUser.id);
+            // Add actual submission logic here
+            setIsMeetMePopupOpen(false); // Close after submit attempt
+            setMeetupTargetUser(null);
+          }}
+          userId={meetupTargetUser.id} // Pass the target user's ID
+          userName={meetupTargetUser.name} // Pass the target user's name
+        />
+      )}
     </>
   );
 };

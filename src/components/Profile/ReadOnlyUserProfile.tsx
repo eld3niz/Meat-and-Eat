@@ -224,10 +224,11 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
       <SimpleMessagePopup
         isOpen={isMeetMePopupOpen}
         onClose={() => setIsMeetMePopupOpen(false)}
-        title="Add New Meeting" // Title now defaults, but can be overridden if needed
+        // title prop removed to use default or userName-based title from SimpleMessagePopup
         // message prop removed
         onSubmit={(formData) => console.log("Meetup form submitted from profile (placeholder):", formData)} // Placeholder onSubmit
         userId={userId} // Pass the userId from ReadOnlyUserProfile props
+        userName={profile?.name} // Pass the fetched profile name
       />,
       document.getElementById('popup-root')! // Assert non-null as we added it
     )}
