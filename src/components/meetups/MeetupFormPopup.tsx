@@ -355,7 +355,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
               </div>
 
               <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="relative"> {/* Added relative positioning */}
+                <div className="relative md:col-span-2"> {/* Make date picker span both columns on medium screens */}
                     <label htmlFor="meetupDate" className="block text-sm font-medium text-gray-700 mb-1">Date & Time</label>
                     {/* Styling for date picker z-index can be handled via popperClassName and CSS if needed */}
                     <DatePicker
