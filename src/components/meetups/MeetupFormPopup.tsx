@@ -231,11 +231,11 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
       }
   };
 
-  if (!isOpen) return null;
+if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4" onClick={handleOutsideClick}>
-      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative" ref={popupRef}>
+      <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative overscroll-contain" ref={popupRef}>
         {/* X button in top right corner */}
         <button 
           onClick={onClose}

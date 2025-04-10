@@ -212,7 +212,7 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
     >
       {/* Adjusted container class for form size */}
       <div
-        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative"
+        className="bg-white p-6 rounded-lg shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto relative overscroll-contain"
         ref={popupRef}
       >
         {/* Close Button (Original) */}
