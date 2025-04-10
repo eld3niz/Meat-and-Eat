@@ -166,6 +166,57 @@ $$;
 COMMENT ON FUNCTION public.get_snapped_map_users() IS 'Returns user data for map display, snapping locations to a grid for privacy. Uses SECURITY DEFINER to read necessary data across RLS.';
 
 
+-- Function to get an existing chat ID or create a new one
+CREATE OR REPLACE FUNCTION public.get_or_create_chat(user1_id UUID, user2_id UUID)
+RETURNS UUID -- Return the chat ID
+LANGUAGE plpgsql
+SECURITY DEFINER -- Needs elevated privileges to potentially insert into chats table
+SET search_path = public
+AS $$
+DECLARE
+  chat_uuid UUID;
+  p1_id UUID := LEAST(user1_id, user2_id); -- Ensure consistent ordering
+  p2_id UUID := GREATEST(user1_id, user2_id);
+BEGIN
+  -- Check if users are the same
+  IF user1_id = user2_id THEN
+    RAISE EXCEPTION 'Cannot create a chat with oneself (user1_id: %, user2_id: %)', user1_id, user2_id;
+  END IF;
+
+  -- Try to find existing chat
+  SELECT id INTO chat_uuid
+  FROM public.chats
+  WHERE participant1_id = p1_id AND participant2_id = p2_id;
+
+  -- If not found, create a new chat
+  IF chat_uuid IS NULL THEN
+    INSERT INTO public.chats (participant1_id, participant2_id)
+    VALUES (p1_id, p2_id)
+    RETURNING id INTO chat_uuid;
+  END IF;
+
+  RETURN chat_uuid;
+
+EXCEPTION
+  WHEN unique_violation THEN
+    -- Handle potential race condition if another process created the chat simultaneously
+    SELECT id INTO chat_uuid
+    FROM public.chats
+    WHERE participant1_id = p1_id AND participant2_id = p2_id;
+    IF chat_uuid IS NULL THEN
+       -- This shouldn't happen if the unique index is correct, but handle defensively
+       RAISE EXCEPTION 'Failed to retrieve chat ID after unique violation (p1: %, p2: %)', p1_id, p2_id;
+    END IF;
+    RETURN chat_uuid;
+  WHEN OTHERS THEN
+    -- Log or handle other errors as needed
+    RAISE EXCEPTION 'Error in get_or_create_chat (p1: %, p2: %): %', p1_id, p2_id, SQLERRM;
+END;
+$$; -- Ensure this closing delimiter is present and correct
+
+COMMENT ON FUNCTION public.get_or_create_chat(UUID, UUID) IS 'Finds an existing chat between two users or creates a new one, returning the chat ID. Ensures consistent participant order.';
+
+
 -- ## Step 4: Grant Function Permissions
 -- Allow authenticated users to execute the created functions.
 
@@ -174,6 +225,9 @@ GRANT EXECUTE ON FUNCTION public.update_home_location(DOUBLE PRECISION, DOUBLE P
 
 -- Grant execute permission for get_snapped_map_users
 GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;
+
+-- Grant execute permission for get_or_create_chat function
+GRANT EXECUTE ON FUNCTION public.get_or_create_chat(UUID, UUID) TO authenticated;
 
 
 -- ## Step 5: Enable Row Level Security (RLS)
