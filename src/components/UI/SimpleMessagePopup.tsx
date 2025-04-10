@@ -374,11 +374,11 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
                   Cancel
                 </button>
                 <button
-                  type="submit"
-                  className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50"
-                  disabled={!selectedLocation || !meetupDateTime}
+                  type="button" // Changed from submit as it has no function yet
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600" // Adjusted styling slightly
+                  // onClick={() => { /* No function yet */ }} // Placeholder for future functionality
                 >
-                  Add Meeting
+                  Meet proposal
                 </button>
               </div>
             </form>
