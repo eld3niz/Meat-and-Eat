@@ -8,9 +8,14 @@ import MyOffersTab from '../meetups/MyOffersTab'; // Import the new tab componen
 import MeetupRequestRow from '../meetups/MeetupRequestRow'; // Import the request row component
 import SimpleMapDisplay from '../UI/SimpleMapDisplay'; // Import the map display component
 import { MeetupProposal } from '../../types/meetup'; // Import the proposal type
-import { parseISO, format as formatDateFns, startOfDay, isSameDay, parse } from 'date-fns'; // Import date-fns helpers
+import { parseISO, format as formatDateFns, startOfDay, isSameDay, parse, format } from 'date-fns'; // Import date-fns helpers + format
 import { useMemo } from 'react'; // Import useMemo
-// Removed ChatLayout import
+import Calendar from 'react-calendar'; // Import Calendar
+import 'react-calendar/dist/Calendar.css'; // Default Calendar styling
+
+// Calendar Types
+type ValuePiece = Date | null;
+type CalendarValue = ValuePiece | [ValuePiece, ValuePiece];
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
   const { openAuthModal } = useModal();
@@ -38,6 +43,11 @@ const Header = () => {
   const [isLoadingProposals, setIsLoadingProposals] = useState(false);
   const [proposalsError, setProposalsError] = useState<string | null>(null);
 
+  // State for Calendar Tab (from HistoryPage)
+  const [finalizedMeetups, setFinalizedMeetups] = useState<MeetupProposal[]>([]);
+  const [isLoadingCalendar, setIsLoadingCalendar] = useState(false);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
+  const [selectedCalendarDate, setSelectedCalendarDate] = useState<Date>(new Date()); // Default to today
   // --- Dummy Data for Meetup Proposals (Requests) ---
   // --- End Dummy Data --- // Dummy data removed, will fetch real data
 
@@ -211,7 +221,62 @@ const Header = () => {
     };
   }, [showMeetsPopup]);
 
-  // --- Fetch Pending Proposals ---
+
+  // --- Fetch Finalized Meetups for Calendar Tab ---
+  const fetchCalendarMeetups = useCallback(async () => {
+    if (!user) {
+      setFinalizedMeetups([]);
+      return;
+    }
+    setIsLoadingCalendar(true);
+    setCalendarError(null);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('meetup_proposals')
+        .select(`
+          *,
+          sender:sender_id ( name, avatar_url ),
+          recipient:recipient_id ( name, avatar_url )
+        `) // Fetch both sender and recipient profiles
+        .eq('status', 'finalized')
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order('meetup_time', { ascending: true });
+
+      if (fetchError) throw fetchError;
+
+      // Basic formatting/type casting if needed
+      const formattedData = data?.map(p => ({
+          ...p,
+          // Ensure profiles are handled correctly, maybe combine sender/recipient based on who *isn't* the current user?
+          // For now, keep both, MeetupRequestRow might need adjustment or use a different component
+          profiles: p.sender?.id === user.id ? p.recipient : p.sender, // Simplified profile for display
+      })) || [];
+
+      setFinalizedMeetups(formattedData as MeetupProposal[]); // Adjust type casting as needed
+    } catch (err: any) {
+      console.error("Error fetching finalized meetups for calendar:", err);
+      setCalendarError(`Failed to load calendar meetups: ${err.message}`);
+      setFinalizedMeetups([]);
+    } finally {
+      setIsLoadingCalendar(false);
+    }
+  }, [user]);
+
+  // Fetch calendar meetups only when the popup is open and the calendar tab is active
+  useEffect(() => {
+    if (showMeetsPopup && activeMeetsTab === 'calendar' && user?.id) {
+      fetchCalendarMeetups();
+    }
+     // Clear calendar data when popup closes or tab changes
+    if (!showMeetsPopup || activeMeetsTab !== 'calendar') {
+       setFinalizedMeetups([]);
+       setCalendarError(null);
+       setIsLoadingCalendar(false);
+    }
+  }, [showMeetsPopup, activeMeetsTab, user?.id, fetchCalendarMeetups]);
+
+
+  // --- Fetch Pending Proposals (Meet & Eat Tab) ---
   // Renamed: fetchRelevantProposals to reflect broader scope
   const fetchRelevantProposals = useCallback(async () => {
     if (!user?.id) {
@@ -481,10 +546,48 @@ const Header = () => {
       .sort((a, b) => new Date(a.meetup_time).getTime() - new Date(b.meetup_time).getTime());
   }, [proposals, user?.id]);
 
-  // TODO: Decide if/how date/time filters from lines 682-708 apply to these categories.
-  // The original filteredAndSortedProposals is currently unused in the refactored rendering below.
+  // --- Calendar Tab Logic (from HistoryPage) ---
 
+  // Memoize dates with meetups for calendar highlighting
+  const calendarMeetupDates = useMemo(() => {
+    const dates = new Set<string>();
+    finalizedMeetups.forEach(meetup => {
+      dates.add(startOfDay(new Date(meetup.meetup_time)).toISOString());
+    });
+    return dates;
+  }, [finalizedMeetups]);
 
+  // Filter meetups for the selected date on the calendar
+  const meetupsOnSelectedCalendarDate = useMemo(() => {
+    return finalizedMeetups.filter(meetup =>
+      isSameDay(new Date(meetup.meetup_time), selectedCalendarDate)
+    );
+  }, [finalizedMeetups, selectedCalendarDate]);
+
+  // Handle calendar date selection
+  const handleCalendarDateChange = (value: CalendarValue) => {
+    // We expect a single date, not a range
+    if (value instanceof Date) {
+      setSelectedCalendarDate(value);
+    } else if (Array.isArray(value) && value[0] instanceof Date) {
+      // Handle range selection if needed, for now just take the start date
+      setSelectedCalendarDate(value[0]);
+    }
+  };
+
+  // Function to add custom styling or content to calendar tiles
+  const calendarTileClassName = ({ date, view }: { date: Date; view: string }): string | null => {
+    if (view === 'month') {
+      const dateStr = startOfDay(date).toISOString();
+      if (calendarMeetupDates.has(dateStr)) {
+        // Use Tailwind classes for highlighting within the popup context
+        return 'bg-blue-100 rounded-md !text-blue-800 font-semibold'; // Example styling
+      }
+    }
+    return null;
+  };
+
+  // --- End Calendar Tab Logic ---
   return (
     <>
       <header className="bg-gradient-to-r from-blue-700 to-blue-500 text-white p-3 shadow-md">
@@ -840,11 +943,50 @@ const Header = () => {
                   </div>
                 </div>
               )}
+              {/* Calendar Tab Content (Moved from HistoryPage) */}
               {activeMeetsTab === 'calendar' && (
-                <div className="p-4 text-center text-gray-700">
-                  Content for Activity will go here.
-               </div>
-             )}
+                <div className="p-1 flex flex-col md:flex-row gap-4 max-h-[60vh] overflow-y-auto"> {/* Adjusted padding and added overflow */}
+                  {/* Calendar Section */}
+                  <div className="w-full md:w-auto"> {/* Adjusted width for popup */}
+                    {/* <h2 className="text-lg font-semibold mb-2 text-gray-700">Meetup Calendar</h2> */}
+                    <div className="bg-white p-2 rounded-lg shadow-sm"> {/* Reduced padding */}
+                      <Calendar
+                        onChange={handleCalendarDateChange}
+                        value={selectedCalendarDate}
+                        tileClassName={calendarTileClassName}
+                        className="border-none react-calendar-popup" // Remove default border & add custom class if needed
+                      />
+                    </div>
+                  </div>
+
+                  {/* Meetup List Section */}
+                  <div className="flex-1 overflow-y-auto"> {/* Allow this part to scroll */}
+                    <h3 className="text-base font-semibold mb-2 text-gray-700 sticky top-0 bg-gray-100 p-2 rounded-t-md z-10"> {/* Adjusted text size, added sticky header */}
+                      Meetups on: {format(selectedCalendarDate, 'PPP')} {/* Format selected date */}
+                    </h3>
+                    {isLoadingCalendar ? (
+                      <p className="text-gray-500 p-2">Loading calendar...</p>
+                    ) : calendarError ? (
+                      <p className="text-red-600 p-2">{calendarError}</p>
+                    ) : meetupsOnSelectedCalendarDate.length === 0 ? (
+                      <p className="text-gray-500 p-2">No finalized meetups on this date.</p>
+                    ) : (
+                      <div className="space-y-0 bg-white rounded-b-lg shadow-sm overflow-hidden">
+                        {meetupsOnSelectedCalendarDate.map(meetup => (
+                          // Reuse MeetupRequestRow for display. Pass dummy/empty functions.
+                          <MeetupRequestRow
+                            key={meetup.id}
+                            proposal={meetup}
+                            onViewProfile={() => setViewingSenderId(meetup.profiles?.id || null)} // Allow viewing profile
+                            onViewLocation={() => setViewingLocation({ lat: meetup.latitude, lng: meetup.longitude, name: meetup.place_name || `Meetup Location` })} // Allow viewing location
+                            // No action handlers needed for finalized meetups
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
              {/* Added Offers Tab Content */}
              {activeMeetsTab === 'offers' && (
                // Render the MyOffersTab component directly
