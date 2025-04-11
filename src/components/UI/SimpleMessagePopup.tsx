@@ -4,7 +4,7 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
 import L, { LatLngExpression, LatLng } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import TagInput from '../UI/TagInput'; // Import TagInput
+import TagInput from './TagInput'; // Import TagInput (Corrected path)
 import { cuisineOptions } from '../../data/options'; // Import cuisine options
 
 // Fix default icon issue with Leaflet and bundlers
@@ -48,14 +48,26 @@ interface OverpassPlace {
 
 // Component to handle map click events for custom marker
 const MapClickHandler = ({ onMapClick, selectedLocation }: { onMapClick: (latlng: LatLng) => void, selectedLocation: LatLng | null }) => {
-    useMapEvents({
-        click(e) {
-            if (!selectedLocation || selectedLocation.alt === undefined) { // Simple check if it's a custom marker
-                 onMapClick(e.latlng);
-            }
-        },
-    });
-    return null;
+  useMapEvents({
+    click(e) {
+      // Allow placing custom marker only if an Overpass place isn't selected
+      if (!selectedLocation || selectedLocation.alt === undefined) {
+        onMapClick(e.latlng);
+      }
+    },
+  });
+  return null;
+};
+
+// Component to handle map move events for fetching data
+const MapMoveHandler = ({ onMoveEnd }: { onMoveEnd: (map: L.Map) => void }) => {
+  const map = useMap();
+  useMapEvents({
+    moveend() {
+      onMoveEnd(map);
+    },
+  });
+  return null;
 };
 
 // Component to center map on user location
@@ -90,6 +102,7 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   const [overpassPlaces, setOverpassPlaces] = useState<OverpassPlace[]>([]);
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isLoadingOverpass, setIsLoadingOverpass] = useState(false); // State for Overpass loading
 
   // --- Effects and Handlers from MeetupFormPopup ---
   // Fetch user's location on mount/open
@@ -103,8 +116,8 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
           setMapCenter(userLatLng);
           setIsLoadingLocation(false);
           console.log("User location fetched:", userLatLng);
-          // fetchOverpassData(userLatLng); // Placeholder call
-        },
+          // fetchOverpassData(userLatLng); // Placeholder call -> Will be triggered by map move/center
+        }, // Removed comma
         (error) => {
           console.error("Error getting user location:", error);
           setUserLocation(new LatLng(51.505, -0.09)); // Fallback
@@ -130,16 +143,63 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
 
   // Placeholder Overpass fetch
   const fetchOverpassData = async (center: LatLng | LatLngExpression) => {
-      console.log("Fetching Overpass data around:", center);
-      let lat: number, lng: number;
-      if (center instanceof L.LatLng) { lat = center.lat; lng = center.lng; }
-      else if (Array.isArray(center)) { [lat, lng] = center; }
-      else if (typeof center === 'object' && center !== null && 'lat' in center && 'lng' in center) { lat = (center as L.LatLngLiteral).lat; lng = (center as L.LatLngLiteral).lng; }
-      else { console.error("Could not determine center coordinates."); return; }
-      setOverpassPlaces([
-          { id: 1, lat: lat + 0.01, lon: lng, tags: { name: 'Dummy Restaurant', amenity: 'restaurant' } },
-          { id: 2, lat: lat, lon: lng + 0.01, tags: { name: 'Dummy Cafe', amenity: 'cafe' } },
-      ]);
+    // Use map bounds instead of just center for a better query
+    // This function will now be called by MapMoveHandler with the map instance
+  };
+
+  // Fetch Overpass data based on map bounds
+  const fetchOverpassDataForBounds = async (map: L.Map) => {
+      const bounds = map.getBounds();
+      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+      console.log("Fetching Overpass data for bounds:", bbox);
+      setIsLoadingOverpass(true);
+      setOverpassPlaces([]); // Clear previous places
+
+      // Overpass QL query for food/drink related places
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["amenity"~"restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten"](${bbox});
+          way["amenity"~"restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten"](${bbox});
+          relation["amenity"~"restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten"](${bbox});
+          node["shop"~"convenience|supermarket|bakery|pastry|deli|greengrocer|butcher"](${bbox});
+          way["shop"~"convenience|supermarket|bakery|pastry|deli|greengrocer|butcher"](${bbox});
+          relation["shop"~"convenience|supermarket|bakery|pastry|deli|greengrocer|butcher"](${bbox});
+        );
+        out center;
+      `;
+
+      const overpassUrl = 'https://overpass-api.de/api/interpreter';
+
+      try {
+          const response = await fetch(overpassUrl, {
+              method: 'POST',
+              body: query
+          });
+          if (!response.ok) {
+              throw new Error(`Overpass API error: ${response.statusText}`);
+          }
+          const data = await response.json();
+          console.log("Overpass response:", data);
+
+          // Process elements (nodes, ways, relations)
+          const places: OverpassPlace[] = data.elements.map((element: any) => ({
+              id: element.id,
+              // Use 'center' for ways/relations, 'lat/lon' for nodes
+              lat: element.center?.lat ?? element.lat,
+              lon: element.center?.lon ?? element.lon,
+              tags: element.tags || {},
+          })).filter((place: OverpassPlace) => place.lat && place.lon); // Ensure coordinates exist
+
+          console.log("Processed places:", places);
+          setOverpassPlaces(places);
+
+      } catch (error) {
+          console.error("Failed to fetch Overpass data:", error);
+          // Optionally set an error state here to show a message to the user
+      } finally {
+          setIsLoadingOverpass(false);
+      }
   };
 
   const handleMapClick = (latlng: LatLng) => {
@@ -271,6 +331,7 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
                       />
                       {userLocation && <CenterMapOnUser position={userLocation} />}
                       <MapClickHandler onMapClick={handleMapClick} selectedLocation={selectedLocation} />
+                      <MapMoveHandler onMoveEnd={fetchOverpassDataForBounds} />
 
                       {/* Custom Marker */}
                       {selectedLocation && selectedLocation.alt === undefined && (
@@ -279,7 +340,7 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
                         </Marker>
                       )}
                       {/* Overpass Markers (Dummy) */}
-                      {overpassPlaces.map(place => (
+                      {!isLoadingOverpass && overpassPlaces.map(place => (
                         <Marker
                             key={place.id}
                             position={[place.lat, place.lon]}
@@ -300,6 +361,11 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
                       )}
                     </MapContainer>
                   </div>
+                )}
+                {isLoadingOverpass && (
+                    <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-10">
+                        <p className="text-gray-600">Loading places...</p>
+                    </div>
                 )}
                 <p className="text-xs text-gray-500 mt-2 mb-8">Click on map to set custom marker or click an existing marker.</p>
               </div>

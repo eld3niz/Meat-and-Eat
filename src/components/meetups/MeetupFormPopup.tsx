@@ -55,6 +55,17 @@ const MapClickHandler = ({ onMapClick, selectedLocation }: { onMapClick: (latlng
     return null;
 };
 
+// Component to handle map move events for fetching data (Copied from SimpleMessagePopup)
+const MapMoveHandler = ({ onMoveEnd }: { onMoveEnd: (map: L.Map) => void }) => {
+  const map = useMap();
+  useMapEvents({
+    moveend() {
+      onMoveEnd(map);
+    },
+  });
+  return null;
+};
+
 // Component to center map on user location
 const CenterMapOnUser = ({ position }: { position: LatLngExpression }) => {
     const map = useMap();
@@ -76,6 +87,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
   const [overpassPlaces, setOverpassPlaces] = useState<OverpassPlace[]>([]); // Placeholder for fetched places
   const [isLoadingLocation, setIsLoadingLocation] = useState(true);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isLoadingOverpass, setIsLoadingOverpass] = useState(false); // State for Overpass loading
 
   // Fetch user's location on mount
   useEffect(() => {
@@ -88,8 +100,8 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
           setMapCenter(userLatLng);
           setIsLoadingLocation(false);
           // TODO: Fetch Overpass data based on initial location/bounds here
+          // Fetch will be triggered by MapMoveHandler on initial load/center
           console.log("User location fetched:", userLatLng);
-          // fetchOverpassData(userLatLng); // Call function to fetch data
         },
         (error) => {
           console.error("Error getting user location:", error);
@@ -98,6 +110,7 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
           setMapCenter([51.505, -0.09]);
           setIsLoadingLocation(false);
           // TODO: Fetch Overpass data for default location?
+          // Fetch will be triggered by MapMoveHandler on initial load/center
         },
         { enableHighAccuracy: true }
       );
@@ -118,46 +131,57 @@ const MeetupFormPopup: React.FC<MeetupFormPopupProps> = ({ isOpen, onClose, onSu
 
 
   // TODO: Implement Overpass API fetching logic
-  const fetchOverpassData = async (center: LatLng | LatLngExpression) => { // Accept LatLngExpression too
-      console.log("Fetching Overpass data around:", center);
+  // Fetch Overpass data based on map bounds (Copied from SimpleMessagePopup)
+  const fetchOverpassDataForBounds = async (map: L.Map) => {
+      const bounds = map.getBounds();
+      const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
+      console.log("Fetching Overpass data for bounds:", bbox);
+      setIsLoadingOverpass(true);
+      setOverpassPlaces([]); // Clear previous places
 
-      // Determine lat/lng safely for dummy data generation
-      let lat: number, lng: number;
-      // Check for LatLng object first (most specific)
-      if (center instanceof L.LatLng) {
-          lat = center.lat;
-          lng = center.lng;
-      }
-      // Check for LatLngTuple (array)
-      else if (Array.isArray(center) && center.length === 2 && typeof center[0] === 'number' && typeof center[1] === 'number') {
-          lat = center[0];
-          lng = center[1];
-      }
-      // Check for LatLngLiteral (plain object) - requires careful check
-      else if (typeof center === 'object' && center !== null && 'lat' in center && 'lng' in center && typeof (center as any).lat === 'number' && typeof (center as any).lng === 'number') {
-          // Cast needed here after checks
-          const literalCenter = center as L.LatLngLiteral;
-          lat = literalCenter.lat;
-          lng = literalCenter.lng;
-      }
-       else {
-          console.error("Could not determine center coordinates for Overpass fetch.");
-          return; // Or use a default
-      }
+      // Overpass QL query for food/drink related places
+      const query = `
+        [out:json][timeout:25];
+        (
+          node["amenity"~"restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten"](${bbox});
+          way["amenity"~"restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten"](${bbox});
+          relation["amenity"~"restaurant|cafe|bar|pub|fast_food|food_court|ice_cream|biergarten"](${bbox});
+          node["shop"~"convenience|supermarket|bakery|pastry|deli|greengrocer|butcher"](${bbox});
+          way["shop"~"convenience|supermarket|bakery|pastry|deli|greengrocer|butcher"](${bbox});
+          relation["shop"~"convenience|supermarket|bakery|pastry|deli|greengrocer|butcher"](${bbox});
+        );
+        out center;
+      `;
 
+      const overpassUrl = 'https://overpass-api.de/api/interpreter';
 
-      // Placeholder: Replace with actual Overpass query and fetch
-      // Example query: node(around:1000, lat, lon)[amenity=restaurant]; out;
-      // Use map bounds for a better query: node(bbox)[amenity=restaurant]; out;
-      // const bounds = mapRef.current?.getBounds(); // Need map ref
-      // if (!bounds) return;
-      // const bbox = `${bounds.getSouth()},${bounds.getWest()},${bounds.getNorth()},${bounds.getEast()}`;
-      // ... fetch logic ...
-      // setOverpassPlaces(fetchedData);
-      setOverpassPlaces([ // Dummy data using safely extracted lat/lng
-          { id: 1, lat: lat + 0.01, lon: lng, tags: { name: 'Dummy Restaurant', amenity: 'restaurant' } },
-          { id: 2, lat: lat, lon: lng + 0.01, tags: { name: 'Dummy Cafe', amenity: 'cafe' } },
-      ]);
+      try {
+          const response = await fetch(overpassUrl, {
+              method: 'POST',
+              body: query
+          });
+          if (!response.ok) {
+              throw new Error(`Overpass API error: ${response.statusText}`);
+          }
+          const data = await response.json();
+          console.log("Overpass response:", data);
+
+          // Process elements (nodes, ways, relations)
+          const places: OverpassPlace[] = data.elements.map((element: any) => ({
+              id: element.id,
+              lat: element.center?.lat ?? element.lat,
+              lon: element.center?.lon ?? element.lon,
+              tags: element.tags || {},
+          })).filter((place: OverpassPlace) => place.lat && place.lon); // Ensure coordinates exist
+
+          console.log("Processed places:", places);
+          setOverpassPlaces(places);
+
+      } catch (error) {
+          console.error("Failed to fetch Overpass data:", error);
+      } finally {
+          setIsLoadingOverpass(false);
+      }
   };
 
 
@@ -288,6 +312,7 @@ if (!isOpen) return null;
                       {userLocation && <CenterMapOnUser position={userLocation} />}
                       <MapClickHandler onMapClick={handleMapClick} selectedLocation={selectedLocation} />
 
+                      <MapMoveHandler onMoveEnd={fetchOverpassDataForBounds} />
                       {/* Display markers... */}
                       {selectedLocation && selectedLocation.alt === undefined && (
                         <Marker position={selectedLocation}>
@@ -295,8 +320,8 @@ if (!isOpen) return null;
                         </Marker>
                       )}
 
-                      {overpassPlaces.map(place => (
-                        <Marker
+                      {/* Conditionally render Overpass markers */}
+                      {!isLoadingOverpass && overpassPlaces.map(place => ( <Marker
                             key={place.id}
                             position={[place.lat, place.lon]}
                             eventHandlers={{
@@ -317,6 +342,11 @@ if (!isOpen) return null;
                       )}
                     </MapContainer>
                   </div>
+                )}
+                {isLoadingOverpass && (
+                    <div className="absolute inset-0 bg-white bg-opacity-75 flex justify-center items-center z-10">
+                        <p className="text-gray-600">Loading places...</p>
+                    </div>
                 )}
                 <p className="text-xs text-gray-500 mt-2 mb-8">Click on map to set custom marker or click an existing marker.</p>
               </div>
