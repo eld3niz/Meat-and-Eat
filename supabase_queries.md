@@ -1,16 +1,35 @@
--- ## Step 1: Enable Extensions
--- Enable the PostGIS extension, which is required for geospatial functions and indexing.
+# Improved Supabase Setup Script: Meat-and-Eat
 
+This script provides the SQL commands to set up the database schema, functions, and policies for the Meat-and-Eat project on Supabase. It represents the consolidated final state derived from previous development iterations.
+
+**Instructions:**
+
+1.  Ensure you have a Supabase project created.
+2.  Navigate to the SQL Editor in your Supabase dashboard.
+3.  Execute the commands in each step sequentially.
+4.  **Important:** For avatar functionality, you must also configure Supabase Storage as described in the comments below.
+
+---
+
+## Step 1: Enable Extensions
+
+Enable the PostGIS extension, which is required for geospatial functions and indexing.
+
+```sql
 -- Enable PostGIS Extension (Required for geospatial functions/indexing)
 CREATE EXTENSION IF NOT EXISTS postgis WITH SCHEMA extensions;
 
 -- Enable pgcrypto for gen_random_uuid() if not already enabled (usually is by default)
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
+```
 
+---
 
--- ## Step 2: Create Tables
--- Define the core tables for the application.
+## Step 2: Create Tables
 
+Define the core tables for the application.
+
+```sql
 -- Create profiles table
 -- Stores user profile information, linked to Supabase Auth users.
 CREATE TABLE public.profiles (
@@ -80,9 +99,15 @@ CREATE INDEX idx_meetups_creator_id ON public.meetups(creator_id);
 CREATE INDEX idx_meetups_location ON public.meetups USING gist (ST_SetSRID(ST_MakePoint(longitude, latitude), 4326));
 
 
--- ## Step 3: Create Functions
--- Define reusable database functions.
+```
 
+---
+
+## Step 3: Create Functions
+
+Define reusable database functions.
+
+```sql
 -- Function to update user's home location with a monthly limit
 CREATE OR REPLACE FUNCTION public.update_home_location(p_latitude DOUBLE PRECISION, p_longitude DOUBLE PRECISION)
 RETURNS TEXT -- Return a status message
@@ -164,83 +189,43 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_snapped_map_users() IS 'Returns user data for map display, snapping locations to a grid for privacy. Uses SECURITY DEFINER to read necessary data across RLS.';
+```
 
+---
 
--- Function to get an existing chat ID or create a new one
-CREATE OR REPLACE FUNCTION public.get_or_create_chat(user1_id UUID, user2_id UUID)
-RETURNS UUID -- Return the chat ID
-LANGUAGE plpgsql
-SECURITY DEFINER -- Needs elevated privileges to potentially insert into chats table
-SET search_path = public
-AS $$
-DECLARE
-  chat_uuid UUID;
-  p1_id UUID := LEAST(user1_id, user2_id); -- Ensure consistent ordering
-  p2_id UUID := GREATEST(user1_id, user2_id);
-BEGIN
-  -- Check if users are the same
-  IF user1_id = user2_id THEN
-    RAISE EXCEPTION 'Cannot create a chat with oneself (user1_id: %, user2_id: %)', user1_id, user2_id;
-  END IF;
+## Step 4: Grant Function Permissions
 
-  -- Try to find existing chat
-  SELECT id INTO chat_uuid
-  FROM public.chats
-  WHERE participant1_id = p1_id AND participant2_id = p2_id;
+Allow authenticated users to execute the created functions.
 
-  -- If not found, create a new chat
-  IF chat_uuid IS NULL THEN
-    INSERT INTO public.chats (participant1_id, participant2_id)
-    VALUES (p1_id, p2_id)
-    RETURNING id INTO chat_uuid;
-  END IF;
-
-  RETURN chat_uuid;
-
-EXCEPTION
-  WHEN unique_violation THEN
-    -- Handle potential race condition if another process created the chat simultaneously
-    SELECT id INTO chat_uuid
-    FROM public.chats
-    WHERE participant1_id = p1_id AND participant2_id = p2_id;
-    IF chat_uuid IS NULL THEN
-       -- This shouldn't happen if the unique index is correct, but handle defensively
-       RAISE EXCEPTION 'Failed to retrieve chat ID after unique violation (p1: %, p2: %)', p1_id, p2_id;
-    END IF;
-    RETURN chat_uuid;
-  WHEN OTHERS THEN
-    -- Log or handle other errors as needed
-    RAISE EXCEPTION 'Error in get_or_create_chat (p1: %, p2: %): %', p1_id, p2_id, SQLERRM;
-END;
-$$; -- Ensure this closing delimiter is present and correct
-
-COMMENT ON FUNCTION public.get_or_create_chat(UUID, UUID) IS 'Finds an existing chat between two users or creates a new one, returning the chat ID. Ensures consistent participant order.';
-
-
--- ## Step 4: Grant Function Permissions
--- Allow authenticated users to execute the created functions.
-
+```sql
 -- Grant execute permission for update_home_location
 GRANT EXECUTE ON FUNCTION public.update_home_location(DOUBLE PRECISION, DOUBLE PRECISION) TO authenticated;
 
 -- Grant execute permission for get_snapped_map_users
 GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;
 
--- Grant execute permission for get_or_create_chat function
-GRANT EXECUTE ON FUNCTION public.get_or_create_chat(UUID, UUID) TO authenticated;
+```
 
+---
 
--- ## Step 5: Enable Row Level Security (RLS)
--- Enable RLS on all tables to enforce data access rules.
+## Step 5: Enable Row Level Security (RLS)
 
+Enable RLS on all tables to enforce data access rules.
+
+```sql
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_locations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.meetups ENABLE ROW LEVEL SECURITY;
 
+```
 
--- ## Step 6: Define RLS Policies
--- Create policies to control who can access or modify data.
+---
 
+## Step 6: Define RLS Policies
+
+Create policies to control who can access or modify data.
+
+```sql
 -- ============================
 -- Policies for public.profiles
 -- ============================
@@ -332,6 +317,25 @@ CREATE POLICY "Allow creator to delete own meetup"
 ON public.meetups FOR DELETE
 USING (auth.uid() = creator_id);
 
--- Note: Manual steps for Storage setup are not included here as they are typically
--- managed via the dashboard or specific storage commands/scripts.
--- Refer to the main documentation for Storage setup instructions.
+
+```
+
+---
+
+## Step 7: Avatar Storage Setup (Manual Steps)
+
+The `avatar_url` column in the `profiles` table requires a Supabase Storage bucket.
+
+1.  **Create Bucket:** Go to Storage in your Supabase dashboard and create a new bucket (e.g., named `avatars`).
+2.  **Make Public (Optional but Recommended):** For easier URL access in your app, consider making the bucket public. If you keep it private, you'll need to generate signed URLs in your application.
+3.  **Configure Bucket RLS Policies:** Add policies to the `avatars` bucket to control access:
+    *   **SELECT:** Allow authenticated users to view avatars (`SELECT` permission). You might restrict this further if needed (e.g., only view own or friends').
+    *   **INSERT:** Allow authenticated users to upload their *own* avatar. The policy should check that the path includes the user's ID (e.g., `(bucket_id = 'avatars') AND (auth.uid()::text = (storage.foldername(name))[1])`).
+    *   **UPDATE:** Allow authenticated users to update their *own* avatar (similar path check as INSERT).
+    *   **DELETE:** Allow authenticated users to delete their *own* avatar (similar path check as INSERT).
+
+    *Refer to the Supabase Storage documentation for detailed examples of RLS policies.*
+
+---
+
+Setup Complete. You can now interact with these tables and functions from your application.
