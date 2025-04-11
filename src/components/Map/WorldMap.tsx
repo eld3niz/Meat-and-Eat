@@ -473,7 +473,7 @@ const WorldMap = () => {
       closeButton: true,
       offset: [0, -15],
       className: 'custom-leaflet-popup tile-list-popup-leaflet-wrapper',
-      minWidth: 400,
+      minWidth: 500, // Increased width for the aggregate list popup
     })
       .setLatLng(markerPosition)
       .setContent(container)

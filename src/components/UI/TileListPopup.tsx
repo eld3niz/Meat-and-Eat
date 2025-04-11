@@ -35,7 +35,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
     : null;
 
   return (
-    <div className="tile-list-popup-container p-4 max-w-2xl bg-white rounded-lg shadow-lg">
+    <div className="tile-list-popup-container p-4 max-w-4xl bg-white rounded-lg shadow-lg">
       <div className="flex justify-between items-center mb-4 border-b pb-2">
         <h3 className="text-lg font-bold text-blue-800">Benutzer in dieser Gegend</h3>
       </div>
