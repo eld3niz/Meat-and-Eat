@@ -490,10 +490,10 @@ const WorldMap = () => {
               setViewingProfileUserId(userId); // Set the user ID for viewing profile
             }}
             onMeetMeClick={(user) => {
-              // Close the current aggregate popup first
-              aggregatePopupRef.current?.remove();
-              aggregatePopupRef.current = null;
-              setOpenPopupData(null); // Clear state too
+              // Don't close the aggregate popup anymore
+              // aggregatePopupRef.current?.remove(); // Removed
+              // aggregatePopupRef.current = null; // Removed
+              // setOpenPopupData(null); // Removed - Keep the popup data
 
               // Set target user and open the message popup
               setMeetupTargetUser({ id: user.user_id, name: user.name });
