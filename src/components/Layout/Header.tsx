@@ -28,7 +28,7 @@ const Header = () => {
   const animationEndTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userNameRef = useRef(userName); // Initialize ref at top level
   const [showMeetsPopup, setShowMeetsPopup] = useState(false); // State for Meets popup
-  const [activeMeetsTab, setActiveMeetsTab] = useState<'meetAndEat' | 'activity' | 'offers'>('meetAndEat'); // State for active tab in Meets popup, removed 'chats', default 'meetAndEat'
+  const [activeMeetsTab, setActiveMeetsTab] = useState<'meetAndEat' | 'calendar' | 'offers'>('meetAndEat'); // State for active tab in Meets popup, renamed 'activity' to 'calendar'
   const [viewingSenderId, setViewingSenderId] = useState<string | null>(null); // State to show sender profile
   const [viewingLocation, setViewingLocation] = useState<{ lat: number; lng: number; name?: string } | null>(null); // State to show location map
   const [filterDate, setFilterDate] = useState<string>(''); // State for date filter (YYYY-MM-DD)
@@ -682,7 +682,7 @@ const Header = () => {
                   // Adjusted width and transform for 4 tabs
                   className={`absolute top-1 left-1 w-[calc(33.33%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${ // Adjusted width for 3 tabs
                     activeMeetsTab === 'meetAndEat' ? 'translate-x-0' :
-                    activeMeetsTab === 'activity' ? 'translate-x-[100%]' :
+                    activeMeetsTab === 'calendar' ? 'translate-x-[100%]' :
                     'translate-x-[200%]' // Adjusted offers position
                   }`}
                 />
@@ -695,10 +695,10 @@ const Header = () => {
                     Requests
                   </button>
                   <button
-                    onClick={() => setActiveMeetsTab('activity')}
-                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                    onClick={() => setActiveMeetsTab('calendar')}
+                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'calendar' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
-                    History
+                    Calendar
                   </button>
                   {/* Added Offers Tab Button */}
                   <button
@@ -840,7 +840,7 @@ const Header = () => {
                   </div>
                 </div>
               )}
-              {activeMeetsTab === 'activity' && (
+              {activeMeetsTab === 'calendar' && (
                 <div className="p-4 text-center text-gray-700">
                   Content for Activity will go here.
                </div>
