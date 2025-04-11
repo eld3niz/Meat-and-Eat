@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import UserProfile from '../Auth/UserProfile';
 import supabase from '../../utils/supabaseClient';
 import MyOffersTab from '../meetups/MyOffersTab'; // Import the new tab component
-import ChatLayout from '../chat/ChatLayout'; // Import the ChatLayout component
+// Removed ChatLayout import
 
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
@@ -23,7 +23,7 @@ const Header = () => {
   const animationEndTimerRef = useRef<NodeJS.Timeout | null>(null);
   const userNameRef = useRef(userName); // Initialize ref at top level
   const [showMeetsPopup, setShowMeetsPopup] = useState(false); // State for Meets popup
-  const [activeMeetsTab, setActiveMeetsTab] = useState<'chats' | 'meetAndEat' | 'activity' | 'offers'>('chats'); // State for active tab in Meets popup, added 'offers'
+  const [activeMeetsTab, setActiveMeetsTab] = useState<'meetAndEat' | 'activity' | 'offers'>('meetAndEat'); // State for active tab in Meets popup, removed 'chats', default 'meetAndEat'
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -385,39 +385,33 @@ const Header = () => {
             {/* Tab Slider */}
             <div className="mb-4 flex justify-center">
               {/* Adjusted width for 4 tabs */}
-              <div className="relative w-96 bg-gray-200 rounded-full p-1"> {/* Increased width */}
+              <div className="relative w-72 bg-gray-200 rounded-full p-1"> {/* Adjusted width for 3 tabs */}
                 <div
                   // Adjusted width and transform for 4 tabs
-                  className={`absolute top-1 left-1 w-[calc(25%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${ // Adjusted width
-                    activeMeetsTab === 'chats' ? 'translate-x-0' :
-                    activeMeetsTab === 'meetAndEat' ? 'translate-x-[100%]' :
-                    activeMeetsTab === 'activity' ? 'translate-x-[200%]' :
-                    'translate-x-[300%]' // Added offers position
+                  className={`absolute top-1 left-1 w-[calc(33.33%-4px)] h-[calc(100%-8px)] bg-blue-500 rounded-full shadow-md transition-transform duration-300 ease-in-out ${ // Adjusted width for 3 tabs
+                    activeMeetsTab === 'meetAndEat' ? 'translate-x-0' :
+                    activeMeetsTab === 'activity' ? 'translate-x-[100%]' :
+                    'translate-x-[200%]' // Adjusted offers position
                   }`}
                 />
                 <div className="relative flex justify-around items-center h-8">
-                  <button
-                    onClick={() => setActiveMeetsTab('chats')}
-                    className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'chats' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
-                  >
-                    Chats
-                  </button>
+                  {/* Removed Chats Button */}
                   <button
                     onClick={() => setActiveMeetsTab('meetAndEat')}
-                    className={`w-1/4 px-1 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'meetAndEat' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                    className={`w-1/3 px-1 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'meetAndEat' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                     Requests
                   </button>
                   <button
                     onClick={() => setActiveMeetsTab('activity')}
-                    className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'activity' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                     History
                   </button>
                   {/* Added Offers Tab Button */}
                   <button
                     onClick={() => setActiveMeetsTab('offers')}
-                    className={`w-1/4 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'offers' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
+                    className={`w-1/3 text-center text-sm font-medium rounded-full z-10 transition-colors ${activeMeetsTab === 'offers' ? 'text-white' : 'text-gray-600 hover:text-gray-800'}`}
                   >
                     Events
                   </button>
@@ -427,9 +421,7 @@ const Header = () => {
 
             {/* Tab Content Area */}
             <div className="overflow-y-auto h-[calc(80vh-120px)]"> {/* Adjust height as needed */}
-              {activeMeetsTab === 'chats' && (
-                <ChatLayout /> // Render the ChatLayout component
-              )}
+              {/* Removed Chats Tab Content */}
               {activeMeetsTab === 'meetAndEat' && ( // Renamed
                 <div className="p-4 text-center text-gray-700">
                   Content for Meet and Eat will go here.
