@@ -431,6 +431,13 @@ const WorldMap = () => {
                     meetMeButton.onclick = (e: MouseEvent) => {
                       e.preventDefault();
                       e.stopPropagation();
+                      // --- ADD CHECK FOR LOGGED-IN USER ---
+                      if (!user) {
+                        console.warn("User not logged in. Cannot propose meetup.");
+                        openAuthModal(); // Optionally prompt login
+                        return;
+                      }
+                      // --- END CHECK ---
                       // Store the target user's info before opening the popup
                       setMeetupTargetUser({ id: profileData.id, name: profileData.name });
                       // Now open the popup
@@ -489,14 +496,22 @@ const WorldMap = () => {
             onUserClick={(userId) => {
               setViewingProfileUserId(userId); // Set the user ID for viewing profile
             }}
-            onMeetMeClick={(user) => {
+            onMeetMeClick={(targetUserInfo) => { // Renamed param for clarity
               // Don't close the aggregate popup anymore
               // aggregatePopupRef.current?.remove(); // Removed
               // aggregatePopupRef.current = null; // Removed
               // setOpenPopupData(null); // Removed - Keep the popup data
 
+              // --- ADD CHECK FOR LOGGED-IN USER ---
+              if (!user) {
+                  console.warn("User not logged in. Cannot propose meetup.");
+                  openAuthModal(); // Optionally prompt login
+                  return;
+              }
+              // --- END CHECK ---
+
               // Set target user and open the message popup
-              setMeetupTargetUser({ id: user.user_id, name: user.name });
+              setMeetupTargetUser({ id: targetUserInfo.user_id, name: targetUserInfo.name });
               handleShowMeetMePopup(); // This sets isMeetMePopupOpen = true
             }}
           />
@@ -857,10 +872,10 @@ const WorldMap = () => {
           }}
           // Title is now handled internally based on userName prop
           onSubmit={(formData) => {
-            console.log("Meetup form submitted from map:", formData, "Target User:", meetupTargetUser.id);
-            // Add actual submission logic here
-            setIsMeetMePopupOpen(false); // Close after submit attempt
-            setMeetupTargetUser(null);
+            // This onSubmit prop is not directly used by SimpleMessagePopup's internal submit logic.
+            // The actual submission and closing is handled inside SimpleMessagePopup via handleConfirmSubmit -> onClose.
+            // We can leave this prop empty or just log.
+            console.log('onSubmit prop from WorldMap triggered (should not close popup):', formData);
           }}
           userId={meetupTargetUser.id} // Pass the target user's ID
           userName={meetupTargetUser.name} // Pass the target user's name

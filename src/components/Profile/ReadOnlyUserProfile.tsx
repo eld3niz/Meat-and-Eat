@@ -94,10 +94,15 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({
 
   // Handler for Meet Me button click
   const handleMeetMeClick = () => {
+    // Check if currentUser (representing the logged-in user) exists
     if (!currentUser) {
-      alert('You need to be logged in to propose meetups.');
+      console.warn("User not logged in. Cannot propose meetup.");
+      alert('You need to be logged in to propose meetups.'); // Keep alert for direct feedback
+      // Optionally, trigger a login modal here if available
+      // e.g., openAuthModal();
       return;
     }
+    // Only open the popup if the user is logged in
     setIsMeetupPopupOpen(true);
   };
 
@@ -208,7 +213,12 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({
       <SimpleMessagePopup
         isOpen={isMeetupPopupOpen}
         onClose={() => setIsMeetupPopupOpen(false)}
-        onSubmit={() => setIsMeetupPopupOpen(false)}
+        onSubmit={() => {
+          // This onSubmit prop is not directly used by SimpleMessagePopup's internal submit logic.
+          // The actual submission and closing is handled inside SimpleMessagePopup via handleConfirmSubmit -> onClose.
+          // We can leave this prop empty or just log.
+          console.log('onSubmit prop from ReadOnlyUserProfile triggered (should not close popup)');
+        }}
         userId={userId}
         userName={profile.name}
         user={currentUser}

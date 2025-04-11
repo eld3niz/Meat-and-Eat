@@ -223,7 +223,8 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   };
 
   const handleSubmitAttempt = (e: React.FormEvent) => {
-    e.preventDefault();
+    e.preventDefault(); // Should prevent default form submission
+    e.stopPropagation(); // Prevent event from bubbling up
     if (!selectedLocation || !meetupDateTime) {
       alert('Please select a location on the map and set a date/time.');
       return;
@@ -236,16 +237,32 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   };
 
   const handleConfirmSubmit = async () => {
-    if (!selectedLocation || !meetupDateTime || !user) {
-        setSubmitError("Missing required information or user not logged in.");
+    // Check only for location and date/time now, user will be fetched directly
+    if (!selectedLocation || !meetupDateTime) {
+        console.error("Submit Error Details:", {
+            hasSelectedLocation: !!selectedLocation,
+            hasMeetupDateTime: !!meetupDateTime,
+        });
+        setSubmitError("Missing location or date/time information."); // More specific error
         return;
     }
 
     setIsSubmitting(true);
     setSubmitError(null);
 
+    // --- Fetch current user ID directly ---
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !authUser) {
+        console.error("Error fetching user for submission:", authError);
+        setSubmitError("Could not verify user session. Please log in again.");
+        setIsSubmitting(false);
+        return;
+    }
+    // --- End fetch ---
+
     const proposalPayload = {
-      sender_id: user.id, // Logged-in user is the sender
+      sender_id: authUser.id, // Use the freshly fetched user ID
       recipient_id: userId, // The ID passed as prop is the recipient
       place_name: placeName || `Custom @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`,
       latitude: selectedLocation.lat,
