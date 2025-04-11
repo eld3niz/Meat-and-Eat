@@ -7,7 +7,6 @@ import 'leaflet/dist/leaflet.css';
 import TagInput from './TagInput'; // Import TagInput (Corrected path)
 import { cuisineOptions } from '../../data/options'; // Import cuisine options
 import supabase from '../../utils/supabaseClient'; // Import Supabase client
-import { useAuth } from '../../context/AuthContext'; // Import useAuth hook
 
 // Fix default icon issue with Leaflet and bundlers
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -32,6 +31,7 @@ interface SimpleMessagePopupProps {
   userId: string; // Required for form submission logic
   title?: string; // Optional title, defaults to "Add New Meeting"
   userName?: string | null; // Optional: Name of the user being invited
+  user?: any; // Add user prop to avoid using useAuth
 }
 
 // --- Helper Components from MeetupFormPopup ---
@@ -90,9 +90,9 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   userId,   // Added prop
   title = "Add New Meeting", // Changed default title
   userName, // Added prop
+  user, // Accept user prop
 }) => {
   const popupRef = useRef<HTMLDivElement>(null);
-  const { user } = useAuth(); // Get the logged-in user from AuthContext
   const [isSubmitting, setIsSubmitting] = useState(false); // State for submission loading
   const [submitError, setSubmitError] = useState<string | null>(null); // State for submission error
 

@@ -26,6 +26,8 @@ import { useModal } from '../../contexts/ModalContext';
 import Button from '../UI/Button';
 import ImageModal from '../UI/ImageModal'; // Add this import
 import SimpleMessagePopup from '../UI/SimpleMessagePopup'; // Import the popup component
+import ReadOnlyUserProfile from '../Profile/ReadOnlyUserProfile'; // Correct the import path
+
 // --- Helper Components (No changes needed) ---
 // Removed MapCenterController as flyTo is now handled directly in event handlers
 const MapBoundsController = () => {
@@ -129,6 +131,7 @@ const WorldMap = () => {
   const [currentModalImage, setCurrentModalImage] = useState<string | null>(null); // Add state for current modal image
   const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState<boolean>(false); // State for the meetup proposal popup
   const [meetupTargetUser, setMeetupTargetUser] = useState<{ id: string; name: string | null } | null>(null); // State to hold target user info for meetup popup
+  const [viewingProfileUserId, setViewingProfileUserId] = useState<string | null>(null); // State for viewing user profile
 
   // --- Popup Closing Utility (Defined early as it's used by other callbacks) ---
   const closeAllPopups = useCallback(() => {
@@ -484,7 +487,7 @@ const WorldMap = () => {
           <TileListPopup
             items={items}
             onUserClick={(userId) => {
-              // User clicks now do nothing, as requested
+              setViewingProfileUserId(userId); // Set the user ID for viewing profile
             }}
           />
         </React.StrictMode>
@@ -851,6 +854,14 @@ const WorldMap = () => {
           }}
           userId={meetupTargetUser.id} // Pass the target user's ID
           userName={meetupTargetUser.name} // Pass the target user's name
+        />
+      )}
+      {/* Render ReadOnlyUserProfile */}
+      {viewingProfileUserId && (
+        <ReadOnlyUserProfile
+          userId={viewingProfileUserId}
+          onClose={() => setViewingProfileUserId(null)}
+          currentUser={user} // Pass the authenticated user from context
         />
       )}
     </>

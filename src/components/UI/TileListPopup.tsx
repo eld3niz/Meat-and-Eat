@@ -7,9 +7,10 @@ interface TileListPopupProps {
   items: (City | MapUser)[];
   onClose?: () => void;
   onUserClick: (userId: string) => void;
+  currentUser?: any; // Add currentUser prop
 }
 
-const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserClick }) => {
+const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserClick, currentUser }) => {
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Filter out only user items (we're only interested in users for this popup)
@@ -97,6 +98,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
           userId={selectedUser.user_id}
           onClose={handleCloseProfile}
           travelStatus={selectedUser.travel_status} // Pass travel_status from the found user
+          currentUser={currentUser} // Forward the currentUser prop
         />
       )}
     </div>
