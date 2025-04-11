@@ -49,6 +49,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
                 <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Distance</th>
+                <th scope="col" className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -82,6 +83,11 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                         : `${user.distance.toFixed(1)} km` // Otherwise, show rounded distance
                       : 'N/A'}
                   </td>
+                  <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
+                    <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs">
+                      Meet me
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -97,7 +103,7 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
         <ReadOnlyUserProfile
           userId={selectedUser.user_id}
           onClose={handleCloseProfile}
-          travelStatus={selectedUser.travel_status} // Pass travel_status from the found user
+          travelStatus={selectedUser.travel_status ?? undefined} // Pass travel_status, defaulting null to undefined
           currentUser={currentUser} // Forward the currentUser prop
         />
       )}
