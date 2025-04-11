@@ -4,6 +4,7 @@ import WorldMap from './components/Map/WorldMap';
 import AboutPage from './components/Pages/AboutPage';
 import DatenschutzPage from './components/Pages/DatenschutzPage';
 import ImpressumPage from './components/Pages/ImpressumPage';
+import HistoryPage from './pages/HistoryPage'; // Placeholder import
 import { fixLeafletIconPath } from './utils/mapUtils';
 import { ModalProvider } from './contexts/ModalContext';
 import { AuthProvider, useAuth } from './context/AuthContext'; // Import useAuth
@@ -20,7 +21,7 @@ import MeetupsTab from './components/meetups/MeetupsTab'; // Import the new Meet
 const AppContent = () => {
   const { user, locationPermissionStatus, loading: authLoading } = useAuth(); // Get userCoordinates and isFetchingLocation
   const [isAppLoading, setIsAppLoading] = useState(true); // Renamed to avoid conflict
-  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum'
+  const [currentPage, setCurrentPage] = useState('map'); // 'map', 'about', 'datenschutz', 'impressum', 'history'
   // Initialize state from localStorage or default to 'users'
   const [activeMainTab, setActiveMainTab] = useState(() => {
     return localStorage.getItem('activeMainTab') || 'users';
@@ -38,6 +39,8 @@ const AppContent = () => {
         setCurrentPage('datenschutz');
       } else if (path === '/impressum') {
         setCurrentPage('impressum');
+      } else if (path === '/history') {
+        setCurrentPage('history');
       } else {
         setCurrentPage('map'); // Default to map/home
       }
@@ -137,6 +140,8 @@ const AppContent = () => {
           <DatenschutzPage />
         ) : currentPage === 'impressum' ? (
           <ImpressumPage />
+        ) : currentPage === 'history' ? (
+          <HistoryPage />
         ) : ( // Handle map page rendering (Users/Meetups tabs or LoginPrompt)
           user ? (
             activeMainTab === 'users' ? (

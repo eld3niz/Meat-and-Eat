@@ -212,7 +212,8 @@ const Header = () => {
   }, [showMeetsPopup]);
 
   // --- Fetch Pending Proposals ---
-  const fetchProposals = useCallback(async () => {
+  // Renamed: fetchRelevantProposals to reflect broader scope
+  const fetchRelevantProposals = useCallback(async () => {
     if (!user?.id) {
       setProposals([]); // Clear proposals if user logs out
       return;
@@ -226,10 +227,14 @@ const Header = () => {
         .from('meetup_proposals')
         .select(`
           *,
-          profiles!sender_id ( name, avatar_url )
+          profiles!sender_id ( name, avatar_url ),
+          sender_confirmed,
+          recipient_confirmed
         `)
-        .eq('recipient_id', user.id)
-        .eq('status', 'pending'); // Only fetch pending proposals
+        // Fetch if user is recipient OR sender
+        .or(`recipient_id.eq.${user.id},sender_id.eq.${user.id}`)
+        // Fetch relevant statuses for the popup
+        .in('status', ['pending', 'awaiting_final_confirmation', 'expired']);
 
       if (error) {
         throw error;
@@ -255,7 +260,7 @@ const Header = () => {
   // Fetch proposals when the popup is shown or user changes
   useEffect(() => {
     if (showMeetsPopup && user?.id) {
-      fetchProposals();
+      fetchRelevantProposals(); // Use renamed function
     }
     // Clear proposals when popup closes to ensure fresh data next time
     if (!showMeetsPopup) {
@@ -263,7 +268,7 @@ const Header = () => {
        setProposalsError(null);
        setIsLoadingProposals(false);
     }
-  }, [showMeetsPopup, user?.id, fetchProposals]);
+  }, [showMeetsPopup, user?.id, fetchRelevantProposals]); // Use renamed function
 
   // Navigation-Handler
   const handleNavigation = (path: string, e: React.MouseEvent) => {
@@ -298,13 +303,14 @@ const Header = () => {
   };
 
   // --- Handle Proposal Status Update ---
-  const handleUpdateProposalStatus = async (proposalId: string, newStatus: 'accepted' | 'declined') => {
+  // Renamed: handleUpdateProposalStatus -> handleDecline (Accept logic changes)
+  const handleDecline = async (proposalId: string) => {
     if (!user) return; // Should not happen if buttons are visible, but safety check
 
     try {
       const { error } = await supabase
         .from('meetup_proposals')
-        .update({ status: newStatus })
+        .update({ status: 'declined' }) // Explicitly set declined
         .eq('id', proposalId)
         .eq('recipient_id', user.id); // Ensure user is the recipient (matches RLS)
 
@@ -313,14 +319,103 @@ const Header = () => {
       }
 
       // Refresh the proposals list after successful update
-      await fetchProposals();
+      await fetchRelevantProposals(); // Use renamed function
 
     } catch (error: any) {
-      console.error(`Error updating proposal ${proposalId} to ${newStatus}:`, error);
+      console.error(`Error declining proposal ${proposalId}:`, error);
       // Re-throw the error so the row component can display a message
-      throw new Error(`Failed to update status: ${error.message}`);
+      throw new Error(`Failed to decline: ${error.message}`);
     }
   };
+
+  // --- New Handlers for Two-Step Confirmation ---
+
+  const handleInitialAccept = async (proposalId: string) => {
+    if (!user) return;
+    try {
+      const { error } = await supabase
+        .from('meetup_proposals')
+        .update({ status: 'awaiting_final_confirmation' })
+        .eq('id', proposalId)
+        .eq('recipient_id', user.id) // Ensure user is the recipient
+        .eq('status', 'pending'); // Can only accept if pending
+
+      if (error) throw error;
+      await fetchRelevantProposals(); // Refresh list
+    } catch (error: any) {
+      console.error(`Error initially accepting proposal ${proposalId}:`, error);
+      // Propagate error to potentially show in UI
+      throw new Error(`Failed to accept: ${error.message}`);
+    }
+  };
+
+  const handleFinalConfirm = async (proposalId: string, senderId: string, recipientId: string) => {
+    if (!user) return;
+    const isSender = user.id === senderId;
+    const confirmationField = isSender ? 'sender_confirmed' : 'recipient_confirmed';
+
+    try {
+      // Step 1: Set the user's confirmation flag
+      const { error: updateConfirmError } = await supabase
+        .from('meetup_proposals')
+        .update({ [confirmationField]: true })
+        .eq('id', proposalId)
+        .eq('status', 'awaiting_final_confirmation') // Can only confirm if awaiting
+        .eq(isSender ? 'sender_id' : 'recipient_id', user.id); // Match user role
+
+      if (updateConfirmError) throw updateConfirmError;
+
+      // Step 2: Check if both are now confirmed and update status to finalized
+      // We use an RPC function for atomicity (recommended) or check client-side (simpler for now)
+
+      // Client-side check (less robust than RPC but simpler):
+      const { data: checkData, error: checkError } = await supabase
+        .from('meetup_proposals')
+        .select('sender_confirmed, recipient_confirmed')
+        .eq('id', proposalId)
+        .single();
+
+      if (checkError) throw checkError;
+
+      if (checkData?.sender_confirmed && checkData?.recipient_confirmed) {
+        const { error: finalizeError } = await supabase
+          .from('meetup_proposals')
+          .update({ status: 'finalized' })
+          .eq('id', proposalId)
+          .eq('status', 'awaiting_final_confirmation'); // Ensure it wasn't cancelled meanwhile
+
+         if (finalizeError) throw finalizeError;
+      }
+
+      await fetchRelevantProposals(); // Refresh list
+    } catch (error: any) {
+      console.error(`Error finalizing confirmation for proposal ${proposalId}:`, error);
+      throw new Error(`Failed to confirm: ${error.message}`);
+    }
+  };
+
+  const handleCancel = async (proposalId: string) => {
+    if (!user) return;
+    try {
+      // Allow cancellation if pending or awaiting final confirmation
+      const { error } = await supabase
+        .from('meetup_proposals')
+        .update({ status: 'cancelled' })
+        .eq('id', proposalId)
+        .in('status', ['pending', 'awaiting_final_confirmation'])
+        // Check if user is sender OR recipient (either can cancel)
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`);
+
+
+      if (error) throw error;
+      await fetchRelevantProposals(); // Refresh list
+    } catch (error: any) {
+      console.error(`Error cancelling proposal ${proposalId}:`, error);
+      throw new Error(`Failed to cancel: ${error.message}`);
+    }
+  };
+
+  // --- End New Handlers ---
 
   // --- Filtered and Sorted Proposals ---
   const filteredAndSortedProposals = useMemo(() => {
@@ -364,6 +459,32 @@ const Header = () => {
     // Update dependency array for useMemo
   }, [proposals, filterDate, filterTime]); // Recalculate when fetched proposals or filters change
 
+  // --- Categorized Proposals ---
+  const incomingRequests = useMemo(() => {
+    // Filter for pending proposals where the current user is the recipient
+    return proposals.filter(p => p.status === 'pending' && p.recipient_id === user?.id)
+      // Sort by meetup time ascending
+      .sort((a, b) => new Date(a.meetup_time).getTime() - new Date(b.meetup_time).getTime());
+  }, [proposals, user?.id]);
+
+  const pendingConfirmation = useMemo(() => {
+    // Filter for proposals awaiting final confirmation involving the current user
+    return proposals.filter(p => p.status === 'awaiting_final_confirmation' && (p.recipient_id === user?.id || p.sender_id === user?.id))
+      // Sort by meetup time ascending
+      .sort((a, b) => new Date(a.meetup_time).getTime() - new Date(b.meetup_time).getTime());
+  }, [proposals, user?.id]);
+
+  const expiredProposals = useMemo(() => {
+    // Filter for expired proposals involving the current user
+    return proposals.filter(p => p.status === 'expired' && (p.recipient_id === user?.id || p.sender_id === user?.id))
+      // Sort by meetup time ascending
+      .sort((a, b) => new Date(a.meetup_time).getTime() - new Date(b.meetup_time).getTime());
+  }, [proposals, user?.id]);
+
+  // TODO: Decide if/how date/time filters from lines 682-708 apply to these categories.
+  // The original filteredAndSortedProposals is currently unused in the refactored rendering below.
+
+
   return (
     <>
       <header className="bg-gradient-to-r from-blue-700 to-blue-500 text-white p-3 shadow-md">
@@ -402,14 +523,26 @@ const Header = () => {
                 Map
               </a>
 
-              {user && ( // Add Meets button only if user is logged in
-                <button
-                  onClick={() => setShowMeetsPopup(true)}
-                  className="flex items-center hover:text-blue-100 transition-colors duration-200 font-medium px-3 py-1 rounded-md bg-white bg-opacity-10 hover:bg-opacity-20"
-                >
-                  <span role="img" aria-label="calendar" className="mr-1.5">📅</span>
-                  Meets
-                </button>
+              {user && ( // Add Meets button and History link only if user is logged in
+                <> {/* Wrap adjacent elements in a fragment */}
+                  <button
+                    onClick={() => setShowMeetsPopup(true)}
+                    className="flex items-center hover:text-blue-100 transition-colors duration-200 font-medium px-3 py-1 rounded-md bg-white bg-opacity-10 hover:bg-opacity-20"
+                  >
+                    <span role="img" aria-label="calendar" className="mr-1.5">📅</span>
+                    Meets ({incomingRequests.length + pendingConfirmation.length}) {/* Show count of actionable items */}
+                  </button>
+                  {/* Added History Link */}
+                  <a
+                    href="/history"
+                    onClick={(e) => handleNavigation('/history', e)}
+                    className={`hover:text-blue-100 transition-colors duration-200 font-medium ${
+                      currentPath === '/history' ? 'border-b-2 border-white pb-1' : ''
+                    }`}
+                  >
+                    History
+                  </a>
+                </>
               )}
 
               {user ? (
@@ -618,39 +751,91 @@ const Header = () => {
                   {/* Proposal List Area */}
                   <div className="mt-2">
                     {isLoadingProposals ? (
-                       <p className="p-4 text-center text-gray-500">Loading requests...</p>
+                      <p className="p-4 text-center text-gray-500">Loading...</p>
                     ) : proposalsError ? (
-                       <p className="p-4 text-center text-red-600">{proposalsError}</p>
-                    ) : filteredAndSortedProposals.length === 0 ? (
-                       <p className="p-4 text-center text-gray-500">
-                         {filterDate || filterTime ? 'No requests match the current filters.' : 'No pending meetup requests.'}
-                       </p>
+                      <p className="p-4 text-center text-red-600">{proposalsError}</p>
                     ) : (
-                      <div className="space-y-0"> {/* Remove space between rows, border handles separation */}
-                        {/* Add type annotation for 'proposal' */}
-                        {filteredAndSortedProposals.map((proposal: MeetupProposal) => {
-                          // Calculate distance if user location is available
-                          const distance = userHomeLocation
-                            ? calculateDistance(
-                                userHomeLocation.lat,
-                                userHomeLocation.lng,
-                                proposal.latitude,
-                                proposal.longitude
-                              )
-                            : undefined;
+                      <>
+                        {/* --- Incoming Requests Section --- */}
+                        <h3 className="text-sm font-semibold text-gray-600 px-3 pt-3 pb-1 border-b border-gray-200 bg-gray-100 sticky top-0 z-10">
+                          Incoming Requests ({incomingRequests.length})
+                        </h3>
+                        {incomingRequests.length === 0 ? (
+                          <p className="p-4 text-center text-gray-500 text-sm">No new meetup requests.</p>
+                        ) : (
+                          <div className="space-y-0">
+                            {incomingRequests.map((proposal) => {
+                              const distance = userHomeLocation ? calculateDistance(userHomeLocation.lat, userHomeLocation.lng, proposal.latitude, proposal.longitude) : undefined;
+                              return (
+                                <MeetupRequestRow
+                                  key={`${proposal.id}-incoming`}
+                                  proposal={proposal}
+                                  onViewProfile={setViewingSenderId}
+                                  onViewLocation={setViewingLocation}
+                                  distanceKm={distance}
+                                  // Pass NEW handlers for this state
+                                  onInitialAccept={handleInitialAccept}
+                                  onDecline={handleDecline}
+                                  // Remove old/unused handlers
+                                  // onUpdateProposalStatus - removed
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
 
-                          return (
-                            <MeetupRequestRow
-                              key={proposal.id} // Use proposal.id (UUID from DB)
-                              proposal={proposal}
-                              onViewProfile={setViewingSenderId}
-                              onViewLocation={setViewingLocation}
-                              distanceKm={distance} // Pass calculated distance
-                              onUpdateProposalStatus={handleUpdateProposalStatus} // Pass handler down
-                            />
-                          );
-                        })}
-                      </div>
+                        {/* --- Pending Confirmation Section --- */}
+                        <h3 className="text-sm font-semibold text-gray-600 px-3 pt-3 pb-1 border-t border-b border-gray-200 bg-gray-100 sticky top-0 z-10 mt-4">
+                          Pending Final Confirmation ({pendingConfirmation.length})
+                        </h3>
+                        {pendingConfirmation.length === 0 ? (
+                          <p className="p-4 text-center text-gray-500 text-sm">No meetups awaiting final confirmation.</p>
+                        ) : (
+                          <div className="space-y-0">
+                            {pendingConfirmation.map((proposal) => {
+                              const distance = userHomeLocation ? calculateDistance(userHomeLocation.lat, userHomeLocation.lng, proposal.latitude, proposal.longitude) : undefined;
+                              return (
+                                <MeetupRequestRow
+                                  key={`${proposal.id}-pending`}
+                                  proposal={proposal}
+                                  onViewProfile={setViewingSenderId}
+                                  onViewLocation={setViewingLocation}
+                                  distanceKm={distance}
+                                  // Pass NEW handlers for this state
+                                  onFinalConfirm={handleFinalConfirm}
+                                  onCancel={handleCancel}
+                                   // Remove old/unused handlers
+                                  // onUpdateProposalStatus - removed
+                                />
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* --- Expired Section (Optional Display) --- */}
+                        {expiredProposals.length > 0 && (
+                           <>
+                              <h3 className="text-sm font-semibold text-gray-500 px-3 pt-3 pb-1 border-t border-b border-gray-200 bg-gray-100 sticky top-0 z-10 mt-4">
+                                Expired / Past ({expiredProposals.length})
+                              </h3>
+                              <div className="space-y-0 opacity-70">
+                                {expiredProposals.map((proposal) => {
+                                  const distance = userHomeLocation ? calculateDistance(userHomeLocation.lat, userHomeLocation.lng, proposal.latitude, proposal.longitude) : undefined;
+                                  return (
+                                    <MeetupRequestRow
+                                      key={`${proposal.id}-expired`}
+                                      proposal={proposal}
+                                      onViewProfile={setViewingSenderId}
+                                      onViewLocation={setViewingLocation}
+                                      distanceKm={distance}
+                                      // No action handlers needed for expired items (handled in MeetupRequestRow)
+                                    />
+                                  );
+                                })}
+                              </div>
+                           </>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>

@@ -34,7 +34,7 @@ export interface MeetupProposalPayload {
   longitude: number;
   meetup_time: string; // ISO string
   description?: string | null;
-  status?: 'pending' | 'accepted' | 'declined' | 'countered'; // Defaults to 'pending' in DB
+  status?: 'pending' | 'awaiting_final_confirmation' | 'finalized' | 'declined' | 'cancelled' | 'countered' | 'expired'; // Defaults to 'pending' in DB
 }
 
 // Structure for FETCHING proposals, including joined sender profile data
@@ -47,9 +47,11 @@ export interface MeetupProposal {
   longitude: number;
   meetup_time: string; // ISO string
   description: string | null;
-  status: 'pending' | 'accepted' | 'declined' | 'countered';
+  status: 'pending' | 'awaiting_final_confirmation' | 'finalized' | 'declined' | 'cancelled' | 'countered' | 'expired';
   created_at: string; // ISO string
   updated_at: string; // ISO string
+  sender_confirmed: boolean; // Added for two-step confirmation
+  recipient_confirmed: boolean; // Added for two-step confirmation
   // Joined sender profile information
   profiles: {
     name: string;

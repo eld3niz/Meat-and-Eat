@@ -112,14 +112,16 @@ CREATE TABLE public.meetup_proposals (
     longitude DOUBLE PRECISION NOT NULL,
     meetup_time TIMESTAMPTZ NOT NULL,
     description TEXT NULL,
-    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'countered')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'countered', 'awaiting_final_confirmation', 'finalized', 'cancelled', 'expired')),
+    sender_confirmed BOOLEAN DEFAULT false NOT NULL,
+    recipient_confirmed BOOLEAN DEFAULT false NOT NULL,
     created_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT timezone('utc', now()) NOT NULL,
     CONSTRAINT sender_recipient_check CHECK (sender_id <> recipient_id) -- Prevent users from sending proposals to themselves
 );
 
 COMMENT ON TABLE public.meetup_proposals IS 'Stores meetup proposals sent from one user (sender) to another (recipient).';
-COMMENT ON COLUMN public.meetup_proposals.status IS 'Current status of the proposal: pending, accepted, declined, countered.';
+COMMENT ON COLUMN public.meetup_proposals.status IS 'Current status of the proposal: pending, accepted, declined, countered, awaiting_final_confirmation, finalized, cancelled, expired.';
 
 -- Add indexes for faster querying by sender or recipient
 CREATE INDEX idx_meetup_proposals_sender_id ON public.meetup_proposals(sender_id);
@@ -214,7 +216,82 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.get_snapped_map_users() IS 'Returns user data for map display, snapping locations to a grid for privacy. Uses SECURITY DEFINER to read necessary data across RLS.';
-```
+
+
+-- Function to handle proposal confirmation
+CREATE OR REPLACE FUNCTION public.confirm_meetup_proposal(p_proposal_id UUID)
+RETURNS TEXT
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  proposal RECORD;
+  current_user_id UUID := auth.uid();
+  updated_status TEXT;
+BEGIN
+  -- Fetch the proposal details
+  SELECT * INTO proposal
+  FROM public.meetup_proposals
+  WHERE id = p_proposal_id;
+
+  IF NOT FOUND THEN RETURN 'Error: Proposal not found.'; END IF;
+  IF proposal.status <> 'awaiting_final_confirmation' THEN RETURN 'Error: Proposal is not awaiting final confirmation.'; END IF;
+  IF current_user_id <> proposal.sender_id AND current_user_id <> proposal.recipient_id THEN RETURN 'Error: You are not authorized to confirm this proposal.'; END IF;
+
+  -- Perform the update based on who is calling
+  IF current_user_id = proposal.sender_id THEN
+    IF proposal.sender_confirmed THEN RETURN 'Info: You have already confirmed this proposal.'; END IF;
+    UPDATE public.meetup_proposals SET sender_confirmed = true WHERE id = p_proposal_id;
+    -- Re-fetch proposal to check other flag *after* update
+    SELECT * INTO proposal FROM public.meetup_proposals WHERE id = p_proposal_id;
+    IF proposal.recipient_confirmed THEN
+      UPDATE public.meetup_proposals SET status = 'finalized' WHERE id = p_proposal_id;
+      RETURN 'Success: Proposal confirmed by sender and finalized.';
+    ELSE
+      RETURN 'Success: Proposal confirmed by sender. Waiting for recipient.';
+    END IF;
+
+  ELSIF current_user_id = proposal.recipient_id THEN
+    IF proposal.recipient_confirmed THEN RETURN 'Info: You have already confirmed this proposal.'; END IF;
+    UPDATE public.meetup_proposals SET recipient_confirmed = true WHERE id = p_proposal_id;
+    -- Re-fetch proposal to check other flag *after* update
+    SELECT * INTO proposal FROM public.meetup_proposals WHERE id = p_proposal_id;
+    IF proposal.sender_confirmed THEN
+      UPDATE public.meetup_proposals SET status = 'finalized' WHERE id = p_proposal_id;
+      RETURN 'Success: Proposal confirmed by recipient and finalized.';
+    ELSE
+      RETURN 'Success: Proposal confirmed by recipient. Waiting for sender.';
+    END IF;
+  END IF;
+
+EXCEPTION WHEN OTHERS THEN RETURN 'Error: An unexpected error occurred: ' || SQLERRM;
+END;
+$$;
+
+-- Grant permission to authenticated users to call this function
+GRANT EXECUTE ON FUNCTION public.confirm_meetup_proposal(UUID) TO authenticated;
+
+COMMENT ON FUNCTION public.confirm_meetup_proposal(UUID) IS 'Allows sender or recipient to confirm a proposal awaiting final confirmation via RPC. Sets the appropriate flag and finalizes status if both confirm.';
+
+
+-- Function to handle expired meetups
+CREATE OR REPLACE FUNCTION public.handle_expired_meetups()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+BEGIN
+  UPDATE public.meetup_proposals
+  SET status = 'expired'
+  WHERE
+    meetup_time < NOW() AND
+    status IN ('pending', 'awaiting_final_confirmation');
+END;
+$$;
+
+-- Optional: Grant execute permission
+GRANT EXECUTE ON FUNCTION public.handle_expired_meetups() TO authenticated;
+
 
 -- Trigger function to automatically update updated_at timestamp
 -- Create if it doesn't exist (can be shared across tables)
@@ -284,6 +361,12 @@ GRANT EXECUTE ON FUNCTION public.update_home_location(DOUBLE PRECISION, DOUBLE P
 
 -- Grant execute permission for get_snapped_map_users
 GRANT EXECUTE ON FUNCTION public.get_snapped_map_users() TO authenticated;
+
+-- Grant execute permission to confirm_meetup_proposal
+GRANT EXECUTE ON FUNCTION public.confirm_meetup_proposal(UUID) TO authenticated;
+
+-- Grant execute permission to handle_expired_meetups (Optional)
+GRANT EXECUTE ON FUNCTION public.handle_expired_meetups() TO authenticated;
 
 ```
 
@@ -400,8 +483,6 @@ ON public.meetups FOR DELETE
 USING (auth.uid() = creator_id);
 
 
-```
-
 -- =======================================
 -- Policies for public.meetup_proposals
 -- =======================================
@@ -416,17 +497,45 @@ CREATE POLICY "Allow users to insert proposals as sender"
 ON public.meetup_proposals FOR INSERT
 WITH CHECK (auth.uid() = sender_id);
 
--- Allow recipients to update the status of proposals sent to them
-CREATE POLICY "Allow recipients to update proposal status"
+-- Allow recipient to accept/decline PENDING proposals
+CREATE POLICY "Allow recipient action on pending proposals"
 ON public.meetup_proposals FOR UPDATE
-USING (auth.uid() = recipient_id)
-WITH CHECK (auth.uid() = recipient_id); -- Check applies to the row being updated
+USING (
+  auth.uid() = recipient_id
+  AND status = 'pending'
+)
+WITH CHECK (
+  status IN ('awaiting_final_confirmation', 'declined')
+);
 
--- Allow sender or recipient to delete proposals involving them (e.g., cancel pending, remove old)
+-- Allow sender/recipient to CANCEL pending/awaiting proposals
+CREATE POLICY "Allow user to cancel proposal"
+ON public.meetup_proposals FOR UPDATE
+USING (
+  (auth.uid() = sender_id OR auth.uid() = recipient_id)
+  AND status IN ('pending', 'awaiting_final_confirmation')
+)
+WITH CHECK (
+  status = 'cancelled'
+);
+
+-- Allow updates during confirmation phase
+CREATE POLICY "Allow update during confirmation phase"
+ON public.meetup_proposals FOR UPDATE
+USING (
+  status = 'awaiting_final_confirmation'
+)
+WITH CHECK (
+  status IN ('awaiting_final_confirmation', 'finalized')
+);
+
+-- Allow sender or recipient to delete proposals involving them
 CREATE POLICY "Allow involved users to delete proposals"
 ON public.meetup_proposals FOR DELETE
 USING (auth.uid() = sender_id OR auth.uid() = recipient_id);
 
+
+```
 
 ---
 
