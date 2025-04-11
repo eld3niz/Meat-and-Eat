@@ -170,6 +170,8 @@ function App() {
       <ModalProvider>
         <AppContent /> {/* Render the inner component */}
       </ModalProvider>
+      {/* Portal target for modals/popups needing AuthContext */}
+      <div id="popup-root"></div>
     </AuthProvider>
   );
 }

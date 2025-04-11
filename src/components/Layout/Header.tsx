@@ -8,6 +8,8 @@ import MyOffersTab from '../meetups/MyOffersTab'; // Import the new tab componen
 import MeetupRequestRow from '../meetups/MeetupRequestRow'; // Import the request row component
 import SimpleMapDisplay from '../UI/SimpleMapDisplay'; // Import the map display component
 import { MeetupProposal } from '../../types/meetup'; // Import the proposal type
+import { parseISO, format as formatDateFns, startOfDay, isSameDay, parse } from 'date-fns'; // Import date-fns helpers
+import { useMemo } from 'react'; // Import useMemo
 // Removed ChatLayout import
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
@@ -29,50 +31,15 @@ const Header = () => {
   const [activeMeetsTab, setActiveMeetsTab] = useState<'meetAndEat' | 'activity' | 'offers'>('meetAndEat'); // State for active tab in Meets popup, removed 'chats', default 'meetAndEat'
   const [viewingSenderId, setViewingSenderId] = useState<string | null>(null); // State to show sender profile
   const [viewingLocation, setViewingLocation] = useState<{ lat: number; lng: number; name?: string } | null>(null); // State to show location map
+  const [filterDate, setFilterDate] = useState<string>(''); // State for date filter (YYYY-MM-DD)
+  const [filterTime, setFilterTime] = useState<string>(''); // State for time filter (HH:MM)
+  const [userHomeLocation, setUserHomeLocation] = useState<{ lat: number; lng: number } | null>(null); // State for user's home location
+  const [proposals, setProposals] = useState<MeetupProposal[]>([]); // State for fetched proposals
+  const [isLoadingProposals, setIsLoadingProposals] = useState(false);
+  const [proposalsError, setProposalsError] = useState<string | null>(null);
 
   // --- Dummy Data for Meetup Proposals (Requests) ---
-  const dummyProposals: MeetupProposal[] = [
-    {
-      proposalId: 'prop-123',
-      senderId: 'user-abc-sender-id', // Example sender ID
-      senderName: 'Alice Anderson',
-      recipientId: user?.id || 'unknown-recipient', // Use logged-in user ID if available
-      placeName: 'The Cozy Corner Cafe',
-      latitude: 52.5200, // Berlin Lat
-      longitude: 13.4050, // Berlin Lng
-      meetupTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
-      description: 'Hey! Saw your profile, interested in grabbing a coffee sometime next week to chat about local tech meetups?',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
-    },
-    {
-      proposalId: 'prop-456',
-      senderId: 'user-xyz-sender-id', // Example sender ID
-      senderName: 'Bob Baker',
-      recipientId: user?.id || 'unknown-recipient', // Use logged-in user ID if available
-      placeName: 'Riverside Park Bench',
-      latitude: 52.5170, // Near Berlin Hbf
-      longitude: 13.3889,
-      meetupTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
-      description: null, // No description
-      status: 'pending',
-      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
-    },
-     {
-      proposalId: 'prop-789',
-      senderId: 'user-def-sender-id', // Example sender ID
-      senderName: 'Charlie Chaplin',
-      recipientId: user?.id || 'unknown-recipient', // Use logged-in user ID if available
-      placeName: 'Museum Island Entrance',
-      latitude: 52.5186,
-      longitude: 13.3944,
-      meetupTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
-      description: 'Let\'s explore the museum together tomorrow afternoon?',
-      status: 'pending',
-      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
-    },
-  ];
-  // --- End Dummy Data ---
+  // --- End Dummy Data --- // Dummy data removed, will fetch real data
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -131,7 +98,8 @@ const Header = () => {
         try {
           const { data, error } = await supabase
             .from('profiles')
-            .select('name')
+            // Fetch name and home location
+            .select('name, home_latitude, home_longitude')
             .eq('id', user.id);
 
           if (error) {
@@ -139,6 +107,12 @@ const Header = () => {
              fetchError = true;
           } else if (data && data.length > 0 && data[0]?.name) {
              fetchedName = data[0].name;
+             // Store home location if available
+             if (data[0].home_latitude && data[0].home_longitude) {
+               setUserHomeLocation({ lat: data[0].home_latitude, lng: data[0].home_longitude });
+             } else {
+               setUserHomeLocation(null); // Reset if not found
+             }
           } else {
              console.warn('Profile not found or name missing for user:', user.id);
           }
@@ -179,6 +153,7 @@ const Header = () => {
       setProfileFetchStatus('idle');
       setUserName(null);
       setDisplayText('');
+      setUserHomeLocation(null); // Reset home location on logout
     }
 
     // Cleanup function
@@ -236,6 +211,60 @@ const Header = () => {
     };
   }, [showMeetsPopup]);
 
+  // --- Fetch Pending Proposals ---
+  const fetchProposals = useCallback(async () => {
+    if (!user?.id) {
+      setProposals([]); // Clear proposals if user logs out
+      return;
+    }
+
+    setIsLoadingProposals(true);
+    setProposalsError(null);
+
+    try {
+      const { data, error } = await supabase
+        .from('meetup_proposals')
+        .select(`
+          *,
+          profiles!sender_id ( name, avatar_url )
+        `)
+        .eq('recipient_id', user.id)
+        .eq('status', 'pending'); // Only fetch pending proposals
+
+      if (error) {
+        throw error;
+      }
+
+      // Ensure profiles data is at least null if join fails unexpectedly
+      const formattedData = data?.map(p => ({
+          ...p,
+          profiles: p.profiles || null
+      })) || [];
+
+      setProposals(formattedData as MeetupProposal[]); // Cast needed because Supabase type might not perfectly match
+
+    } catch (error: any) {
+      console.error("Error fetching proposals:", error);
+      setProposalsError(`Failed to load requests: ${error.message}`);
+      setProposals([]); // Clear proposals on error
+    } finally {
+      setIsLoadingProposals(false);
+    }
+  }, [user?.id]); // Dependency on user ID
+
+  // Fetch proposals when the popup is shown or user changes
+  useEffect(() => {
+    if (showMeetsPopup && user?.id) {
+      fetchProposals();
+    }
+    // Clear proposals when popup closes to ensure fresh data next time
+    if (!showMeetsPopup) {
+       setProposals([]);
+       setProposalsError(null);
+       setIsLoadingProposals(false);
+    }
+  }, [showMeetsPopup, user?.id, fetchProposals]);
+
   // Navigation-Handler
   const handleNavigation = (path: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -253,6 +282,87 @@ const Header = () => {
     setShowProfileMenu(false);
     setShowProfilePage(false);
   };
+
+  // --- Helper Function for Distance Calculation (Haversine) ---
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Radius of the Earth in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    const distance = R * c; // Distance in km
+    return distance;
+  };
+
+  // --- Handle Proposal Status Update ---
+  const handleUpdateProposalStatus = async (proposalId: string, newStatus: 'accepted' | 'declined') => {
+    if (!user) return; // Should not happen if buttons are visible, but safety check
+
+    try {
+      const { error } = await supabase
+        .from('meetup_proposals')
+        .update({ status: newStatus })
+        .eq('id', proposalId)
+        .eq('recipient_id', user.id); // Ensure user is the recipient (matches RLS)
+
+      if (error) {
+        throw error;
+      }
+
+      // Refresh the proposals list after successful update
+      await fetchProposals();
+
+    } catch (error: any) {
+      console.error(`Error updating proposal ${proposalId} to ${newStatus}:`, error);
+      // Re-throw the error so the row component can display a message
+      throw new Error(`Failed to update status: ${error.message}`);
+    }
+  };
+
+  // --- Filtered and Sorted Proposals ---
+  const filteredAndSortedProposals = useMemo(() => {
+    // Use fetched proposals state instead of dummy data
+    // Rename local variable to avoid shadowing state variable
+    let filteredProposals: MeetupProposal[] = [...proposals]; // Start with a copy from state
+
+    // 1. Filter by Date
+    if (filterDate) {
+      const selectedDate = startOfDay(parseISO(filterDate)); // Get start of selected day
+      // Add type annotation for 'p'
+      filteredProposals = filteredProposals.filter((p: MeetupProposal) => {
+        const proposalDate = startOfDay(parseISO(p.meetup_time)); // Use correct property name
+        return isSameDay(proposalDate, selectedDate);
+      });
+    }
+
+    // 2. Filter by Time (only if date is also selected)
+    if (filterDate && filterTime) {
+       try {
+           // Combine selected date and filter time to create a reference Date object
+           const referenceDateTime = parse(`${filterDate} ${filterTime}`, 'yyyy-MM-dd HH:mm', new Date());
+
+           // Add type annotation for 'p'
+           filteredProposals = filteredProposals.filter((p: MeetupProposal) => {
+               const proposalDateTime = parseISO(p.meetup_time); // Use correct property name
+               // Keep proposal if its time is on or after the filter time on the selected date
+               return proposalDateTime >= referenceDateTime;
+           });
+       } catch (e) {
+            console.error("Error parsing date/time for filtering:", e);
+            // Optionally handle the error, e.g., show all times for the date
+       }
+    }
+
+    // 3. Sort by Meetup Time (Ascending)
+    // Add type annotations for 'a' and 'b' and use correct property name
+    filteredProposals.sort((a: MeetupProposal, b: MeetupProposal) => new Date(a.meetup_time).getTime() - new Date(b.meetup_time).getTime());
+
+    return filteredProposals; // Return the renamed local variable
+    // Update dependency array for useMemo
+  }, [proposals, filterDate, filterTime]); // Recalculate when fetched proposals or filters change
 
   return (
     <>
@@ -473,20 +583,76 @@ const Header = () => {
               {/* Removed Chats Tab Content */}
               {activeMeetsTab === 'meetAndEat' && ( // Renamed to Requests Tab
                 <div>
-                  {dummyProposals.length === 0 ? (
-                    <p className="p-4 text-center text-gray-500">No pending meetup requests.</p>
-                  ) : (
-                    <div className="space-y-0"> {/* Remove space between rows, border handles separation */}
-                      {dummyProposals.map((proposal) => (
-                        <MeetupRequestRow
-                          key={proposal.proposalId}
-                          proposal={proposal}
-                          onViewProfile={setViewingSenderId}
-                          onViewLocation={setViewingLocation}
+                  {/* Filter Controls */}
+                  <div className="p-3 border-b border-gray-200 bg-gray-50 flex items-center gap-4">
+                     <div className="flex items-center gap-2">
+                        <label htmlFor="filterDate" className="text-xs font-medium text-gray-600">Date:</label>
+                        <input
+                          type="date"
+                          id="filterDate"
+                          value={filterDate}
+                          onChange={(e) => setFilterDate(e.target.value)}
+                          className="p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
                         />
-                      ))}
-                    </div>
-                  )}
+                     </div>
+                      <div className="flex items-center gap-2">
+                        <label htmlFor="filterTime" className="text-xs font-medium text-gray-600">From Time:</label>
+                        <input
+                          type="time"
+                          id="filterTime"
+                          value={filterTime}
+                          onChange={(e) => setFilterTime(e.target.value)}
+                          className="p-1 border border-gray-300 rounded text-xs focus:ring-blue-500 focus:border-blue-500"
+                          disabled={!filterDate} // Disable time if no date is selected
+                        />
+                     </div>
+                     <button
+                        onClick={() => { setFilterDate(''); setFilterTime(''); }}
+                        className="px-2 py-1 text-xs text-gray-600 bg-gray-200 rounded hover:bg-gray-300"
+                        title="Clear Filters"
+                     >
+                        Clear
+                     </button>
+                  </div>
+
+                  {/* Proposal List Area */}
+                  <div className="mt-2">
+                    {isLoadingProposals ? (
+                       <p className="p-4 text-center text-gray-500">Loading requests...</p>
+                    ) : proposalsError ? (
+                       <p className="p-4 text-center text-red-600">{proposalsError}</p>
+                    ) : filteredAndSortedProposals.length === 0 ? (
+                       <p className="p-4 text-center text-gray-500">
+                         {filterDate || filterTime ? 'No requests match the current filters.' : 'No pending meetup requests.'}
+                       </p>
+                    ) : (
+                      <div className="space-y-0"> {/* Remove space between rows, border handles separation */}
+                        {/* Add type annotation for 'proposal' */}
+                        {filteredAndSortedProposals.map((proposal: MeetupProposal) => {
+                          // Calculate distance if user location is available
+                          const distance = userHomeLocation
+                            ? calculateDistance(
+                                userHomeLocation.lat,
+                                userHomeLocation.lng,
+                                proposal.latitude,
+                                proposal.longitude
+                              )
+                            : undefined;
+
+                          return (
+                            <MeetupRequestRow
+                              key={proposal.id} // Use proposal.id (UUID from DB)
+                              proposal={proposal}
+                              onViewProfile={setViewingSenderId}
+                              onViewLocation={setViewingLocation}
+                              distanceKm={distance} // Pass calculated distance
+                              onUpdateProposalStatus={handleUpdateProposalStatus} // Pass handler down
+                            />
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
               {activeMeetsTab === 'activity' && (

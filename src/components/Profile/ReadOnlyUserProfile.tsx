@@ -36,7 +36,6 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
-  const [isMeetMePopupOpen, setIsMeetMePopupOpen] = useState(false); // State for the popup
 
   // Helper function for budget emojis
   const getBudgetEmoji = (budgetLevel: number | null): string => {
@@ -90,9 +89,6 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
     return list.join(', ');
   };
 
-  const handleMeetMeClick = () => {
-    setIsMeetMePopupOpen(true);
-  };
 
   return (
     <> {/* Start React Fragment */}
@@ -199,7 +195,6 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
               <button
                 type="button"
                 className="px-4 py-1 bg-green-500 text-white text-sm font-medium rounded shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500" // Slightly larger button
-                onClick={handleMeetMeClick} // Add onClick handler
               >
                 Meet Me
               </button>
@@ -220,18 +215,6 @@ const ReadOnlyUserProfile: React.FC<ReadOnlyUserProfileProps> = ({ userId, onClo
     </div> {/* Closes the main positioning div from line 99 */}
 
     {/* Render the SimpleMessagePopup using a Portal */}
-    {isMeetMePopupOpen && ReactDOM.createPortal(
-      <SimpleMessagePopup
-        isOpen={isMeetMePopupOpen}
-        onClose={() => setIsMeetMePopupOpen(false)}
-        // title prop removed to use default or userName-based title from SimpleMessagePopup
-        // message prop removed
-        onSubmit={(formData) => console.log("Meetup form submitted from profile (placeholder):", formData)} // Placeholder onSubmit
-        userId={userId} // Pass the userId from ReadOnlyUserProfile props
-        userName={profile?.name} // Pass the fetched profile name
-      />,
-      document.getElementById('popup-root')! // Assert non-null as we added it
-    )}
     </> // End React Fragment
   );
 };

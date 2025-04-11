@@ -6,6 +6,8 @@ import L, { LatLngExpression, LatLng } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import TagInput from './TagInput'; // Import TagInput (Corrected path)
 import { cuisineOptions } from '../../data/options'; // Import cuisine options
+import supabase from '../../utils/supabaseClient'; // Import Supabase client
+import { useAuth } from '../../context/AuthContext'; // Import useAuth hook
 
 // Fix default icon issue with Leaflet and bundlers
 import iconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png';
@@ -90,6 +92,9 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   userName, // Added prop
 }) => {
   const popupRef = useRef<HTMLDivElement>(null);
+  const { user } = useAuth(); // Get the logged-in user from AuthContext
+  const [isSubmitting, setIsSubmitting] = useState(false); // State for submission loading
+  const [submitError, setSubmitError] = useState<string | null>(null); // State for submission error
 
   // --- State Variables from MeetupFormPopup ---
   const [placeName, setPlaceName] = useState('');
@@ -138,6 +143,8 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
         setOverpassPlaces([]);
         setIsLoadingLocation(true);
         setShowConfirmation(false);
+        setIsSubmitting(false); // Reset submitting state
+        setSubmitError(null); // Reset error state
     }
   }, [isOpen]);
 
@@ -228,37 +235,52 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
     setShowConfirmation(true);
   };
 
-  const handleConfirmSubmit = () => {
-    if (!selectedLocation || !meetupDateTime) return;
+  const handleConfirmSubmit = async () => {
+    if (!selectedLocation || !meetupDateTime || !user) {
+        setSubmitError("Missing required information or user not logged in.");
+        return;
+    }
 
-    // 1. Gather proposal data
-    const proposalData = {
-      recipientUserId: userId,
-      recipientName: userName,
-      placeName: placeName || `Custom @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`,
+    setIsSubmitting(true);
+    setSubmitError(null);
+
+    const proposalPayload = {
+      sender_id: user.id, // Logged-in user is the sender
+      recipient_id: userId, // The ID passed as prop is the recipient
+      place_name: placeName || `Custom @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`,
       latitude: selectedLocation.lat,
       longitude: selectedLocation.lng,
-      meetupTime: meetupDateTime.toISOString(),
-      description: description || null, // Ensure null if empty
-      // Note: senderId and senderName would be the logged-in user, added later
+      meetup_time: meetupDateTime.toISOString(),
+      description: description || null,
+      status: 'pending', // Initial status
+      // created_at and updated_at are handled by the database default/trigger
     };
 
-    // 2. Log the proposal data (simulation of sending)
-    console.log("--- Meetup Proposal Sent (UI Simulation) ---");
-    console.log("Recipient User ID:", proposalData.recipientUserId);
-    console.log("Recipient Name:", proposalData.recipientName);
-    console.log("Place:", proposalData.placeName);
-    console.log("Location:", { lat: proposalData.latitude, lng: proposalData.longitude });
-    console.log("Time:", proposalData.meetupTime);
-    console.log("Description:", proposalData.description);
-    console.log("---------------------------------------------");
+    try {
+        console.log("Attempting to insert proposal:", proposalPayload);
+        const { error } = await supabase
+            .from('meetup_proposals')
+            .insert([proposalPayload]);
 
-    // 3. Comment out original onSubmit (if it's for creating meetups directly)
-    // onSubmit(formData); // Use the passed onSubmit prop
+        if (error) {
+            console.error("Error inserting proposal:", error);
+            throw error; // Throw error to be caught below
+        }
 
-    // 4. Close the confirmation and the popup
-    setShowConfirmation(false);
-    onClose(); // Close the entire popup after "sending"
+        console.log("Proposal inserted successfully!");
+        // Optionally show a success message to the user here
+
+        // Close the confirmation and the popup on success
+        setShowConfirmation(false);
+        onClose();
+
+    } catch (error: any) {
+        console.error("Submission failed:", error);
+        setSubmitError(`Failed to send proposal: ${error.message || 'Please try again.'}`);
+        // Keep the confirmation dialog open so the user sees the error
+    } finally {
+        setIsSubmitting(false); // Reset loading state regardless of outcome
+    }
   };
 
   const handleCancelSubmit = () => {
@@ -312,24 +334,30 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
         {showConfirmation ? (
             // Confirmation Dialog (from MeetupFormPopup)
             <div className="text-center">
-                <p className="mb-4">Are you sure you want to create this meeting?</p>
+                <p className="mb-4">Send this meetup proposal to {userName || 'this user'}?</p>
                 <p><strong>Place:</strong> {placeName || `Custom @ ${selectedLocation?.lat.toFixed(4)}, ${selectedLocation?.lng.toFixed(4)}`}</p>
                 <p><strong>Date:</strong> {meetupDateTime?.toLocaleDateString()}</p>
-                <p><strong>Time:</strong> {meetupDateTime?.toLocaleTimeString()}</p>
+                <p><strong>Time:</strong> {meetupDateTime?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p> {/* Format time */}
                 <div className="mt-6 flex justify-center gap-4">
                     <button
                         onClick={handleConfirmSubmit}
-                        className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600"
+                        className={`px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:opacity-50 disabled:cursor-wait`}
+                        disabled={isSubmitting} // Disable button while submitting
                     >
-                        Confirm
+                        {isSubmitting ? 'Sending...' : 'Confirm & Send'}
                     </button>
                     <button
                         onClick={handleCancelSubmit}
-                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400"
+                        className="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 disabled:opacity-50"
+                        disabled={isSubmitting} // Disable button while submitting
                     >
                         Cancel
                     </button>
                 </div>
+                {/* Display Submission Error */}
+                {submitError && (
+                    <p className="mt-4 text-sm text-red-600">{submitError}</p>
+                )}
             </div>
         ) : (
             // Form (from MeetupFormPopup)

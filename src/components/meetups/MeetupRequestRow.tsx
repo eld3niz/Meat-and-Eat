@@ -1,32 +1,58 @@
-import React from 'react';
+import React, { useState } from 'react'; // Import useState
 import { MeetupProposal } from '../../types/meetup';
 import { format } from 'date-fns'; // Using date-fns for formatting
+import supabase from '../../utils/supabaseClient'; // Import Supabase client
 
 interface MeetupRequestRowProps {
   proposal: MeetupProposal;
   onViewProfile: (senderId: string) => void;
   onViewLocation: (location: { lat: number; lng: number; name?: string }) => void;
+  distanceKm?: number; // Optional distance from user's location
+  onUpdateProposalStatus: (proposalId: string, newStatus: 'accepted' | 'declined') => Promise<void>; // Handler from parent
 }
 
 const MeetupRequestRow: React.FC<MeetupRequestRowProps> = ({
   proposal,
   onViewProfile,
   onViewLocation,
+  distanceKm, // Destructure the new prop
+  onUpdateProposalStatus, // Destructure the new handler
 }) => {
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+
   const handleViewProfileClick = () => {
-    onViewProfile(proposal.senderId);
+    onViewProfile(proposal.sender_id); // Use sender_id
   };
 
   const handleViewLocationClick = () => {
     onViewLocation({
       lat: proposal.latitude,
       lng: proposal.longitude,
-      name: proposal.placeName,
+      name: proposal.place_name, // Use place_name
     });
   };
 
+  const handleStatusUpdate = async (newStatus: 'accepted' | 'declined') => {
+      if (isUpdating) return; // Prevent double clicks
+
+      setIsUpdating(true);
+      setUpdateError(null);
+      try {
+          await onUpdateProposalStatus(proposal.id, newStatus);
+          // No need to update local state here, parent (Header) will refetch
+      } catch (error: any) {
+          console.error(`Error updating proposal status to ${newStatus}:`, error);
+          setUpdateError(`Failed to ${newStatus === 'accepted' ? 'accept' : 'decline'}.`);
+          // Clear error after a few seconds
+          setTimeout(() => setUpdateError(null), 4000);
+      } finally {
+          setIsUpdating(false);
+      }
+  };
+
   // Format date and time
-  const formattedDateTime = format(new Date(proposal.meetupTime), 'PPpp'); // e.g., "Jul 21, 2024, 2:00 PM"
+  const formattedDateTime = format(new Date(proposal.meetup_time), 'Pp'); // Use meetup_time
 
   return (
     <div className="flex items-center justify-between p-3 border-b border-gray-200 hover:bg-gray-50 transition-colors duration-150">
@@ -35,12 +61,16 @@ const MeetupRequestRow: React.FC<MeetupRequestRowProps> = ({
         <button
           onClick={handleViewProfileClick}
           className="text-sm font-semibold text-blue-600 hover:underline truncate focus:outline-none"
-          title={`View profile of ${proposal.senderName}`}
+          // Access sender name from nested profiles object, provide fallback
+          title={`View profile of ${proposal.profiles?.name || 'Unknown Sender'}`}
         >
-          {proposal.senderName}
+          {proposal.profiles?.name || 'Unknown Sender'}
         </button>
-        <p className="text-xs text-gray-500 truncate mt-0.5" title={proposal.placeName}>
-          Wants to meet at: {proposal.placeName}
+        <p className="text-xs text-gray-500 truncate mt-0.5" title={proposal.place_name}>
+          Wants to meet at: {proposal.place_name}
+          {distanceKm !== undefined && (
+            <span className="ml-1 text-gray-400"> (~{distanceKm.toFixed(1)} km away)</span>
+          )}
         </p>
         <p className="text-xs text-gray-500 mt-0.5">
           On: {formattedDateTime}
@@ -49,6 +79,10 @@ const MeetupRequestRow: React.FC<MeetupRequestRowProps> = ({
            <p className="text-xs text-gray-600 mt-1 italic border-l-2 border-gray-300 pl-2">
              "{proposal.description}"
            </p>
+        )}
+        {/* Display Update Error */}
+        {updateError && (
+           <p className="mt-1 text-xs text-red-600">{updateError}</p>
         )}
       </div>
 
@@ -62,18 +96,18 @@ const MeetupRequestRow: React.FC<MeetupRequestRowProps> = ({
           Where?
         </button>
         <button
-          // onClick={() => {/* Accept logic later */}}
-          disabled // Disabled for now
-          className="px-2.5 py-1 text-xs font-medium text-white bg-green-500 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => handleStatusUpdate('accepted')}
+          disabled={isUpdating} // Disable while updating
+          className="px-2.5 py-1 text-xs font-medium text-white bg-green-500 rounded hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 disabled:opacity-50 disabled:cursor-wait"
         >
-          Accept
+          {isUpdating ? '...' : 'Accept'}
         </button>
         <button
-          // onClick={() => {/* Decline logic later */}}
-          disabled // Disabled for now
-          className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => handleStatusUpdate('declined')}
+          disabled={isUpdating} // Disable while updating
+          className="px-2.5 py-1 text-xs font-medium text-white bg-red-500 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-red-500 disabled:opacity-50 disabled:cursor-wait"
         >
-          Decline
+          {isUpdating ? '...' : 'Decline'}
         </button>
         <button
           // onClick={() => {/* Counter logic later */}}

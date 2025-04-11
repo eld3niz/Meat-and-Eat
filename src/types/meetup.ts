@@ -23,17 +23,37 @@ export interface Meetup {
   place_name?: string; // Optional: If place_name is stored directly in meetups table
 }
 
-// --- New Type for Meetup Proposals ---
+// --- Types for Meetup Proposals ---
+
+// Structure for INSERTING a new proposal
+export interface MeetupProposalPayload {
+  sender_id: string;
+  recipient_id: string;
+  place_name: string;
+  latitude: number;
+  longitude: number;
+  meetup_time: string; // ISO string
+  description?: string | null;
+  status?: 'pending' | 'accepted' | 'declined' | 'countered'; // Defaults to 'pending' in DB
+}
+
+// Structure for FETCHING proposals, including joined sender profile data
 export interface MeetupProposal {
-  proposalId: string; // Unique ID for the proposal (e.g., UUID)
-  senderId: string;   // User ID of the person sending the proposal
-  senderName: string; // Name of the sender (for display)
-  recipientId: string;// User ID of the person receiving the proposal
-  placeName: string;  // Name of the proposed meetup location
-  latitude: number;   // Latitude of the location
-  longitude: number;  // Longitude of the location
-  meetupTime: string; // Proposed time (ISO 8601 format string)
-  description: string | null; // Optional description/message from sender
-  status: 'pending' | 'accepted' | 'declined' | 'countered'; // Status of the proposal
-  createdAt: string;  // Timestamp when the proposal was created (ISO 8601 format string)
+  id: string; // Renamed from proposalId to match DB column
+  sender_id: string;
+  recipient_id: string;
+  place_name: string;
+  latitude: number;
+  longitude: number;
+  meetup_time: string; // ISO string
+  description: string | null;
+  status: 'pending' | 'accepted' | 'declined' | 'countered';
+  created_at: string; // ISO string
+  updated_at: string; // ISO string
+  // Joined sender profile information
+  profiles: {
+    name: string;
+    avatar_url: string | null;
+    // Add other sender profile fields if needed for display later
+  } | null; // Profile might be null if sender deleted account (though FK should prevent this usually)
 }
