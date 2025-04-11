@@ -489,6 +489,16 @@ const WorldMap = () => {
             onUserClick={(userId) => {
               setViewingProfileUserId(userId); // Set the user ID for viewing profile
             }}
+            onMeetMeClick={(user) => {
+              // Close the current aggregate popup first
+              aggregatePopupRef.current?.remove();
+              aggregatePopupRef.current = null;
+              setOpenPopupData(null); // Clear state too
+
+              // Set target user and open the message popup
+              setMeetupTargetUser({ id: user.user_id, name: user.name });
+              handleShowMeetMePopup(); // This sets isMeetMePopupOpen = true
+            }}
           />
         </React.StrictMode>
       );

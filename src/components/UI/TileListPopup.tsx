@@ -7,10 +7,11 @@ interface TileListPopupProps {
   items: (City | MapUser)[];
   onClose?: () => void;
   onUserClick: (userId: string) => void;
+  onMeetMeClick: (user: MapUser) => void; // <-- Add prop for Meet Me click
   currentUser?: any; // Add currentUser prop
 }
 
-const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserClick, currentUser }) => {
+const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserClick, onMeetMeClick, currentUser }) => { // <-- Destructure new prop
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
 
   // Filter out only user items (we're only interested in users for this popup)
@@ -84,7 +85,13 @@ const TileListPopup: React.FC<TileListPopupProps> = ({ items, onClose, onUserCli
                       : 'N/A'}
                   </td>
                   <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500">
-                    <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs">
+                    <button
+                      className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-1 px-2 rounded text-xs"
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent row click
+                        onMeetMeClick(user); // Call the new handler
+                      }}
+                    >
                       Meet me
                     </button>
                   </td>
