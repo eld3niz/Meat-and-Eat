@@ -1,11 +1,14 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'; // Import React
 import { useModal } from '../../contexts/ModalContext';
 import { useAuth } from '../../context/AuthContext';
-import UserProfile from '../Auth/UserProfile';
+import UserProfile from '../Auth/UserProfile'; // Used for the main user account page
+import ReadOnlyUserProfile from '../Profile/ReadOnlyUserProfile'; // Import for displaying sender profiles
 import supabase from '../../utils/supabaseClient';
 import MyOffersTab from '../meetups/MyOffersTab'; // Import the new tab component
+import MeetupRequestRow from '../meetups/MeetupRequestRow'; // Import the request row component
+import SimpleMapDisplay from '../UI/SimpleMapDisplay'; // Import the map display component
+import { MeetupProposal } from '../../types/meetup'; // Import the proposal type
 // Removed ChatLayout import
-
 const Header = () => {
   const [currentPath, setCurrentPath] = useState('/');
   const { openAuthModal } = useModal();
@@ -24,6 +27,52 @@ const Header = () => {
   const userNameRef = useRef(userName); // Initialize ref at top level
   const [showMeetsPopup, setShowMeetsPopup] = useState(false); // State for Meets popup
   const [activeMeetsTab, setActiveMeetsTab] = useState<'meetAndEat' | 'activity' | 'offers'>('meetAndEat'); // State for active tab in Meets popup, removed 'chats', default 'meetAndEat'
+  const [viewingSenderId, setViewingSenderId] = useState<string | null>(null); // State to show sender profile
+  const [viewingLocation, setViewingLocation] = useState<{ lat: number; lng: number; name?: string } | null>(null); // State to show location map
+
+  // --- Dummy Data for Meetup Proposals (Requests) ---
+  const dummyProposals: MeetupProposal[] = [
+    {
+      proposalId: 'prop-123',
+      senderId: 'user-abc-sender-id', // Example sender ID
+      senderName: 'Alice Anderson',
+      recipientId: user?.id || 'unknown-recipient', // Use logged-in user ID if available
+      placeName: 'The Cozy Corner Cafe',
+      latitude: 52.5200, // Berlin Lat
+      longitude: 13.4050, // Berlin Lng
+      meetupTime: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days from now
+      description: 'Hey! Saw your profile, interested in grabbing a coffee sometime next week to chat about local tech meetups?',
+      status: 'pending',
+      createdAt: new Date(Date.now() - 1 * 60 * 60 * 1000).toISOString(), // 1 hour ago
+    },
+    {
+      proposalId: 'prop-456',
+      senderId: 'user-xyz-sender-id', // Example sender ID
+      senderName: 'Bob Baker',
+      recipientId: user?.id || 'unknown-recipient', // Use logged-in user ID if available
+      placeName: 'Riverside Park Bench',
+      latitude: 52.5170, // Near Berlin Hbf
+      longitude: 13.3889,
+      meetupTime: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days from now
+      description: null, // No description
+      status: 'pending',
+      createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString(), // 3 days ago
+    },
+     {
+      proposalId: 'prop-789',
+      senderId: 'user-def-sender-id', // Example sender ID
+      senderName: 'Charlie Chaplin',
+      recipientId: user?.id || 'unknown-recipient', // Use logged-in user ID if available
+      placeName: 'Museum Island Entrance',
+      latitude: 52.5186,
+      longitude: 13.3944,
+      meetupTime: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Tomorrow
+      description: 'Let\'s explore the museum together tomorrow afternoon?',
+      status: 'pending',
+      createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 minutes ago
+    },
+  ];
+  // --- End Dummy Data ---
 
   useEffect(() => {
     // Aktuelle Pfad beim Laden und bei Navigation setzen
@@ -422,9 +471,22 @@ const Header = () => {
             {/* Tab Content Area */}
             <div className="overflow-y-auto h-[calc(80vh-120px)]"> {/* Adjust height as needed */}
               {/* Removed Chats Tab Content */}
-              {activeMeetsTab === 'meetAndEat' && ( // Renamed
-                <div className="p-4 text-center text-gray-700">
-                  Content for Meet and Eat will go here.
+              {activeMeetsTab === 'meetAndEat' && ( // Renamed to Requests Tab
+                <div>
+                  {dummyProposals.length === 0 ? (
+                    <p className="p-4 text-center text-gray-500">No pending meetup requests.</p>
+                  ) : (
+                    <div className="space-y-0"> {/* Remove space between rows, border handles separation */}
+                      {dummyProposals.map((proposal) => (
+                        <MeetupRequestRow
+                          key={proposal.proposalId}
+                          proposal={proposal}
+                          onViewProfile={setViewingSenderId}
+                          onViewLocation={setViewingLocation}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
               {activeMeetsTab === 'activity' && (
@@ -440,6 +502,25 @@ const Header = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Conditionally rendered popups for Requests Tab */}
+      {viewingSenderId && (
+        <ReadOnlyUserProfile
+          userId={viewingSenderId}
+          onClose={() => setViewingSenderId(null)}
+          // travelStatus can be fetched or passed if needed later
+        />
+      )}
+
+      {viewingLocation && (
+        <SimpleMapDisplay
+          latitude={viewingLocation.lat}
+          longitude={viewingLocation.lng}
+          placeName={viewingLocation.name}
+          isOpen={!!viewingLocation}
+          onClose={() => setViewingLocation(null)}
+        />
       )}
     </>
   );

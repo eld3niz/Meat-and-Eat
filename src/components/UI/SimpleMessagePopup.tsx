@@ -229,19 +229,36 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
   };
 
   const handleConfirmSubmit = () => {
-     if (!selectedLocation || !meetupDateTime) return;
-    const meetupTitle = placeName || `Meetup @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`;
-    const formData = {
-      title: meetupTitle,
+    if (!selectedLocation || !meetupDateTime) return;
+
+    // 1. Gather proposal data
+    const proposalData = {
+      recipientUserId: userId,
+      recipientName: userName,
+      placeName: placeName || `Custom @ ${selectedLocation.lat.toFixed(4)}, ${selectedLocation.lng.toFixed(4)}`,
       latitude: selectedLocation.lat,
       longitude: selectedLocation.lng,
-      meetup_time: meetupDateTime.toISOString(),
-      description: description,
-      cuisines: selectedCuisines,
+      meetupTime: meetupDateTime.toISOString(),
+      description: description || null, // Ensure null if empty
+      // Note: senderId and senderName would be the logged-in user, added later
     };
-    onSubmit(formData); // Use the passed onSubmit prop
+
+    // 2. Log the proposal data (simulation of sending)
+    console.log("--- Meetup Proposal Sent (UI Simulation) ---");
+    console.log("Recipient User ID:", proposalData.recipientUserId);
+    console.log("Recipient Name:", proposalData.recipientName);
+    console.log("Place:", proposalData.placeName);
+    console.log("Location:", { lat: proposalData.latitude, lng: proposalData.longitude });
+    console.log("Time:", proposalData.meetupTime);
+    console.log("Description:", proposalData.description);
+    console.log("---------------------------------------------");
+
+    // 3. Comment out original onSubmit (if it's for creating meetups directly)
+    // onSubmit(formData); // Use the passed onSubmit prop
+
+    // 4. Close the confirmation and the popup
     setShowConfirmation(false);
-    // onClose(); // Let the calling component handle closing after successful submit
+    onClose(); // Close the entire popup after "sending"
   };
 
   const handleCancelSubmit = () => {
@@ -444,9 +461,8 @@ const SimpleMessagePopup: React.FC<SimpleMessagePopupProps> = ({
                   Cancel
                 </button>
                 <button
-                  type="button" // Changed from submit as it has no function yet
+                  type="submit" // Trigger the form's onSubmit which calls handleSubmitAttempt
                   className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600" // Adjusted styling slightly
-                  // onClick={() => { /* No function yet */ }} // Placeholder for future functionality
                 >
                   Meet proposal
                 </button>
